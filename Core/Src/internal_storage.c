@@ -115,7 +115,7 @@ FRESULT intstor_append_file(const char* filename, const void* buf, UINT size, UI
 		return res;
 	}
 
-	res = f_open(&DIOSPIFile, filename, FA_OPEN_APPEND|FA_WRITE);
+	res = f_open(&DIOSPIFile, filename, FA_OPEN_ALWAYS|FA_WRITE);
 	if(res != FR_OK) {
 		LOG_DEBUG(STOR_MODULE_TAG, "f_open() error=%i\n", res);
 		out = res;

@@ -62,7 +62,7 @@ typedef struct _module_settings {
 	// External clock state
 	uint8_t clock_initialized;
 	// Measure delay in milliseconds
-	uint32_t sleeping_time;
+	uint32_t sleep_time;
 } ModuleSettings;
 
 

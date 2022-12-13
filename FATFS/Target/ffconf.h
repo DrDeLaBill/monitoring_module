@@ -81,7 +81,7 @@
 / Locale and Namespace Configurations
 /-----------------------------------------------------------------------------*/
 
-#define _CODE_PAGE         1252
+#define _CODE_PAGE         850
 /* This option specifies the OEM code page to be used on the target system.
 /  Incorrect setting of the code page can cause a file open failure.
 /
@@ -143,7 +143,7 @@
 /
 /  When _LFN_UNICODE is 0, this option has no effect. */
 
-#define _FS_RPATH       1 /* 0 to 2 */
+#define _FS_RPATH       0 /* 0 to 2 */
 /* This option configures relative path feature.
 /
 /   0: Disable relative path feature and remove related functions.

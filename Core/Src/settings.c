@@ -46,7 +46,7 @@ void _general_settings_default(settings_sd_payload_t* payload) {
 	payload->v1.payload_settings.tank_ADC_min = MAX_TANK_VOLUME;
 	payload->v1.payload_settings.milliliters_per_day = MAX_TANK_VOLUME;
 	payload->v1.payload_settings.pump_speed = 0;
-	payload->v1.payload_settings.sleeping_time = DEFAULT_SLEEPING_TIME;
+	payload->v1.payload_settings.sleep_time = DEFAULT_SLEEPING_TIME;
 	payload->v1.payload_settings.clock_initialized = false;
 	show_settings();
 }
@@ -62,7 +62,7 @@ void _general_settings_save(settings_sd_payload_t* payload) {
 	payload->v1.payload_settings.tank_ADC_min = module_settings.tank_ADC_min;
 	payload->v1.payload_settings.milliliters_per_day = module_settings.milliliters_per_day;
 	payload->v1.payload_settings.pump_speed = module_settings.pump_speed;
-	payload->v1.payload_settings.sleeping_time = module_settings.sleeping_time;
+	payload->v1.payload_settings.sleep_time = module_settings.sleep_time;
 	payload->v1.payload_settings.clock_initialized = module_settings.clock_initialized;
 	show_settings();
 }
@@ -77,7 +77,7 @@ void _general_settings_load(const settings_sd_payload_t* payload) {
 	module_settings.tank_ADC_min = payload->v1.payload_settings.tank_ADC_min;
 	module_settings.milliliters_per_day = payload->v1.payload_settings.milliliters_per_day;
 	module_settings.pump_speed = payload->v1.payload_settings.pump_speed;
-	module_settings.sleeping_time = payload->v1.payload_settings.sleeping_time;
+	module_settings.sleep_time = payload->v1.payload_settings.sleep_time;
 	module_settings.clock_initialized = payload->v1.payload_settings.clock_initialized;
 	show_settings();
 }
@@ -93,15 +93,15 @@ void show_settings()
 	LOG_DEBUG(
 		SETTINGS_TAG,
 		"\r\nTime: %d-%02d-%02dT%02d:%02d:%02d\r\n"
-		"Device uniq ID: %d\r\n"
+		"Device ID: %d\r\n"
 		"Server URL: %s:%s\r\n"
-		"Tank liquid calibration ADC level MIN: %d\r\n"
-		"Tank liquid calibration ADC level MAX: %d\r\n"
-		"Tank liquid calibration liters level MIN: %d l\r\n"
-		"Tank liquid calibration liters level MAX: %d l\r\n"
-		"Target milliliters per day: %d ml/d\r\n"
-		"Pump speed (milliliters per hour): %d ml/h\r\n"
-		"Sleeping time: %d sec\r\n\r\n",
+		"ADC level MIN: %d\r\n"
+		"ADC level MAX: %d\r\n"
+		"Liquid level MIN: %d l\r\n"
+		"Liquid level MAX: %d l\r\n"
+		"Target: %d ml/d\r\n"
+		"Pump speed: %d ml/h\r\n"
+		"Sleep time: %d sec\r\n\r\n",
 		DS1307_GetYear(),
 		DS1307_GetMonth(),
 		DS1307_GetDate(),
@@ -117,7 +117,7 @@ void show_settings()
 		module_settings.tank_liters_max,
 		module_settings.milliliters_per_day,
 		module_settings.pump_speed,
-		module_settings.sleeping_time / MILLIS_IN_SECOND
+		module_settings.sleep_time / MILLIS_IN_SECOND
 	);
 }
 

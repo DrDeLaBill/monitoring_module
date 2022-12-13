@@ -76,6 +76,12 @@ extern SPI_HandleTypeDef hspi1;
 #define SD_HSPI hspi1
 #define SD_CS_GPIO_Port SPI1_SD_NSS_GPIO_Port
 #define SD_CS_Pin SPI1_SD_NSS_Pin
+// Shunt
+extern I2C_HandleTypeDef hi2c1;
+#define INA3221_I2C hi2c1
+// UART command manager
+extern UART_HandleTypeDef huart2;
+#define COMMAND_UART huart2
 
 /* USER CODE END Private defines */
 
