@@ -14,7 +14,5 @@
 #define UART_RESPONSE_SIZE 40
 
 void command_manager_begin();
-bool validate_command();
-void execute_command();
 
 #endif /* INC_COMMAND_MANAGER_H_ */
