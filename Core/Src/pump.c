@@ -33,8 +33,8 @@ DateTime stopTime = {};
 
 void pump_init()
 {
-	HAL_GPIO_WritePin(&PUMP_GPIO_Port, PUMP_Pin, RESET);
-	HAL_GPIO_WritePin(&PUMP_LED_GPIO_Port, PUMP_LED_Pin, RESET);
+	HAL_GPIO_WritePin(PUMP_GPIO_Port, PUMP_Pin, RESET);
+	HAL_GPIO_WritePin(PUMP_LED_GPIO_Port, PUMP_LED_Pin, RESET);
 	_set_current_time(&startTime);
 	_calculate_work_time();
 }
@@ -155,7 +155,7 @@ bool _if_time_to_stop_pump()
 void _start_pump()
 {
 	if (_if_pump_work_time_too_short()) {
-		HAL_GPIO_WritePin(&PUMP_LED_GPIO_Port, PUMP_LED_Pin, RESET);
+		HAL_GPIO_WritePin(PUMP_LED_GPIO_Port, PUMP_LED_Pin, RESET);
 		return;
 	}
 	if (current_state == SET) {
@@ -163,8 +163,8 @@ void _start_pump()
 	}
 	current_state = SET;
 	send_debug_message("PUMP ON");
-	HAL_GPIO_WritePin(PUMPGPIOx, PUMP_GPIO_Pin, current_state);
-	HAL_GPIO_WritePin(&PUMP_LED_GPIO_Port, PUMP_LED_Pin, current_state);
+	HAL_GPIO_WritePin(PUMP_GPIO_Port, PUMP_Pin, current_state);
+	HAL_GPIO_WritePin(PUMP_LED_GPIO_Port, PUMP_LED_Pin, current_state);
 }
 
 void _stop_pump()
@@ -174,7 +174,7 @@ void _stop_pump()
 	}
 	current_state = RESET;
 	send_debug_message("PUMP OFF");
-	HAL_GPIO_WritePin(PUMPGPIOx, PUMP_GPIO_Pin, RESET);
+	HAL_GPIO_WritePin(PUMP_GPIO_Port, PUMP_Pin, RESET);
 }
 
 uint8_t _days_in_month(uint8_t year, uint8_t month)

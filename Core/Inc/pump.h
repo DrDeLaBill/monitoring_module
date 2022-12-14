@@ -10,7 +10,7 @@
 
 #include "stm32f1xx_hal.h"
 
-void pump_init(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin);
+void pump_init();
 void pump_proccess();
 
 #endif /* INC_PUMP_H_ */
