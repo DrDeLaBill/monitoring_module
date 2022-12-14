@@ -34,4 +34,13 @@
 // Sim module
 #define REQUEST_JSON_SIZE 200
 
+typedef struct {
+	uint16_t year;
+	uint8_t month;
+	uint8_t date;
+	uint8_t hour;
+	uint8_t minute;
+	uint8_t second;
+} DateTime;
+
 #endif /* INC_DEFINES_H_ */

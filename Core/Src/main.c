@@ -130,6 +130,10 @@ int main(void)
 	INA3221_begin();
 	// UART command manager
 	command_manager_begin();
+	// Liquid sensor
+	liquid_sensor_begin();
+	// Pump
+	pump_init();
   /* USER CODE END 2 */
 
   /* Infinite loop */

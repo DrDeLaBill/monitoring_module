@@ -82,6 +82,9 @@ extern I2C_HandleTypeDef hi2c1;
 // UART command manager
 extern UART_HandleTypeDef huart2;
 #define COMMAND_UART huart2
+// Liquid sensor
+extern ADC_HandleTypeDef hadc1;
+#define LIQUID_ADC hadc1
 
 /* USER CODE END Private defines */
 
