@@ -30,6 +30,8 @@
 #include "command_manager.h"
 // SIM module
 #include "sim_module.h"
+// Data logger
+#include "logger.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -138,6 +140,8 @@ int main(void)
 	pump_init();
 	// SIM module
 	sim_module_begin();
+	// Data logger
+	logger_begin();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -146,6 +150,7 @@ int main(void)
   {
     /* USER CODE END WHILE */
 	  sim_module_proccess();
+	  logger_proccess();
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */

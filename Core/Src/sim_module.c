@@ -16,12 +16,12 @@
 #define LINE_BREAK_COUNT 2
 #define UART_TIMEOUT     100
 #define END_OF_STRING    0x1a
-#define REQUEST_SIZE     250
 #define RESPONSE_SIZE    80
 #define UART_WAIT        10000
 #define RESTART_WAIT     1000
 #define CONF_CMD_SIZE    9
 #define GPRS_CMD_SIZE    40
+#define HTTP_ACT_SIZE    40
 // SIM module states
 #define RESET_STATE      0x00
 #define MODULE_READY     0x01
@@ -29,7 +29,8 @@
 #define WAIT_MODULE      0x04
 #define WAIT_HTTP        0x08
 #define CMD_SUCCESS      0x10
-#define HTTP_SUCCESS     0x20
+#define HTTP_ACT_SUCCESS 0x20
+#define HTTP_SUCCESS     0x40
 #define ERROR_STATE      0x80
 
 
@@ -39,12 +40,14 @@ void _shift_response();
 void _send_AT_command(const char* command);
 void _reset_module();
 void _start_module();
+void _stop_http();
 uint8_t _update_line_counter(uint8_t *line_break_counter);
 bool _if_module_ready();
 bool _if_gprs_ready();
 bool _if_wait_module();
 bool _if_wait_http();
 bool _if_cmd_success();
+bool _if_http_act_success();
 bool _if_http_success();
 bool _if_has_error();
 
@@ -57,6 +60,7 @@ struct _sim_module_state {
 
 const char* SIM_TAG = "SIM";
 const char* SUCCESS_CMD_RESP = "OK";
+const char* SUCCESS_HTTP_ACT = "CHTTPACT: REQUEST";
 const char* SUCCESS_HTTP_RESP = "200 ok";
 const char sim_config_list[][CONF_CMD_SIZE] = {
 	{"AT"},
@@ -69,10 +73,11 @@ const char gprs_config_list[][GPRS_CMD_SIZE] = {
 	{"AT+CGSOCKCONT=1,\"IP\",\"internet\""},
 	{"AT+CSOCKSETPN=1"},
 	{"AT+CSOCKSETPN=0"},
+	{"AT+CHTTPSSTART"},
 	{""}
 };
-char* response[RESPONSE_SIZE] = {};
-char* http_response[RESPONSE_SIZE] = {};
+char response[RESPONSE_SIZE] = {};
+char http_response[RESPONSE_SIZE] = {};
 
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
@@ -87,7 +92,13 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 		_clear_response();
 	}
 
-	if (strstr(response, SUCCESS_HTTP_RESP)) {
+	if (strstr(response, SUCCESS_HTTP_ACT)) {
+		sim_state.state |= HTTP_ACT_SUCCESS;
+		sim_state.state &= ~WAIT_HTTP;
+		_clear_response();
+	}
+
+	if (_if_http_act_success() && strstr(response, SUCCESS_HTTP_RESP)) {
 		sim_state.state |= HTTP_SUCCESS;
 		sim_state.state &= ~WAIT_HTTP;
 		_clear_response();
@@ -96,15 +107,17 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 	if (_if_http_success() && line_break_counter > LINE_BREAK_COUNT) {
 		_clear_response();
 		HAL_UART_Receive(&SIM_MODULE_UART, http_response, RESPONSE_SIZE, UART_TIMEOUT);
+		_stop_http();
 		line_break_counter = 0;
+		sim_state.state = CMD_SUCCESS | MODULE_READY | GPRS_READY | HTTP_SUCCESS;
 		LOG_DEBUG(SIM_TAG, "HTTP response: %s\r\n", http_response);
 	}
 
-	if (strlen(response) >= RESPONSE_SIZE) {
+	if (strlen(response) >= RESPONSE_SIZE - 1) {
 		_shift_response();
 	}
 
-	HAL_UART_Receive_IT(&SIM_MODULE_UART, &response[strlen(response)], sizeof(char));
+	HAL_UART_Receive_IT(&SIM_MODULE_UART, response + strlen(response), sizeof(char));
 }
 
 void sim_module_begin() {
@@ -139,42 +152,34 @@ void sim_module_proccess()
 	}
 }
 
-void send_http(const char* url, const char* data)
+void connect_to_server()
 {
-	sprintf(AT_command, "AT+CHTTPACT=\"%s\",%s\r\n", module_settings.server_url, module_settings.server_port);
-	send_debug_message("Command:");
-	send_debug_message(AT_command);
-	HAL_UART_Transmit(&SIM_MODULE_UART, (uint8_t *)AT_command, strlen(AT_command), DEFAULT_AT_TIMEOUT);
-	HAL_UART_Receive(_sim_huart, http_response, RESP_BUFFER_HTTP_SIZE, LONG_AT_TIMEOUT);
-	send_debug_message("Response:");
-	send_debug_message(http_response);
-	if (!strstr(http_response, "+CHTTPACT: REQUEST")) {
-		return false;
-	}
+	char http_act[HTTP_ACT_SIZE] = {};
+	snprintf(http_act, "AT+CHTTPACT=\"%s\",%s\r\n", module_settings.server_url, module_settings.server_port, HTTP_ACT_SIZE);
+	_send_AT_command(http_act);
+}
 
-	char* request[REQUEST_SIZE] = {};
-	sprintf(
-		request,
-		"POST /%s HTTP/1.1\r\n"
-		"Host: %s:%s\r\n"
-		"User-Agent: SIM5320E\r\n"
-		"Accept: */*\r\n"
-		"Content-Type: application/json\r\n"
-		"Cache-Control: no-cache\r\n"
-		"Accept-Charset: utf-8, us-ascii\r\n"
-		"Pragma: no-cache\r\n"
-		"Content-Length: %d\r\n\r\n"
-		"%s\r\n"
-		"%c\r\n",
-		url,
-		module_settings.server_url,
-		module_settings.server_port,
-		strlen(data),
-		data,
-		END_OF_STRING
-	);
-	LOG_DEBUG(SIM_TAG, "%s\r\n", request);
-	HAL_UART_Transmit(_sim_huart, (uint8_t *)request, strlen(request), UART_TIMEOUT);
+void send_http(const char* data)
+{
+	if (!strlen(data)) {
+		return;
+	}
+	_send_AT_command(data);
+}
+
+bool is_module_ready()
+{
+	return _if_module_ready() && _if_gprs_ready();
+}
+
+bool is_server_available()
+{
+	return !_if_has_error() && _if_http_act_success();
+}
+
+bool is_http_success()
+{
+	return !_if_has_error() && _if_http_success();
 }
 
 char* get_response()
@@ -248,6 +253,11 @@ void _clear_response()
 	memset(http_response, 0, sizeof(http_response));
 }
 
+void _stop_http()
+{
+    _send_AT_command("AT+CHTTPSSTOP", LONG_AT_TIMEOUT);
+}
+
 void _reset_module()
 {
 	HAL_GPIO_WritePin(SIM_MODULE_RESET_PORT, SIM_MODULE_RESET_PIN, GPIO_PIN_RESET);
@@ -281,6 +291,11 @@ bool _if_wait_http()
 bool _if_cmd_success()
 {
 	return sim_state.state & CMD_SUCCESS;
+}
+
+bool _if_http_act_success()
+{
+	return sim_state.state & HTTP_ACT_SUCCESS;
 }
 
 bool _if_http_success()
