@@ -28,6 +28,8 @@
 #include "ina3221_sensor.h"
 // UART command manager
 #include "command_manager.h"
+// SIM module
+#include "sim_module.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -134,6 +136,8 @@ int main(void)
 	liquid_sensor_begin();
 	// Pump
 	pump_init();
+	// SIM module
+	sim_module_begin();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -141,7 +145,7 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-
+	  sim_module_proccess();
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */

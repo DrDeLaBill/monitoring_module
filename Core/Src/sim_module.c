@@ -14,62 +14,263 @@
 #include "liquid_sensor.h"
 #include "sd_card_log.h"
 
-UART_HandleTypeDef *_sim_huart;
-GPIO_TypeDef* _reset_GPIO_port;
-uint16_t _reset_pin;
-uint32_t _reset_time = 0;
-bool _sim_module_initialized = false;
-bool _sim_module_ready = false;
-bool _GPRS_ready = false;
-bool _server_available = false;
-uint8_t http_response[RESP_BUFFER_HTTP_SIZE] = {},
-		AT_command[REQUEST_COMMAND_SIZE] = {},
-		request[REQUEST_COMMAND_SIZE] = {},
-		recieve_buffer[RESP_BUFFER_SIZE] = {};
 
-bool _start_http();
-void _stop_http();
-bool _try_to_chttpact(char* url, char* data);
-bool _reset_sim_module();
-bool _send_AT_command(char* command, uint16_t response_timeout);
-bool _check_sim_model();
-bool _start_GPRS();
-void _reset_sim_module_state();
-void _clear_response();
+#define LINE_BREAK_COUNT 2
+#define UART_TIMEOUT     100
+#define END_OF_STRING    0x1a
+#define REQUEST_SIZE     250
+#define RESPONSE_SIZE    80
+#define UART_WAIT        10000
+#define RESTART_WAIT     1000
 
-void sim_module_begin(UART_HandleTypeDef* sim_huart, GPIO_TypeDef* sim_reset_GPIO_port, uint16_t sim_reset_pin) {
-	_sim_huart = sim_huart;
-	_reset_GPIO_port = sim_reset_GPIO_port;
-	_reset_pin = sim_reset_pin;
-	if (!_reset_sim_module()) {
-		return;
+
+//uint32_t _reset_time = 0;
+//bool _sim_module_initialized = false;
+//bool _sim_module_ready = false;
+//bool _GPRS_ready = false;
+//uint8_t http_response[RESP_BUFFER_HTTP_SIZE] = {},
+//		AT_command[REQUEST_COMMAND_SIZE] = {},
+//		request[REQUEST_COMMAND_SIZE] = {},
+//		recieve_buffer[RESP_BUFFER_SIZE] = {};
+//bool _server_available = false;
+
+//bool _start_http();
+//void _stop_http();
+//bool _try_to_chttpact(char* url, char* data);
+//bool _reset_sim_module();
+//bool _check_sim_model();
+//bool _start_GPRS();
+//void _reset_sim_module_state();
+//void _clear_response();
+
+void _check_module_response();
+void _send_config_command();
+void _check_http_response();
+void _shift_response();
+void _send_AT_command(const char* command);
+void _reset_module();
+void _start_module();
+
+
+struct _sim_module_state {
+	dio_timer_t uart_wait;
+	dio_timer_t restart_wait;
+	bool sim_module_ready;
+	bool gprs_ready;
+	bool wait_module_response;
+	bool wait_http_resoponse;
+	bool error;
+} sim_state;
+
+const char* SIM_TAG = "SIM";
+const char* SUCCESS_RESPONSE = "OK";
+const char** sim_config_list = {
+	"AT",
+	"ATE0",
+	"AT+CPIN?",
+	NULL
+};
+const char** gprs_config_list = {
+	"AT+CGDCONT=1,\"IP\",\"internet\",\"0.0.0.0\"",
+	"AT+CGSOCKCONT=1,\"IP\",\"internet\"",
+	"AT+CSOCKSETPN=1",
+	"AT+CSOCKSETPN=0",
+	NULL
+};
+char* response[RESPONSE_SIZE] = {};
+char* http_response[RESPONSE_SIZE] = {};
+
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+	static line_break_counter = 0;
+
+	if (strlen(response) > 0) {
+		line_break_counter = response[strlen(response)-1] == '\n' ? line_break_counter + 1 : 0;
 	}
-	if (!sim_module_init()) {
-		return;
+
+	if (line_break_counter > LINE_BREAK_COUNT) {
+		_clear_response();
+		HAL_UART_Receive(&SIM_MODULE_UART, http_response, RESPONSE_SIZE, UART_TIMEOUT);
+		LOG_DEBUG(SIM_TAG, "HTTP response: %s\r\n", http_response);
+		line_break_counter = 0;
 	}
-	_sim_module_initialized = true;
-	send_debug_message("SIM MODULE STARTED");
+
+	if (strlen(response) >= RESPONSE_SIZE) {
+		_shift_response();
+	}
+
+	HAL_UART_Receive_IT(&SIM_MODULE_UART, response + strlen(response), sizeof(char));
 }
 
-void restart_sim_module() {
-	_reset_sim_module();
+void sim_module_begin() {
+	memset(sim_state, 0, suzeof(sim_state));
+	Util_TimerStart(sim_state.uart_wait, UART_WAIT);
+	Util_TimerStart(sim_state.restart_wait, RESTART_WAIT);
+	_start_module();
+	HAL_UART_Receive_IT(&SIM_MODULE_UART, response + strlen(response), sizeof(char));
 }
+
+void sim_module_proccess()
+{
+	if (sim_state.error && !Util_TimerPending(sim_state.restart_wait)) {
+		_reset_module();
+		sim_state.waiting_time = HAL_GetTick();
+	}
+
+	if (!sim_state.error && !Util_TimerPending(sim_state.restart_wait)) {
+		_start_module();
+		sim_state.error = false;
+	}
+
+	if (sim_state.error) {
+		return;
+	}
+
+	if (sim_state.wait_module_response) {
+		_check_module_response();
+	} else {
+		_send_config_command();
+	}
+}
+
+void send_http(const char* url, const char* data)
+{
+	sprintf(AT_command, "AT+CHTTPACT=\"%s\",%s\r\n", module_settings.server_url, module_settings.server_port);
+	send_debug_message("Command:");
+	send_debug_message(AT_command);
+	HAL_UART_Transmit(_sim_huart, (uint8_t *)AT_command, strlen(AT_command), DEFAULT_AT_TIMEOUT);
+	HAL_UART_Receive(_sim_huart, http_response, RESP_BUFFER_HTTP_SIZE, LONG_AT_TIMEOUT);
+	send_debug_message("Response:");
+	send_debug_message(http_response);
+	if (!strstr(http_response, "+CHTTPACT: REQUEST")) {
+		return false;
+	}
+
+	char* request[REQUEST_SIZE] = {};
+	sprintf(
+		request,
+		"POST /%s HTTP/1.1\r\n"
+		"Host: %s:%s\r\n"
+		"User-Agent: SIM5320E\r\n"
+		"Accept: */*\r\n"
+		"Content-Type: application/json\r\n"
+		"Cache-Control: no-cache\r\n"
+		"Accept-Charset: utf-8, us-ascii\r\n"
+		"Pragma: no-cache\r\n"
+		"Content-Length: %d\r\n\r\n"
+		"%s\r\n"
+		"%c\r\n",
+		url,
+		module_settings.server_url,
+		module_settings.server_port,
+		strlen(data),
+		data,
+		END_OF_STRING
+	);
+	LOG_DEBUG(SIM_TAG, "%s\r\n", request);
+	HAL_UART_Transmit(_sim_huart, (uint8_t *)request, strlen(request), UART_TIMEOUT);
+}
+
+char* get_response()
+{
+	return http_response;
+}
+
+void _check_module_response()
+{
+	if (!Util_TimerPending(sim_state.uart_wait)) {
+		sim_state.wait_module_response = false;
+		sim_state.error = true;
+		_clear_response();
+		LOG_DEBUG(SIM_TAG, "module error\r\n");
+	}
+
+	if (strstr(response, SUCCESS_RESPONSE)) {
+		sim_state.wait_module_response = false;
+		HAL_UART_Receive(&SIM_MODULE_UART, response, RESPONSE_SIZE, UART_TIMEOUT);
+		_clear_response();
+	}
+
+	if (strlen(response) >= RESPONSE_SIZE - 1) {
+		_shift_response();
+	}
+}
+
+void _send_config_command()
+{
+	static char** config_pos = sim_config_list;
+	static char** gprs_pos = gprs_config_list;
+	if (sim_state.error || !Util_TimerPending(sim_state.uart_wait)) {
+		sim_state.error = true;
+		config_pos = sim_config_list;
+		gprs_pos = gprs_config_list;
+	}
+
+	if (!sim_state.sim_module_ready && *config_pos) {
+		_send_AT_command(*config_pos);
+		sim_state.wait_module_response = true;
+		config_pos = *config_pos ? config_pos + 1 : config_pos;
+	} else {
+		sim_state.sim_module_ready = true;
+		_send_AT_command(*gprs_pos);
+		sim_state.wait_module_response = true;
+		gprs_pos = *gprs_pos ? gprs_pos + 1 : gprs_pos;
+	}
+
+	if (sim_state.sim_module_ready && !*config_pos && !*gprs_pos) {
+		sim_state.gprs_ready = true;
+		return;
+	}
+
+	Util_TimerStart(sim_state.uart_wait, UART_WAIT);
+}
+
+void _send_AT_command(const char* command)
+{
+	LOG_DEBUG(SIM_TAG, "Command: %s\r\n", command);
+	HAL_UART_Transmit(&SIM_MODULE_UART, command, strlen(command), UART_TIMEOUT);
+}
+
+void _shift_response() {
+	strncpy(response, response + RESPONSE_SIZE / 2, RESPONSE_SIZE);
+	memset(response + RESPONSE_SIZE / 2, 0, RESPONSE_SIZE / 2);
+}
+
+void _clear_response()
+{
+	memset(response, 0, sizeof(response));
+}
+
+void _resеt_module()
+{
+	HAL_GPIO_WritePin(_reset_GPIO_port, _reset_pin, GPIO_PIN_RESET);
+}
+
+void _start_module()
+{
+	HAL_GPIO_WritePin(_reset_GPIO_port, _reset_pin, GPIO_PIN_SET);
+}
+
+
+
+
+
+
 
 bool send_log()
 {
-	char data[REQUEST_JSON_SIZE-1] = {};
+	char data[REQUEST_JSON_SIZE] = {};
 	if (!INA3221_available()) {
 		send_debug_message("INA3221 sensor is not connected");
 	}
-	sprintf(
+	snprintf(
 		data,
-		"{"
-			"\"id\": %d,"
-			"\"time\": \"%s\","
-			"\"first_shunt\": %.2f,"
-			"\"second_shint\": %.2f,"
-			"\"liquid_level\": %.2f"
-		"}\n",
+		"\"id\": %d,"
+		"\"time\": \"%s\","
+		"\"first_shunt\": %.2f,"
+		"\"second_shint\": %.2f,"
+		"\"liquid_level\": %.2f",
 		module_settings.id,
 		get_time_string(),
 		INA3221_getCurrent_mA(1),
@@ -78,21 +279,24 @@ bool send_log()
 	);
 	send_debug_message("Log data:");
 	send_debug_message(data);
-	if (!send_http_POST("upload-log", data)) {
-		_server_available = false;
-	}
-	if (strstr(http_response, "200 ok")) {
-		send_debug_message("SEND LOG SUCCESS");
-		_server_available = true;
-		return true;
-	}
-	send_debug_message("ERROR SEND LOG");
+
 	if (!write_record(data)) {
 		send_debug_message("ERROR WRITE LOG TO SD CARD");
-		_server_available = false;
-		return false;
 	}
-	send_debug_message("WRITE LOG TO SD CARD SUCCESS");
+	if (!send_http_POST("upload-log", data)) {
+		goto fail;
+	}
+	if (!strstr(http_response, "200 ok")) {
+	}
+	send_debug_message("ERROR SEND LOG");
+
+success:
+	send_debug_message("SEND LOG SUCCESS");
+	_server_available = true;
+	return true;
+
+fail:
+	_server_available = false;
 	return false;
 }
 
@@ -263,14 +467,6 @@ bool _try_to_chttpact(char* url, char* data)
 	return false;
 }
 
-bool is_sim_module_ready() {
-	return _sim_module_ready;
-}
-
-bool is_GPRS_ready() {
-	return _GPRS_ready;
-}
-
 bool _reset_sim_module()
 {
 	_reset_sim_module_state();
@@ -290,71 +486,6 @@ bool _reset_sim_module()
 	return true;
 }
 
-bool sim_module_init()
-{
-	if (!_send_AT_command("AT", DEFAULT_AT_TIMEOUT)) {
-		_reset_sim_module_state();
-		return false;
-	}
-	if (!_send_AT_command("ATE0", DEFAULT_AT_TIMEOUT)) {
-		_reset_sim_module_state();
-		return false;
-	}
-	if (!_check_sim_model()) {
-		_reset_sim_module_state();
-		return false;
-	}
-	if (!_send_AT_command("AT+CPIN?", DEFAULT_AT_TIMEOUT)) {
-		_reset_sim_module_state();
-		return false;
-	}
-
-	_sim_module_ready = true;
-	return _start_GPRS();
-}
-
-bool _send_AT_command(char* command, uint16_t response_timeout)
-{
-	sprintf(AT_command, "%s\r\n", command);
-	HAL_UART_Transmit(_sim_huart, (uint8_t *)AT_command, strlen(AT_command), DEFAULT_AT_TIMEOUT);
-	HAL_UART_Receive(_sim_huart, recieve_buffer, RESP_BUFFER_SIZE, response_timeout);
-
-	bool status = (bool)strstr(recieve_buffer, "OK");
-	memset(recieve_buffer, 0, sizeof(recieve_buffer));
-	return status;
-}
-
-bool _check_sim_model()
-{
-	strcpy(AT_command, "AT+GMM\r\n");
-	HAL_UART_Transmit(_sim_huart, (uint8_t *)AT_command, strlen(AT_command), DEFAULT_AT_TIMEOUT);
-	HAL_UART_Receive(_sim_huart, recieve_buffer, RESP_BUFFER_SIZE, DEFAULT_AT_TIMEOUT);
-
-	bool status = (bool)strstr(recieve_buffer, SIM_MODULE_MODEL);
-	memset(recieve_buffer, 0, sizeof(recieve_buffer));
-	return status;
-}
-
-bool _start_GPRS()
-{
-    if (!_send_AT_command("AT+CGDCONT=1,\"IP\",\"internet\",\"0.0.0.0\"", DEFAULT_AT_TIMEOUT)) {
-		_reset_sim_module_state();
-		return false;
-	}
-    if (!_send_AT_command("AT+CGSOCKCONT=1,\"IP\",\"internet\"", DEFAULT_AT_TIMEOUT)) {
-		_reset_sim_module_state();
-    	return false;
-    }
-    if (!_send_AT_command("AT+CSOCKSETPN=1", DEFAULT_AT_TIMEOUT)) {
-		_reset_sim_module_state();
-		_send_AT_command("AT+CSOCKSETPN=0", DEFAULT_AT_TIMEOUT);
-    	return false;
-    }
-
-    _GPRS_ready = true;
-    return true;
-}
-
 void _reset_sim_module_state()
 {
 	if (_sim_module_ready || _GPRS_ready) {
@@ -364,16 +495,4 @@ void _reset_sim_module_state()
 	_sim_module_ready = false;
 	_server_available = false;
 	_GPRS_ready = false;
-}
-
-bool is_sim_module_initialized()
-{
-	return _sim_module_initialized;
-}
-
-void _clear_response()
-{
-	memset(http_response, 0, sizeof(http_response));
-	memset(recieve_buffer, 0, sizeof(recieve_buffer));
-	memset(request, 0, sizeof(request));
 }

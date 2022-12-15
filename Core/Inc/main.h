@@ -85,6 +85,11 @@ extern UART_HandleTypeDef huart2;
 // Liquid sensor
 extern ADC_HandleTypeDef hadc1;
 #define LIQUID_ADC hadc1
+// SIM module
+extern UART_HandleTypeDef huart1;
+#define SIM_MODULE_UART huart1;
+#define SIM_MODULE_RESET_PORT SIM_RESET_GPIO_Port
+#define SIM_MODULE_RESET_PIN SIM_RESET_GPIO_Port
 
 /* USER CODE END Private defines */
 

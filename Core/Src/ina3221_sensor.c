@@ -131,6 +131,9 @@ float INA3221_getBusVoltage_V(int channel)
 /**************************************************************************/
 float INA3221_getCurrent_mA(int channel)
 {
+	if (!INA3221_available()) {
+		return INA3221_ERROR;
+	}
 	float valueDec = INA3221_getShuntVoltage_mV(channel) / SHUNT_RESISTOR_VALUE;
 	return valueDec;
 }

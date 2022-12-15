@@ -102,13 +102,13 @@ void _execute_command()
 	if (strncmp("setid", command[0], CHAR_COMMAND_SIZE) == 0) {
 		module_settings.id = (uint32_t)atoi(command[1]);
 		_show_id();
-	} else if (strncmp("setsleepingtime", command[0], CHAR_COMMAND_SIZE) == 0) {
+	} else if (strncmp("setsleep", command[0], CHAR_COMMAND_SIZE) == 0) {
 		module_settings.sleep_time = atoi(command[1]);
 		_show_sleeping_time();
-	} else if (strncmp("setserverurl", command[0], CHAR_COMMAND_SIZE) == 0) {
+	} else if (strncmp("seturl", command[0], CHAR_COMMAND_SIZE) == 0) {
 		strncpy(module_settings.server_url, command[1], CHAR_COMMAND_SIZE);
 		_show_server_url();
-	} else if (strncmp("setserverport", command[0], CHAR_COMMAND_SIZE) == 0) {
+	} else if (strncmp("setport", command[0], CHAR_COMMAND_SIZE) == 0) {
 		strncpy(module_settings.server_port, command[1], CHAR_COMMAND_SIZE);
 		_show_server_port();
 	} else if (strncmp("setlitersmin", command[0], CHAR_COMMAND_SIZE) == 0) {
@@ -117,22 +117,20 @@ void _execute_command()
 	} else if (strncmp("setlitersmax", command[0], CHAR_COMMAND_SIZE) == 0) {
 		module_settings.tank_liters_max = atoi(command[1]);
 		_show_liters_max();
-	} else if (strncmp("setcurrentlitersmin", command[0], CHAR_COMMAND_SIZE) == 0) {
-//		module_settings.tank_ADC_min = get_liquid_ADC_value();
+	} else if (strncmp("saveadcmmin", command[0], CHAR_COMMAND_SIZE) == 0) {
+		module_settings.tank_ADC_min = get_liquid_ADC_value();
 		_show_liters_ADC_min();
-	} else if (strncmp("setcurrentlitersmax", command[0], CHAR_COMMAND_SIZE) == 0) {
-//		module_settings.tank_ADC_max = get_liquid_ADC_value();
+	} else if (strncmp("saveadcax", command[0], CHAR_COMMAND_SIZE) == 0) {
+		module_settings.tank_ADC_max = get_liquid_ADC_value();
 		_show_liters_ADC_max();
-	} else if (strncmp("setmillilitersperday", command[0], CHAR_COMMAND_SIZE) == 0) {
+	} else if (strncmp("settarget", command[0], CHAR_COMMAND_SIZE) == 0) {
 		module_settings.milliliters_per_day = atoi(command[1]);
 		_show_liters_per_month();
 	} else if (strncmp("setpumpspeed", command[0]) == 0, CHAR_COMMAND_SIZE) {
 		module_settings.pump_speed = (uint32_t)atoi(command[1]);
 		_show_pump_speed();
-	} else if (strncmp("eraseflash", command[0], CHAR_COMMAND_SIZE) == 0) {
-		// TODO: remove file
-//		erase_flash();
-		_send_uart_response("FLASH erased\r\n");
+	} else if (strncmp("default", command[0], CHAR_COMMAND_SIZE) == 0) {
+		settings_reset();
 	} else {
 		_send_uart_response("Invalid UART command\r\n");
 		_clear_command();

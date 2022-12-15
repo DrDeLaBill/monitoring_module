@@ -76,6 +76,8 @@
 
 #define INA3221_MAX_TIMEOUT   (0xFFFF)
 
+#define INA3221_ERROR -1
+
 void INA3221_begin();
 bool INA3221_available();
 float INA3221_getBusVoltage_V(int channel);
