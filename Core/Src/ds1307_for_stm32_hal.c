@@ -2,9 +2,14 @@
 /* Library by @eepj www.github.com/eepj */
 #include "ds1307_for_stm32_hal.h"
 #include "main.h"
+#include "settings.h"
 #ifdef __cplusplus
 extern "C"{
 #endif
+
+
+#define YEAR_LIMIT 3000
+
 
 I2C_HandleTypeDef *_ds1307_ui2c;
 	
@@ -15,6 +20,20 @@ I2C_HandleTypeDef *_ds1307_ui2c;
 void DS1307_Init(I2C_HandleTypeDef *hi2c) {
 	_ds1307_ui2c = hi2c;
 	DS1307_SetClockHalt(0);
+	if (DS1307_GetYear() > YEAR_LIMIT) {
+		module_settings.clock_initialized = false;
+	}
+	if (!module_settings.clock_initialized) {
+		DS1307_SetYear(2000);
+		DS1307_SetMonth(1);
+		DS1307_SetDate(1);
+		DS1307_SetHour(0);
+		DS1307_SetMinute(0);
+		DS1307_SetSecond(0);
+		module_settings.clock_initialized = true;
+		settings_save();
+	}
+	settings_save();
 }
 
 /**

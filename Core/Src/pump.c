@@ -14,12 +14,12 @@
 #include "ds1307_for_stm32_hal.h"
 
 
-#define MIN_PUMP_WORK_TIME 60 // 1 min
-#define CYCLES_PER_HOUR 4
-#define MONTHS_PER_YEAR 12
-#define HOURS_PER_DAY 24
-#define MINUTES_PER_HOUR 60
+#define CYCLES_PER_HOUR    4
+#define MONTHS_PER_YEAR    12
+#define HOURS_PER_DAY      24
 #define SECONDS_PER_MINUTE 60
+#define MIN_PUMP_WORK_TIME SECONDS_PER_MINUTE
+#define MINUTES_PER_HOUR   60
 
 
 void _calculate_work_time();
@@ -62,11 +62,11 @@ void pump_proccess()
 void _calculate_work_time()
 {
 	if (module_settings.milliliters_per_day == 0) {
-		LOG_DEBUG(PUMP_TAG, "%s\r\n", "No setting: milliliters_per_day");
+		LOG_DEBUG(PUMP_TAG, "No setting: milliliters_per_day\r\n");
 		return;
 	}
 	if (module_settings.pump_speed == 0) {
-		LOG_DEBUG(PUMP_TAG, "%s\r\n", "No setting: pump_speed");
+		LOG_DEBUG(PUMP_TAG, "No setting: pump_speed\r\n");
 		return;
 	}
 	uint8_t needed_time = module_settings.milliliters_per_day * MINUTES_PER_HOUR / HOURS_PER_DAY / module_settings.pump_speed / CYCLES_PER_HOUR;

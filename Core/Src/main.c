@@ -119,6 +119,9 @@ int main(void)
 	settings_load();
     // DIO SPI
 	DIO_SPI_Delay_cb = &my_delay_ms;
+
+	// Clock
+	DS1307_Init(&hi2c1);
 	// Shunt
 	INA3221_begin();
 	// UART command manager
