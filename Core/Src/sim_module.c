@@ -80,7 +80,7 @@ char response[RESPONSE_SIZE] = {};
 char http_response[RESPONSE_SIZE] = {};
 
 
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+void sim_proccess_input(const char input_chr)
 {
 	static uint8_t line_break_counter = 0;
 
@@ -107,7 +107,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 	if (_if_http_success() && line_break_counter > LINE_BREAK_COUNT) {
 		_clear_response();
 		HAL_UART_Receive(&SIM_MODULE_UART, http_response, RESPONSE_SIZE, UART_TIMEOUT);
-		_stop_http();
 		line_break_counter = 0;
 		sim_state.state = CMD_SUCCESS | MODULE_READY | GPRS_READY | HTTP_SUCCESS;
 		LOG_DEBUG(SIM_TAG, "HTTP response: %s\r\n", http_response);
@@ -116,8 +115,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 	if (strlen(response) >= RESPONSE_SIZE - 1) {
 		_shift_response();
 	}
-
-	HAL_UART_Receive_IT(&SIM_MODULE_UART, response + strlen(response), sizeof(char));
 }
 
 void sim_module_begin() {
@@ -255,7 +252,7 @@ void _clear_response()
 
 void _stop_http()
 {
-    _send_AT_command("AT+CHTTPSSTOP", LONG_AT_TIMEOUT);
+    _send_AT_command("AT+CHTTPSSTOP");
 }
 
 void _reset_module()

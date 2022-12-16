@@ -12,6 +12,10 @@
 #include "utils.h"
 
 
+#define LIQUID_ERROR -1.0
+#define MILLILITERS_IN_LITER 1000
+
+
 const char* LIQUID_TAG = "LQID";
 const char* error = "SENSOR ERROR";
 

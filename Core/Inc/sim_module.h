@@ -7,6 +7,7 @@
 
 void sim_module_degin();
 void sim_module_proccess();
+void sim_proccess_input(const char input_chr);
 void connect_to_server();
 void send_http(const char* data);
 bool is_server_available();

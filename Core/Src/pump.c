@@ -14,6 +14,14 @@
 #include "ds1307_for_stm32_hal.h"
 
 
+#define MIN_PUMP_WORK_TIME 60 // 1 min
+#define CYCLES_PER_HOUR 4
+#define MONTHS_PER_YEAR 12
+#define HOURS_PER_DAY 24
+#define MINUTES_PER_HOUR 60
+#define SECONDS_PER_MINUTE 60
+
+
 void _calculate_work_time();
 void _calculate_pause_time();
 void _set_current_time(DateTime *datetime);
@@ -162,7 +170,7 @@ void _start_pump()
 		return;
 	}
 	current_state = SET;
-	send_debug_message("PUMP ON");
+	LOG_DEBUG(PUMP_TAG,	"PUMP ON");
 	HAL_GPIO_WritePin(PUMP_GPIO_Port, PUMP_Pin, current_state);
 	HAL_GPIO_WritePin(PUMP_LED_GPIO_Port, PUMP_LED_Pin, current_state);
 }
@@ -173,7 +181,7 @@ void _stop_pump()
 		return;
 	}
 	current_state = RESET;
-	send_debug_message("PUMP OFF");
+	LOG_DEBUG(PUMP_TAG, "PUMP OFF");
 	HAL_GPIO_WritePin(PUMP_GPIO_Port, PUMP_Pin, RESET);
 }
 

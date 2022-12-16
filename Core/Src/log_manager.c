@@ -6,8 +6,7 @@
  */
 
 
-#include "logger.h"
-
+#include <log_manager.h>
 #include "stm32f1xx_hal.h"
 
 #include "sim_module.h"
@@ -43,9 +42,10 @@ void logger_proccess()
 		char data[LOG_SIZE] = {};
 		snprintf(
 			data,
-			"pussy"
+			"pussy",
+			12
 		);
-		send_log(data);
+		send_http(data);
 	}
 
 	if (is_http_success()) {

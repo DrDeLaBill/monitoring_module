@@ -18,6 +18,13 @@
 // Clock
 #include "ds1307_for_stm32_hal.h"
 
+#define DEFAULT_SLEEPING_TIME 900000
+#define MIN_TANK_VOLUME       500
+#define MAX_TANK_VOLUME       3500
+#define SETTING_VALUE_MIN     0
+#define MAX_ADC_VALUE         4095
+
+
 void _general_settings_default(settings_sd_payload_t* payload);
 void _general_settings_save(settings_sd_payload_t* payload);
 void _general_settings_load(const settings_sd_payload_t* payload);
@@ -34,7 +41,7 @@ settings_tag_t general_settings_load = {
 };
 
 void _general_settings_default(settings_sd_payload_t* payload) {
-	LOG_DEBUG(SETTINGS_TAG, "%s\r\n", "SET DEFAULT SETTINGS");
+	LOG_DEBUG(SETTINGS_TAG, "SET DEFAULT SETTINGS\r\n");
 	payload->v1.payload_settings.id = 1;
 	memset(payload->v1.payload_settings.server_url, 0, sizeof(payload->v1.payload_settings.server_url));
 	memset(payload->v1.payload_settings.server_port, 0, sizeof(payload->v1.payload_settings.server_port));
@@ -53,6 +60,7 @@ void _general_settings_default(settings_sd_payload_t* payload) {
 
 
 void _general_settings_save(settings_sd_payload_t* payload) {
+	LOG_DEBUG(SETTINGS_TAG, "SAVE SETTINGS\r\n");
 	payload->v1.payload_settings.id = module_settings.id;
 	strncpy(payload->v1.payload_settings.server_url, module_settings.server_url, strlen(module_settings.server_url));
 	strncpy(payload->v1.payload_settings.server_port, module_settings.server_port, strlen(module_settings.server_port));
@@ -68,6 +76,7 @@ void _general_settings_save(settings_sd_payload_t* payload) {
 }
 
 void _general_settings_load(const settings_sd_payload_t* payload) {
+	LOG_DEBUG(SETTINGS_TAG, "LOAD SETTINGS\r\n");
 	module_settings.id = payload->v1.payload_settings.id;
 	strncpy(module_settings.server_url, payload->v1.payload_settings.server_url, strlen(payload->v1.payload_settings.server_url));
 	strncpy(module_settings.server_port, payload->v1.payload_settings.server_port, strlen(payload->v1.payload_settings.server_port));

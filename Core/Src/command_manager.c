@@ -36,12 +36,15 @@ void _show_sleeping_time();
 const char *COMMAND_TAG = "UARTCMD";
 char command_buffer[CHAR_COMMAND_SIZE] = {};
 
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+void cmd_proccess_input(const char input_chr)
 {
+	if (strlen(command_buffer) >= CHAR_COMMAND_SIZE) {
+		_clear_command();
+	}
+	command_buffer[strlen(command_buffer)] = input_chr;
 	if (_validate_command()) {
 		_execute_command();
 	}
-	HAL_UART_Receive_IT(&COMMAND_UART, command_buffer + strlen(command_buffer), sizeof(char));
 }
 
 void command_manager_begin()

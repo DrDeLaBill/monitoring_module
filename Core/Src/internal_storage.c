@@ -122,6 +122,13 @@ FRESULT intstor_append_file(const char* filename, const void* buf, UINT size, UI
 		goto do_umount;
 	}
 
+	res = f_lseek(&DIOSPIFile, f_size(&DIOSPIFile));
+	if (res != FR_OK) {
+		LOG_DEBUG(STOR_MODULE_TAG, "f_lseek() error=%i\n", res);
+		out = res;
+		goto do_umount;
+	}
+
 	res = f_write(&DIOSPIFile, (uint8_t*)buf, size, bw);
 	if(res != FR_OK) {
 		LOG_DEBUG(STOR_MODULE_TAG, "f_write() error=%i\n", res);

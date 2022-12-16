@@ -18,21 +18,6 @@ typedef enum _settings_status_t {
 } settings_status_t;
 
 
-typedef struct _settings_cal_point_t {
-	uint8_t valid;
-	int16_t temp_whole;
-	int16_t temp_100th;
-	int16_t adc_value;
-} settings_cal_point_t;
-
-// TODO: убрать
-//typedef struct _settings_cal_line_t {
-//	uint16_t channel;
-//	uint16_t npoints;
-//	settings_cal_point_t points[MEASURE_MAX_CAL_POINTS];
-//} settings_cal_line_t;
-
-
 #define SETTINGS_SD_PAYLOAD_MAGIC ((uint32_t)(0xBADAC0DE))
 #define SETTINGS_SD_PAYLOAD_VERSION (1)
 
@@ -40,7 +25,7 @@ typedef struct _settings_cal_point_t {
 typedef char channel_name_t[4];
 
 
-#define SETTINGS_SD_MAX_PAYLOAD_SIZE 128
+#define SETTINGS_SD_MAX_PAYLOAD_SIZE 512
 
 
 typedef struct _module_settings {

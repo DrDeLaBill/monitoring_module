@@ -5,10 +5,10 @@
  *      Author: RCPark
  */
 
-#ifndef INC_LOGGER_H_
-#define INC_LOGGER_H_
+#ifndef INC_LOG_MANAGER_H_
+#define INC_LOG_MANAGER_H_
 
 void logger_begin();
 void logger_proccess();
 
-#endif /* INC_LOGGER_H_ */
+#endif /* INC_LOG_MANAGER_H_ */
