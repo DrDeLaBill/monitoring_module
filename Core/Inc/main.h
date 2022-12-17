@@ -72,8 +72,8 @@ void Error_Handler(void);
 //Settings
 #define SETTINGS_UART huart2;
 //SD card
-extern SPI_HandleTypeDef hspi1;
-#define SD_HSPI hspi1
+extern SPI_HandleTypeDef hspi2;
+#define SD_HSPI hspi2
 #define SD_CS_GPIO_Port SPI1_SD_NSS_GPIO_Port
 #define SD_CS_Pin SPI1_SD_NSS_Pin
 // Shunt
@@ -90,6 +90,9 @@ extern UART_HandleTypeDef huart1;
 #define SIM_MODULE_UART huart1
 #define SIM_MODULE_RESET_PORT SIM_RESET_GPIO_Port
 #define SIM_MODULE_RESET_PIN SIM_RESET_GPIO_Port
+// Clock
+extern I2C_HandleTypeDef hi2c1;
+#define CLOCK_I2C hi2c1
 
 /* USER CODE END Private defines */
 

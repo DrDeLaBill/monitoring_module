@@ -17,7 +17,6 @@
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
-#include <log_manager.h>
 #include "main.h"
 #include "adc.h"
 #include "crc.h"
@@ -37,6 +36,14 @@
 #include "command_manager.h"
 // SIM module
 #include "sim_module.h"
+// Clock DS1307
+#include "ds1307_for_stm32_hal.h"
+// Liquid sensor
+#include "liquid_sensor.h"
+// Logger manager
+#include "log_manager.h"
+// Pump
+#include "pump.h"
 // Data logger
 /* USER CODE END Includes */
 
@@ -112,6 +119,7 @@ int main(void)
   MX_USART1_UART_Init();
   MX_USART2_UART_Init();
   MX_FATFS_Init();
+  MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
 	HAL_Delay(100);
     // Settings initializing
@@ -121,7 +129,7 @@ int main(void)
 	DIO_SPI_Delay_cb = &my_delay_ms;
 
 	// Clock
-	DS1307_Init(&hi2c1);
+	DS1307_Init();
 	// Shunt
 	INA3221_begin();
 	// UART command manager

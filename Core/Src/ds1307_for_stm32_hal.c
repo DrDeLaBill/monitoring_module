@@ -11,14 +11,11 @@ extern "C"{
 #define YEAR_LIMIT 3000
 
 
-I2C_HandleTypeDef *_ds1307_ui2c;
-	
 /**
  * @brief Initializes the DS1307 module. Sets clock halt bit to 0 to start timing.
  * @param hi2c User I2C handle pointer.
  */
-void DS1307_Init(I2C_HandleTypeDef *hi2c) {
-	_ds1307_ui2c = hi2c;
+void DS1307_Init() {
 	DS1307_SetClockHalt(0);
 	if (DS1307_GetYear() > YEAR_LIMIT) {
 		module_settings.clock_initialized = false;
@@ -60,7 +57,7 @@ uint8_t DS1307_GetClockHalt(void) {
  */
 void DS1307_SetRegByte(uint8_t regAddr, uint8_t val) {
 	uint8_t bytes[2] = { regAddr, val };
-	HAL_I2C_Master_Transmit(_ds1307_ui2c, DS1307_I2C_ADDR << 1, bytes, 2, DS1307_TIMEOUT);
+	HAL_I2C_Master_Transmit(&CLOCK_I2C, DS1307_I2C_ADDR << 1, bytes, 2, DS1307_TIMEOUT);
 }
 
 /**
@@ -70,8 +67,8 @@ void DS1307_SetRegByte(uint8_t regAddr, uint8_t val) {
  */
 uint8_t DS1307_GetRegByte(uint8_t regAddr) {
 	uint8_t val;
-	HAL_I2C_Master_Transmit(_ds1307_ui2c, DS1307_I2C_ADDR << 1, &regAddr, 1, DS1307_TIMEOUT);
-	HAL_I2C_Master_Receive(_ds1307_ui2c, DS1307_I2C_ADDR << 1, &val, 1, DS1307_TIMEOUT);
+	HAL_I2C_Master_Transmit(&CLOCK_I2C, DS1307_I2C_ADDR << 1, &regAddr, 1, DS1307_TIMEOUT);
+	HAL_I2C_Master_Receive(&CLOCK_I2C, DS1307_I2C_ADDR << 1, &val, 1, DS1307_TIMEOUT);
 	return val;
 }
 

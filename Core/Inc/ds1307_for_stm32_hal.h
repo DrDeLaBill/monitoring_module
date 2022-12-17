@@ -29,7 +29,7 @@ typedef enum DS1307_SquareWaveEnable{
 	DS1307_DISABLED, DS1307_ENABLED
 } DS1307_SquareWaveEnable;
 
-void DS1307_Init(I2C_HandleTypeDef *hi2c);
+void DS1307_Init();
 
 void DS1307_SetClockHalt(uint8_t halt);
 uint8_t DS1307_GetClockHalt(void);
