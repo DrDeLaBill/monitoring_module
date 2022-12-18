@@ -170,7 +170,7 @@ void _start_pump()
 		return;
 	}
 	current_state = SET;
-	LOG_DEBUG(PUMP_TAG,	"PUMP ON");
+	LOG_DEBUG(PUMP_TAG,	"PUMP ON\r\n");
 	HAL_GPIO_WritePin(PUMP_GPIO_Port, PUMP_Pin, current_state);
 	HAL_GPIO_WritePin(PUMP_LED_GPIO_Port, PUMP_LED_Pin, current_state);
 }
@@ -181,7 +181,7 @@ void _stop_pump()
 		return;
 	}
 	current_state = RESET;
-	LOG_DEBUG(PUMP_TAG, "PUMP OFF");
+	LOG_DEBUG(PUMP_TAG, "PUMP OFF\r\n");
 	HAL_GPIO_WritePin(PUMP_GPIO_Port, PUMP_Pin, RESET);
 }
 

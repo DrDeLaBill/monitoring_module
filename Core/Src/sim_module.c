@@ -32,6 +32,7 @@
 #define HTTP_ACT_SUCCESS 0x20
 #define HTTP_SUCCESS     0x40
 #define ERROR_STATE      0x80
+#define LOAD_SUCCESS	 MODULE_READY | GPRS_READY | HTTP_SUCCESS
 
 
 void _check_module_response();
@@ -41,15 +42,16 @@ void _send_AT_command(const char* command);
 void _reset_module();
 void _start_module();
 void _stop_http();
-uint8_t _update_line_counter(uint8_t *line_break_counter);
+void _update_line_counter(uint8_t *line_break_counter);
+bool _if_reset_state();
 bool _if_module_ready();
 bool _if_gprs_ready();
 bool _if_wait_module();
 bool _if_wait_http();
-bool _if_cmd_success();
 bool _if_http_act_success();
 bool _if_http_success();
 bool _if_has_error();
+bool _if_load_success();
 
 
 struct _sim_module_state {
@@ -64,8 +66,8 @@ const char* SUCCESS_HTTP_ACT = "CHTTPACT: REQUEST";
 const char* SUCCESS_HTTP_RESP = "200 ok";
 const char* LINE_BREAK = "\r\n";
 const char sim_config_list[][CONF_CMD_SIZE] = {
-	{"AT\r\n"},
-	{"ATE0\r\n"},
+	{"AT"},
+	{"ATE0"},
 	{"AT+CPIN?"},
 	{""}
 };
@@ -86,23 +88,30 @@ void sim_proccess_input(const char input_chr)
 {
 	static uint8_t line_break_counter = 0;
 
+	if (strlen(response) >= RESPONSE_SIZE - 1) {
+		_shift_response();
+	}
+
 	response[strlen(response)] = input_chr;
 
 	_update_line_counter(&line_break_counter);
 
 	if (strstr(response, SUCCESS_CMD_RESP)) {
+		LOG_DEBUG(SIM_TAG, "%s\r\n", response);
 		sim_state.state |= CMD_SUCCESS;
 		sim_state.state &= ~WAIT_MODULE;
 		_clear_response();
 	}
 
 	if (strstr(response, SUCCESS_HTTP_ACT)) {
+		LOG_DEBUG(SIM_TAG, "%s\r\n", response);
 		sim_state.state |= HTTP_ACT_SUCCESS;
 		sim_state.state &= ~WAIT_HTTP;
 		_clear_response();
 	}
 
-	if (_if_http_act_success() && strstr(response, SUCCESS_HTTP_RESP)) {
+	if (strstr(response, SUCCESS_HTTP_RESP)) {
+		LOG_DEBUG(SIM_TAG, "%s\r\n", response);
 		sim_state.state |= HTTP_SUCCESS;
 		sim_state.state &= ~WAIT_HTTP;
 		_clear_response();
@@ -112,12 +121,8 @@ void sim_proccess_input(const char input_chr)
 		_clear_response();
 		HAL_UART_Receive(&SIM_MODULE_UART, http_response, RESPONSE_SIZE, UART_TIMEOUT);
 		line_break_counter = 0;
-		sim_state.state = CMD_SUCCESS | MODULE_READY | GPRS_READY | HTTP_SUCCESS;
-		LOG_DEBUG(SIM_TAG, "HTTP response: %s\r\n", http_response);
-	}
-
-	if (strlen(response) >= RESPONSE_SIZE - 1) {
-		_shift_response();
+		sim_state.state = LOAD_SUCCESS;
+		LOG_DEBUG(SIM_TAG, " HTTP \r\n%s\r\n", http_response);
 	}
 }
 
@@ -127,33 +132,31 @@ void sim_module_begin() {
 	Util_TimerStart(&sim_state.restart_timer, RESTART_WAIT);
 	_start_module();
 	_clear_response();
-	HAL_UART_Receive_IT(&SIM_MODULE_UART, response, sizeof(char));
 }
 
 void sim_module_proccess()
 {
-	if (_if_has_error() && !Util_TimerPending(&sim_state.uart_timer)) {
-		_reset_module();
-		Util_TimerStart(&sim_state.restart_timer, RESTART_WAIT);
-		Util_TimerStart(&sim_state.uart_timer, UART_WAIT);
-	}
-
-	if (_if_has_error() && !Util_TimerPending(&sim_state.restart_timer)) {
-		_start_module();
-		sim_state.state = RESET_STATE;
-	}
-
-	if (_if_has_error()) {
-		sim_state.state = ERROR_STATE;
+	if (_if_load_success()) {
 		return;
 	}
 
-	if (!Util_TimerPending(&sim_state.uart_timer)) {
-		sim_state.state &= ~WAIT_MODULE;
-		sim_state.state |= ERROR_STATE;
+	if (!_if_has_error() && !Util_TimerPending(&sim_state.uart_timer)) {
+		sim_state.state = ERROR_STATE;
+		_reset_module();
+		Util_TimerStart(&sim_state.restart_timer, RESTART_WAIT);
 	}
 
-	if (!_if_wait_module()) {
+	if (_if_has_error() && !Util_TimerPending(&sim_state.restart_timer)) {
+		sim_state.state = RESET_STATE;
+		_start_module();
+		Util_TimerStart(&sim_state.uart_timer, UART_WAIT);
+	}
+
+	if (_if_wait_module()) {
+		return;
+	}
+
+	if (!_if_has_error()) {
 		_send_config_command();
 	}
 }
@@ -197,30 +200,36 @@ void _send_config_command()
 {
 	static uint8_t conf_pos = 0;
 	static uint8_t gprs_pos = 0;
-	if (_if_has_error()) {
+
+	if (_if_has_error() || _if_reset_state()) {
 		LOG_DEBUG(SIM_TAG, " error response: %s\r\n", response);
 		conf_pos = 0;
-		gprs_pos = gprs_config_list;
+		gprs_pos = 0;
 		sim_state.state &= ~ERROR_STATE;
 		_clear_response();
 	}
 
-	if (!_if_module_ready() && strlen(sim_config_list[conf_pos])) {
+	if (!strlen(sim_config_list[conf_pos]) && !strlen(gprs_config_list[gprs_pos])) {
+		sim_state.state = LOAD_SUCCESS;
+		return;
+	}
+
+	if (!strlen(sim_config_list[conf_pos])) {
+		sim_state.state |= MODULE_READY;
+	}
+
+	if (!_if_module_ready()) {
+		LOG_DEBUG(SIM_TAG, " %s\r\n", sim_config_list[conf_pos]);
 		_send_AT_command(sim_config_list[conf_pos]);
 		sim_state.state |= WAIT_MODULE;
 		conf_pos++;
 	}
 
-	if (_if_module_ready() && strlen(gprs_config_list[gprs_pos])) {
+	if (_if_module_ready()) {
+		LOG_DEBUG(SIM_TAG, " %s\r\n", gprs_config_list[gprs_pos]);
 		_send_AT_command(gprs_config_list[gprs_pos]);
 		sim_state.state |= WAIT_MODULE;
 		gprs_pos++;
-	}
-
-	if (_if_module_ready() && !strlen(sim_config_list[conf_pos]) && !strlen(gprs_config_list[gprs_pos])) {
-		sim_state.state |= GPRS_READY;
-		sim_state.state &= ~WAIT_MODULE;
-		return;
 	}
 
 	Util_TimerStart(&sim_state.uart_timer, UART_WAIT);
@@ -228,11 +237,13 @@ void _send_config_command()
 
 void _send_AT_command(const char* command)
 {
-	HAL_UART_Transmit(&SIM_MODULE_UART, command, strlen(command), UART_TIMEOUT);
-	LOG_DEBUG(SIM_TAG, command);
+	uint8_t cmd_size = strlen(command) + strlen(LINE_BREAK) + 1;
+	char *at_cmd = (char*)malloc((cmd_size + 1) * sizeof(char));
+	snprintf(at_cmd, cmd_size, " %s%s", command, LINE_BREAK);
+	HAL_UART_Transmit(&SIM_MODULE_UART, at_cmd, strlen(at_cmd), UART_TIMEOUT);
 }
 
-uint8_t _update_line_counter(uint8_t *line_break_counter)
+void _update_line_counter(uint8_t *line_break_counter)
 {
 	if (strlen(response) == 0) {
 		return;
@@ -276,6 +287,11 @@ void _start_module()
 	HAL_GPIO_WritePin(SIM_MODULE_RESET_PORT, SIM_MODULE_RESET_PIN, GPIO_PIN_SET);
 }
 
+bool _if_reset_state()
+{
+	return !sim_state.state;
+}
+
 bool _if_module_ready()
 {
 	return sim_state.state & MODULE_READY;
@@ -296,11 +312,6 @@ bool _if_wait_http()
 	return sim_state.state & WAIT_HTTP;
 }
 
-bool _if_cmd_success()
-{
-	return sim_state.state & CMD_SUCCESS;
-}
-
 bool _if_http_act_success()
 {
 	return sim_state.state & HTTP_ACT_SUCCESS;
@@ -314,4 +325,9 @@ bool _if_http_success()
 bool _if_has_error()
 {
 	return sim_state.state & ERROR_STATE;
+}
+
+bool _if_load_success()
+{
+	return _if_module_ready() && _if_gprs_ready() && _if_http_success();
 }
