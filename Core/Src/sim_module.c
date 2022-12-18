@@ -62,9 +62,10 @@ const char* SIM_TAG = "SIM";
 const char* SUCCESS_CMD_RESP = "OK";
 const char* SUCCESS_HTTP_ACT = "CHTTPACT: REQUEST";
 const char* SUCCESS_HTTP_RESP = "200 ok";
+const char* LINE_BREAK = "\r\n";
 const char sim_config_list[][CONF_CMD_SIZE] = {
-	{"AT"},
-	{"ATE0"},
+	{"AT\r\n"},
+	{"ATE0\r\n"},
 	{"AT+CPIN?"},
 	{""}
 };
@@ -76,6 +77,7 @@ const char gprs_config_list[][GPRS_CMD_SIZE] = {
 	{"AT+CHTTPSSTART"},
 	{""}
 };
+
 char response[RESPONSE_SIZE] = {};
 char http_response[RESPONSE_SIZE] = {};
 
@@ -83,6 +85,8 @@ char http_response[RESPONSE_SIZE] = {};
 void sim_proccess_input(const char input_chr)
 {
 	static uint8_t line_break_counter = 0;
+
+	response[strlen(response)] = input_chr;
 
 	_update_line_counter(&line_break_counter);
 
@@ -144,6 +148,11 @@ void sim_module_proccess()
 		return;
 	}
 
+	if (!Util_TimerPending(&sim_state.uart_timer)) {
+		sim_state.state &= ~WAIT_MODULE;
+		sim_state.state |= ERROR_STATE;
+	}
+
 	if (!_if_wait_module()) {
 		_send_config_command();
 	}
@@ -186,27 +195,29 @@ char* get_response()
 
 void _send_config_command()
 {
-	static char** conf_pos = sim_config_list;
-	static char** gprs_pos = gprs_config_list;
-	if (_if_has_error() || !Util_TimerPending(&sim_state.uart_timer)) {
-		sim_state.state |= ERROR_STATE;
-		conf_pos = sim_config_list;
+	static uint8_t conf_pos = 0;
+	static uint8_t gprs_pos = 0;
+	if (_if_has_error()) {
+		LOG_DEBUG(SIM_TAG, " error response: %s\r\n", response);
+		conf_pos = 0;
 		gprs_pos = gprs_config_list;
+		sim_state.state &= ~ERROR_STATE;
+		_clear_response();
 	}
 
-	if (!_if_module_ready() && strlen(*conf_pos)) {
-		_send_AT_command(*conf_pos);
+	if (!_if_module_ready() && strlen(sim_config_list[conf_pos])) {
+		_send_AT_command(sim_config_list[conf_pos]);
 		sim_state.state |= WAIT_MODULE;
 		conf_pos++;
 	}
 
-	if (_if_module_ready() && strlen(*gprs_pos)) {
-		_send_AT_command(*gprs_pos);
+	if (_if_module_ready() && strlen(gprs_config_list[gprs_pos])) {
+		_send_AT_command(gprs_config_list[gprs_pos]);
 		sim_state.state |= WAIT_MODULE;
 		gprs_pos++;
 	}
 
-	if (_if_module_ready() && !strlen(*conf_pos) && !strlen(*gprs_pos)) {
+	if (_if_module_ready() && !strlen(sim_config_list[conf_pos]) && !strlen(gprs_config_list[gprs_pos])) {
 		sim_state.state |= GPRS_READY;
 		sim_state.state &= ~WAIT_MODULE;
 		return;
@@ -217,8 +228,8 @@ void _send_config_command()
 
 void _send_AT_command(const char* command)
 {
-	LOG_DEBUG(SIM_TAG, "Command: %s\r\n", command);
 	HAL_UART_Transmit(&SIM_MODULE_UART, command, strlen(command), UART_TIMEOUT);
+	LOG_DEBUG(SIM_TAG, command);
 }
 
 uint8_t _update_line_counter(uint8_t *line_break_counter)
