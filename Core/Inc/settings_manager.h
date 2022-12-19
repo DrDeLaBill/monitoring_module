@@ -22,9 +22,6 @@ typedef enum _settings_status_t {
 #define SETTINGS_SD_PAYLOAD_VERSION (1)
 
 
-typedef char channel_name_t[4];
-
-
 #define SETTINGS_SD_MAX_PAYLOAD_SIZE 512
 
 

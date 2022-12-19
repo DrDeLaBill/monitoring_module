@@ -28,6 +28,7 @@ uint8_t retDIOSPI;
 char DIOSPIPath[4];
 FATFS DIOSPIFatFS;
 FIL DIOSPIFile;
+FILINFO DIOSPIFileInfo;
 /* USER CODE END Variables */
 
 void MX_FATFS_Init(void)

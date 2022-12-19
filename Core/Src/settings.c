@@ -39,6 +39,10 @@ settings_tag_t general_settings_load = {
 	.save_cb = &_general_settings_save,
 	.load_cb = &_general_settings_load
 };
+settings_tag_t* settings_cbs[] = {
+	&general_settings_load,
+	NULL
+};
 
 void _general_settings_default(settings_sd_payload_t* payload) {
 	LOG_DEBUG(SETTINGS_TAG, "SET DEFAULT SETTINGS\r\n");

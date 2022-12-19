@@ -20,6 +20,10 @@ const char* STOR_MODULE_TAG = "STOR";
 
 
 FRESULT intstor_read_file(const char* filename, void* buf, UINT size, UINT* br) {
+	return intstor_read_line(filename, buf, size, br, 0);
+}
+
+FRESULT intstor_read_line(const char* filename, void* buf, UINT size, UINT* br, UINT ptr) {
 	FRESULT res;
 	FRESULT out = FR_OK;
 
@@ -38,9 +42,16 @@ FRESULT intstor_read_file(const char* filename, void* buf, UINT size, UINT* br) 
 		goto do_umount;
 	}
 
+	res = f_lseek(&DIOSPIFile, ptr);
+	if(res != FR_OK) {
+		LOG_DEBUG(STOR_MODULE_TAG, "f_lseek() error=%i\n", res);
+		out = res;
+		goto do_close;
+	}
+
 	res = f_read(&DIOSPIFile, (uint8_t*)buf, size, br);
 	if(res != FR_OK) {
-		LOG_DEBUG(STOR_MODULE_TAG, "f_write() error=%i\n", res);
+		LOG_DEBUG(STOR_MODULE_TAG, "f_read() error=%i\n", res);
 		out = res;
 		goto do_close;
 	}
@@ -59,7 +70,6 @@ do_umount:
 
 	return out;
 }
-
 
 FRESULT intstor_write_file(const char* filename, const void* buf, UINT size, UINT* bw) {
 	FRESULT res;
@@ -149,4 +159,10 @@ do_umount:
 	}
 
 	return out;
+}
+
+
+FRESULT instor_find_file(const char* pattern)
+{
+	return f_findfirst(&DIOSPIPath, &DIOSPIFileInfo, DIOSPIPath, pattern);
 }

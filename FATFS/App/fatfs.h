@@ -44,6 +44,7 @@ extern uint8_t retDIOSPI;
 extern char DIOSPIPath[4];
 extern FATFS DIOSPIFatFS;
 extern FIL DIOSPIFile;
+extern FILINFO DIOSPIFileInfo;
 
 /* USER CODE END Prototypes */
 #ifdef __cplusplus

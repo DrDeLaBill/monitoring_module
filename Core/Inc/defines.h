@@ -8,10 +8,13 @@
 #ifndef INC_DEFINES_H_
 #define INC_DEFINES_H_
 
+#include "stm32f1xx_hal.h"
+
 // General settings
 #define MILLIS_IN_SECOND   1000
 #define DEFAULT_UART_DELAY 100
 #define CHAR_SETIINGS_SIZE 20
+#define CHAR_PARAM_SIZE    20
 
 #define proxy_log(level, fmt, ...) _proxy_log(level, fmt"\n", ##__VA_ARGS__)
 

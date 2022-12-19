@@ -28,6 +28,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "utils.h"
+
 // Settings
 #include "settings.h"
 // Shunt sensor
@@ -64,10 +66,6 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-settings_tag_t* settings_cbs[] = {
-	&general_settings_load,
-	NULL
-};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -100,7 +98,7 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-
+  dio_timer_t log_timer;
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -142,6 +140,8 @@ int main(void)
 	sim_module_begin();
 	// Data logger
 	logger_begin();
+	//Log timer
+	Util_TimerStart(&log_timer, module_settings.sleep_time);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -155,7 +155,8 @@ int main(void)
 	  pump_proccess();
 	  // Sim module
 	  sim_module_proccess();
-
+	  // Logger
+	  logger_proccess();
   }
   /* USER CODE END 3 */
 }
