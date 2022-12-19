@@ -65,7 +65,7 @@ void Error_Handler(void);
 #define LIQUID_GPIO_Port GPIOA
 #define SPI1_SD_NSS_Pin GPIO_PIN_4
 #define SPI1_SD_NSS_GPIO_Port GPIOA
-#define SIM_RESET_Pin GPIO_PIN_11
+#define SIM_RESET_Pin GPIO_PIN_12
 #define SIM_RESET_GPIO_Port GPIOA
 /* USER CODE BEGIN Private defines */
 
