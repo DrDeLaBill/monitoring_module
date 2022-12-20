@@ -17,8 +17,7 @@
 #define READ_TIMEOUT 100
 
 void liquid_sensor_begin();
-bool is_liquid_sensor_connected();
-uint16_t get_liquid_ADC_value();
-float get_liquid_in_liters();
+void liquid_sensor_proccess();
+float get_liquid_level();
 
 #endif /* INC_LIQUID_SENSOR_H_ */

@@ -113,7 +113,19 @@ do_umount:
 }
 
 
-FRESULT intstor_append_file(const char* filename, const void* buf, UINT size, UINT* bw) {
+FRESULT intstor_append_file(const char* filename, const void* buf, UINT size, UINT* bw)
+{
+	FRESULT res = instor_find_file(filename);
+	if(res != FR_OK) {
+		LOG_DEBUG(STOR_MODULE_TAG, "find_file() error=%i\n", res);
+		return res;
+	}
+	return instor_change_file(filename, buf, size, bw, f_size(&DIOSPIFile));
+}
+
+
+FRESULT instor_change_file(const char* filename, const void* buf, UINT size, UINT* bw, UINT ptr)
+{
 	FRESULT res;
 	FRESULT out = FR_OK;
 
@@ -132,7 +144,7 @@ FRESULT intstor_append_file(const char* filename, const void* buf, UINT size, UI
 		goto do_umount;
 	}
 
-	res = f_lseek(&DIOSPIFile, f_size(&DIOSPIFile));
+	res = f_lseek(&DIOSPIFile, ptr);
 	if (res != FR_OK) {
 		LOG_DEBUG(STOR_MODULE_TAG, "f_lseek() error=%i\n", res);
 		out = res;
@@ -159,6 +171,12 @@ do_umount:
 	}
 
 	return out;
+}
+
+
+FRESULT instor_remove_file(const char* filename)
+{
+	return f_unlink(filename);
 }
 
 

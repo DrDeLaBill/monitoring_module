@@ -17,6 +17,7 @@
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
+#include <record_manager.h>
 #include "main.h"
 #include "adc.h"
 #include "crc.h"
@@ -43,8 +44,6 @@
 // Liquid sensor
 #include "liquid_sensor.h"
 // Logger manager
-#include "log_manager.h"
-// Pump
 #include "pump.h"
 // Data logger
 /* USER CODE END Includes */
@@ -139,7 +138,7 @@ int main(void)
 	// SIM module
 	sim_module_begin();
 	// Data logger
-	logger_begin();
+	logger_manager_begin();
 	//Log timer
 	Util_TimerStart(&log_timer, module_settings.sleep_time);
   /* USER CODE END 2 */
@@ -153,6 +152,8 @@ int main(void)
     /* USER CODE BEGIN 3 */
 	  // Pump
 	  pump_proccess();
+	  // Liquid sensor
+	  liquid_sensor_proccess();
 	  // Sim module
 	  sim_module_proccess();
 	  // Logger

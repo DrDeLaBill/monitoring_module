@@ -11,6 +11,8 @@
 #include "stm32f1xx_hal.h"
 
 // General settings
+#define FW_VERSION         1
+#define CF_VERSION         1
 #define MILLIS_IN_SECOND   1000
 #define DEFAULT_UART_DELAY 100
 #define CHAR_SETIINGS_SIZE 20

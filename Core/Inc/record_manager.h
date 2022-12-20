@@ -5,8 +5,8 @@
  *      Author: RCPark
  */
 
-#ifndef INC_LOG_MANAGER_H_
-#define INC_LOG_MANAGER_H_
+#ifndef INC_RECORD_MANAGER_H_
+#define INC_RECORD_MANAGER_H_
 
 #include "defines.h"
 #include "internal_storage.h"
@@ -60,11 +60,13 @@ typedef struct _record_tag_t {
 extern record_tag_t* record_cbs[];
 extern uint8_t record_load_ok;
 
-void logger_begin();
-void logger_proccess();
+void record_manager_begin();
 record_status_t first_record_load();
 record_status_t record_save();
+record_status_t record_change(uint32_t id, record_sd_payload_t *payload_change);
 record_status_t record_remove(uint32_t id);
 record_status_t record_file_remove(const char* filename);
+record_status_t remove_old_records(uint32_t last_id);
+uint32_t get_new_id();
 
-#endif /* INC_LOG_MANAGER_H_ */
+#endif /* INC_RECORD_MANAGER_H_ */
