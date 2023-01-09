@@ -15,6 +15,7 @@
 #define CF_VERSION         1
 #define MILLIS_IN_SECOND   1000
 #define DEFAULT_UART_DELAY 100
+#define DEFAULT_UART_SIZE  100
 #define CHAR_SETIINGS_SIZE 20
 #define CHAR_PARAM_SIZE    20
 

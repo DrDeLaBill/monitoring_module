@@ -121,10 +121,10 @@ void _execute_command()
 		module_settings.tank_liters_max = atoi(command[1]);
 		_show_liters_max();
 	} else if (strncmp("saveadcmmin", command[0], CHAR_COMMAND_SIZE) == 0) {
-		module_settings.tank_ADC_min = get_liquid_ADC_value();
+		module_settings.tank_ADC_min = get_liquid_level();
 		_show_liters_ADC_min();
 	} else if (strncmp("saveadcax", command[0], CHAR_COMMAND_SIZE) == 0) {
-		module_settings.tank_ADC_max = get_liquid_ADC_value();
+		module_settings.tank_ADC_max = get_liquid_level();
 		_show_liters_ADC_max();
 	} else if (strncmp("settarget", command[0], CHAR_COMMAND_SIZE) == 0) {
 		module_settings.milliliters_per_day = atoi(command[1]);

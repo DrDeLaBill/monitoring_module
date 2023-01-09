@@ -32,11 +32,11 @@ char* tmp[40] = {};
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-//	if (huart == &COMMAND_UART) {
-//		cmd_proccess_input(cmd_input_chr);
-//		cmd_input_chr = 0;
-//		HAL_UART_Receive_IT(&COMMAND_UART, &cmd_input_chr, sizeof(char));
-//	}
+	if (huart == &COMMAND_UART) {
+		cmd_proccess_input(cmd_input_chr);
+		cmd_input_chr = 0;
+		HAL_UART_Receive_IT(&COMMAND_UART, &cmd_input_chr, sizeof(char));
+	}
 	if (huart == &SIM_MODULE_UART) {
 		sim_proccess_input(sim_input_chr);
 		sim_input_chr = 0;
