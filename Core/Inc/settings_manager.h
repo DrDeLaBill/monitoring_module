@@ -27,8 +27,8 @@ typedef enum _settings_status_t {
 
 typedef struct _module_settings {
 	uint32_t id;
-	uint8_t server_url[CHAR_SETIINGS_SIZE];
-	uint8_t server_port[CHAR_SETIINGS_SIZE];
+	char server_url[CHAR_SETIINGS_SIZE];
+	char server_port[CHAR_SETIINGS_SIZE];
 	// Liters ADC value when liquid tank can be considered full
 	uint16_t tank_ADC_min;
 	// Liters ADC value when liquid tank can be considered empty
@@ -45,6 +45,8 @@ typedef struct _module_settings {
 	uint8_t clock_initialized;
 	// Measure delay in milliseconds
 	uint32_t sleep_time;
+	// Current server log ID
+	uint32_t cur_log_id;
 } ModuleSettings;
 
 

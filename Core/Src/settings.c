@@ -14,6 +14,7 @@
 
 #include "utils.h"
 #include "settings_manager.h"
+#include "record_manager.h"
 
 // Clock
 #include "ds1307_for_stm32_hal.h"
@@ -59,6 +60,7 @@ void _general_settings_default(settings_sd_payload_t* payload) {
 	payload->v1.payload_settings.pump_speed = 0;
 	payload->v1.payload_settings.sleep_time = DEFAULT_SLEEPING_TIME;
 	payload->v1.payload_settings.clock_initialized = false;
+	payload->v1.payload_settings.cur_log_id = FIRST_ID;
 	show_settings();
 }
 
@@ -76,6 +78,7 @@ void _general_settings_save(settings_sd_payload_t* payload) {
 	payload->v1.payload_settings.pump_speed = module_settings.pump_speed;
 	payload->v1.payload_settings.sleep_time = module_settings.sleep_time;
 	payload->v1.payload_settings.clock_initialized = module_settings.clock_initialized;
+	payload->v1.payload_settings.cur_log_id = module_settings.cur_log_id;
 	show_settings();
 }
 
@@ -92,6 +95,7 @@ void _general_settings_load(const settings_sd_payload_t* payload) {
 	module_settings.pump_speed = payload->v1.payload_settings.pump_speed;
 	module_settings.sleep_time = payload->v1.payload_settings.sleep_time;
 	module_settings.clock_initialized = payload->v1.payload_settings.clock_initialized;
+	module_settings.cur_log_id = payload->v1.payload_settings.cur_log_id;
 	show_settings();
 }
 
@@ -114,7 +118,8 @@ void show_settings()
 		"Liquid level MAX: %d l\r\n"
 		"Target: %d ml/d\r\n"
 		"Pump speed: %d ml/h\r\n"
-		"Sleep time: %d sec\r\n\r\n",
+		"Sleep time: %d sec\r\n",
+		"Current log ID: %d\r\n\r\n",
 		DS1307_GetYear(),
 		DS1307_GetMonth(),
 		DS1307_GetDate(),
@@ -130,7 +135,8 @@ void show_settings()
 		module_settings.tank_liters_max,
 		module_settings.milliliters_per_day,
 		module_settings.pump_speed,
-		module_settings.sleep_time / MILLIS_IN_SECOND
+		module_settings.sleep_time / MILLIS_IN_SECOND,
+		module_settings.cur_log_id
 	);
 }
 
@@ -138,5 +144,6 @@ int _write(int file, uint8_t *ptr, int len) {
 	for (int DataIdx = 0; DataIdx < len; DataIdx++) {
 		ITM_SendChar(*ptr++);
 	}
+	HAL_UART_Transmit(&COMMAND_UART, ptr, len, DEFAULT_UART_DELAY);
 	return len;
 }

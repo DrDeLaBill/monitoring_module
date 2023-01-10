@@ -9,9 +9,12 @@
 
 #include "stm32f1xx_hal.h"
 #include <stdbool.h>
+#include <string.h>
+#include <stdlib.h>
 
 #include "settings.h"
 #include "settings_manager.h"
+#include "liquid_sensor.h"
 #include "utils.h"
 
 
@@ -109,10 +112,10 @@ void _execute_command()
 		module_settings.sleep_time = atoi(command[1]);
 		_show_sleeping_time();
 	} else if (strncmp("seturl", command[0], CHAR_COMMAND_SIZE) == 0) {
-		strncpy(module_settings.server_url, command[1], CHAR_COMMAND_SIZE);
+		strncpy(module_settings.server_url, command[1], sizeof(module_settings.server_url));
 		_show_server_url();
 	} else if (strncmp("setport", command[0], CHAR_COMMAND_SIZE) == 0) {
-		strncpy(module_settings.server_port, command[1], CHAR_COMMAND_SIZE);
+		strncpy(module_settings.server_port, command[1], sizeof(module_settings.server_port));
 		_show_server_port();
 	} else if (strncmp("setlitersmin", command[0], CHAR_COMMAND_SIZE) == 0) {
 		module_settings.tank_liters_min = atoi(command[1]);
@@ -129,7 +132,7 @@ void _execute_command()
 	} else if (strncmp("settarget", command[0], CHAR_COMMAND_SIZE) == 0) {
 		module_settings.milliliters_per_day = atoi(command[1]);
 		_show_liters_per_month();
-	} else if (strncmp("setpumpspeed", command[0]) == 0, CHAR_COMMAND_SIZE) {
+	} else if (strncmp("setpumpspeed", command[0], CHAR_COMMAND_SIZE) == 0) {
 		module_settings.pump_speed = (uint32_t)atoi(command[1]);
 		_show_pump_speed();
 	} else if (strncmp("default", command[0], CHAR_COMMAND_SIZE) == 0) {
@@ -166,69 +169,69 @@ void _trim_command()
 void _show_id()
 {
 	char response[UART_RESPONSE_SIZE] = {};
-	snprintf(response, "Device ID: %d\r\n", module_settings.id, UART_RESPONSE_SIZE);
+	snprintf(response, UART_RESPONSE_SIZE, "Device ID: %lu\r\n", module_settings.id);
 	_send_uart_response(response);
 }
 
 void _show_server_url()
 {
 	char response[UART_RESPONSE_SIZE] = {};
-	snprintf(response, "URL: %s\r\n", module_settings.server_url, UART_RESPONSE_SIZE);
+	snprintf(response, UART_RESPONSE_SIZE, "URL: %s\r\n", module_settings.server_url);
 	_send_uart_response(response);
 }
 
 void _show_server_port()
 {
 	char response[UART_RESPONSE_SIZE] = {};
-	snprintf(response, "PORT: %s\r\n", module_settings.server_port, UART_RESPONSE_SIZE);
+	snprintf(response, UART_RESPONSE_SIZE, "PORT: %s\r\n", module_settings.server_port);
 	_send_uart_response(response);
 }
 
 void _show_liters_max()
 {
 	char response[UART_RESPONSE_SIZE] = {};
-	snprintf(response, "Liliters max: %d l\r\n", module_settings.tank_liters_max, UART_RESPONSE_SIZE);
+	snprintf(response, UART_RESPONSE_SIZE, "Liliters max: %hu l\r\n", module_settings.tank_liters_max);
 	_send_uart_response(response);
 }
 
 void _show_liters_min()
 {
 	char response[UART_RESPONSE_SIZE] = {};
-	snprintf(response, "Liliters min: %d l\r\n", module_settings.tank_liters_min, UART_RESPONSE_SIZE);
+	snprintf(response, UART_RESPONSE_SIZE, "Liliters min: %hu l\r\n", module_settings.tank_liters_min);
 	_send_uart_response(response);
 }
 
 void _show_liters_ADC_max()
 {
 	char response[UART_RESPONSE_SIZE] = {};
-	snprintf(response, "ADC max: %d\r\n", module_settings.tank_ADC_max, UART_RESPONSE_SIZE);
+	snprintf(response, UART_RESPONSE_SIZE, "ADC max: %hu\r\n", module_settings.tank_ADC_max);
 	_send_uart_response(response);
 }
 
 void _show_liters_ADC_min()
 {
 	char response[UART_RESPONSE_SIZE] = {};
-	snprintf(response, "ADC min: %d\r\n", module_settings.tank_ADC_min, UART_RESPONSE_SIZE);
+	snprintf(response, UART_RESPONSE_SIZE, "ADC min: %hu\r\n", module_settings.tank_ADC_min);
 	_send_uart_response(response);
 }
 
 void _show_liters_per_month()
 {
 	char response[UART_RESPONSE_SIZE] = {};
-	snprintf(response, "Milliliters per day: %d ml/d\r\n", module_settings.milliliters_per_day, UART_RESPONSE_SIZE);
+	snprintf(response, UART_RESPONSE_SIZE, "Milliliters per day: %lu ml/d\r\n", module_settings.milliliters_per_day);
 	_send_uart_response(response);
 }
 
 void _show_pump_speed()
 {
 	char response[UART_RESPONSE_SIZE] = {};
-	snprintf(response, "Pump speed: %d ml/h\r\n", module_settings.pump_speed, UART_RESPONSE_SIZE);
+	snprintf(response, UART_RESPONSE_SIZE, "Pump speed: %lu ml/h\r\n", module_settings.pump_speed);
 	_send_uart_response(response);
 }
 
 void _show_sleeping_time()
 {
 	char response[UART_RESPONSE_SIZE] = {};
-	snprintf(response, "Sleep time: %d sec\r\n", module_settings.sleep_time / MILLIS_IN_SECOND, UART_RESPONSE_SIZE);
+	snprintf(response, UART_RESPONSE_SIZE, "Sleep time: %lu sec\r\n", module_settings.sleep_time / MILLIS_IN_SECOND);
 	_send_uart_response(response);
 }

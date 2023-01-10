@@ -9,6 +9,9 @@
 #define INC_UTILS_H_
 
 
+#include <stdio.h>
+
+
 #ifndef __min
 #define __min(x, y) ((x) < (y) ? (x) : (y))
 #endif

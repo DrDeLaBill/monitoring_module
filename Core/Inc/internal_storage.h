@@ -30,6 +30,7 @@ FRESULT intstor_append_file(const char* filename, const void* buf, UINT size, UI
 FRESULT instor_change_file(const char* filename, const void* buf, UINT size, UINT* bw, UINT ptr);
 FRESULT instor_find_file(const char* pattern);
 FRESULT instor_remove_file(const char* filename);
+FRESULT instor_get_free_clust(DWORD *fre_clust);
 
 
 #endif /* INC_INTERNAL_STORAGE_H_ */

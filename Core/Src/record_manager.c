@@ -8,22 +8,31 @@
 
 #include "stm32f1xx_hal.h"
 
+#include <string.h>
+
 #include <fatfs.h>
-#include <record_manager.h>
+#include "record_manager.h"
+#include "internal_storage.h"
 #include "sim_module.h"
 #include "settings.h"
 #include "logger.h"
 #include "utils.h"
 
 
-#define FIRST_ID 1
+#define CLUSTERS_MIN 10
+
+
+bool _is_enough_space();
 
 
 const char* RECORD_TAG = "RCRD";
 const char* record_filename = "log.bin";
 
 
-record_status_t first_record_load() {
+uint8_t record_load_ok;
+
+
+record_status_t next_record_load() {
 	record_sd_payload_t tmpbuf;
 	memset(&tmpbuf, 0, sizeof(tmpbuf));
 
@@ -45,6 +54,10 @@ do_readline:
 		return RECORD_ERROR;
 	}
 	if (!tmpbuf.v1.payload_record.id) {
+		ptr += sizeof(tmpbuf);
+		goto do_readline;
+	}
+	if (tmpbuf.v1.payload_record.id < module_settings.cur_log_id) {
 		ptr += sizeof(tmpbuf);
 		goto do_readline;
 	}
@@ -73,11 +86,18 @@ do_readline:
 
 	if(!record_load_ok) return RECORD_ERROR;
 
+	module_settings.cur_log_id = tmpbuf.v1.payload_record.id;
+	settings_save();
+
 	return RECORD_OK;
 }
 
 
 record_status_t record_save() {
+	if (!_is_enough_space()) {
+		remove_old_records();
+	}
+
 	record_sd_payload_t tmpbuf;
 	memset(&tmpbuf, 0, sizeof(tmpbuf));
 
@@ -108,11 +128,10 @@ record_status_t record_save() {
 		record_load_ok = 0;
 		LOG_DEBUG(RECORD_TAG, "record NOT saved\n");
 		return SETTINGS_ERROR;
-
-	} else {
-		LOG_DEBUG(RECORD_TAG, "record saved\n");
-		return SETTINGS_OK;
 	}
+
+	LOG_DEBUG(RECORD_TAG, "record saved\n");
+	return SETTINGS_OK;
 }
 
 record_status_t record_change(uint32_t id, record_sd_payload_t *payload_change)
@@ -161,7 +180,6 @@ do_fail:
 
 uint32_t get_new_id()
 {
-	// искать максимальный ID, а не последний
 	record_sd_payload_t tmpbuf;
 	memset(&tmpbuf, 0, sizeof(tmpbuf));
 
@@ -213,16 +231,44 @@ uint32_t get_new_id()
 		pos++;
 	}
 
-	if(!record_load_ok) goto do_first_id;
+	if(!record_load_ok) {
+		goto do_first_id;
+	}
 
-	return log_record.id + 1;
+	uint32_t new_id = log_record.id + 1;
+	if (new_id == 0) {
+		goto do_first_id;
+	}
+
+	return new_id;
 
 do_first_id:
 
 	return FIRST_ID;
 }
 
-record_status_t remove_old_records(uint32_t last_id)
+record_status_t remove_old_records()
 {
+	if (instor_remove_file(record_filename)) {
+		return RECORD_OK;
+	}
+	return RECORD_ERROR;
+}
 
+bool _is_enough_space()
+{
+	DWORD fre_clust = 0;
+	FRESULT res = FR_OK;
+
+	res = instor_get_free_clust(&fre_clust);
+	if (res != FR_OK) {
+		LOG_DEBUG(RECORD_TAG, "unable to get free space\r\n");
+		return false;
+	}
+
+	if (fre_clust < CLUSTERS_MIN) {
+		return false;
+	}
+
+	return true;
 }

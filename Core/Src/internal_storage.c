@@ -176,11 +176,73 @@ do_umount:
 
 FRESULT instor_remove_file(const char* filename)
 {
-	return f_unlink(filename);
+	FRESULT res;
+	FRESULT out = FR_OK;
+
+	res = f_mount(&DIOSPIFatFS, DIOSPIPath, 1);
+	if(res != FR_OK) {
+		LOG_DEBUG(STOR_MODULE_TAG, "f_mount() error=%i\n", res);
+		return res;
+	}
+
+	res = f_unlink(filename);
+	if(res != FR_OK) {
+		LOG_DEBUG(STOR_MODULE_TAG, "f_unlink(umount) error=%i\n", res);
+	}
+
+	res = f_mount(NULL, DIOSPIPath, 0);
+	if(res != FR_OK) {
+		LOG_DEBUG(STOR_MODULE_TAG, "f_mount(umount) error=%i\n", res);
+	}
+
+	return out;
 }
 
 
 FRESULT instor_find_file(const char* pattern)
 {
-	return f_findfirst(&DIOSPIPath, &DIOSPIFileInfo, DIOSPIPath, pattern);
+	FRESULT res;
+	FRESULT out = FR_OK;
+
+	res = f_mount(&DIOSPIFatFS, DIOSPIPath, 1);
+	if(res != FR_OK) {
+		LOG_DEBUG(STOR_MODULE_TAG, "f_mount() error=%i\n", res);
+		return res;
+	}
+
+	res = f_findfirst(&DIOSPIPath, &DIOSPIFileInfo, DIOSPIPath, pattern);
+	if(res != FR_OK) {
+		LOG_DEBUG(STOR_MODULE_TAG, "f_unlink(umount) error=%i\n", res);
+	}
+
+	res = f_mount(NULL, DIOSPIPath, 0);
+	if(res != FR_OK) {
+		LOG_DEBUG(STOR_MODULE_TAG, "f_mount(umount) error=%i\n", res);
+	}
+
+	return out;
+}
+
+FRESULT instor_get_free_clust(DWORD *fre_clust)
+{
+	FRESULT res;
+	FRESULT out = FR_OK;
+
+	res = f_mount(&DIOSPIFatFS, DIOSPIPath, 1);
+	if(res != FR_OK) {
+		LOG_DEBUG(STOR_MODULE_TAG, "f_mount() error=%i\n", res);
+		return res;
+	}
+
+	res = f_getfree(DIOSPIPath, fre_clust, &DIOSPIFatFS);
+	if(res != FR_OK) {
+		LOG_DEBUG(STOR_MODULE_TAG, "f_getfree(umount) error=%i\n", res);
+	}
+
+	res = f_mount(NULL, DIOSPIPath, 0);
+	if(res != FR_OK) {
+		LOG_DEBUG(STOR_MODULE_TAG, "f_mount(umount) error=%i\n", res);
+	}
+
+	return out;
 }

@@ -24,6 +24,7 @@ typedef enum _record_status_t {
 
 #define SETTINGS_SD_MAX_PAYLOAD_SIZE 512
 
+#define FIRST_ID 1
 
 typedef struct _log_record {
 	uint32_t id;                // Record ID
@@ -61,12 +62,12 @@ extern record_tag_t* record_cbs[];
 extern uint8_t record_load_ok;
 
 void record_manager_begin();
-record_status_t first_record_load();
+record_status_t next_record_load();
 record_status_t record_save();
 record_status_t record_change(uint32_t id, record_sd_payload_t *payload_change);
 record_status_t record_remove(uint32_t id);
 record_status_t record_file_remove(const char* filename);
-record_status_t remove_old_records(uint32_t last_id);
+record_status_t remove_old_records();
 uint32_t get_new_id();
 
 #endif /* INC_RECORD_MANAGER_H_ */
