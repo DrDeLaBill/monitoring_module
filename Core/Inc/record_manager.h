@@ -64,7 +64,7 @@ extern uint8_t record_load_ok;
 void record_manager_begin();
 record_status_t next_record_load();
 record_status_t record_save();
-record_status_t record_change(uint32_t id, record_sd_payload_t *payload_change);
+record_status_t record_change(uint32_t old_id);
 record_status_t record_remove(uint32_t id);
 record_status_t record_file_remove(const char* filename);
 record_status_t remove_old_records();

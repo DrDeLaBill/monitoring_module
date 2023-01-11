@@ -16,6 +16,7 @@ void send_http(const char* data);
 bool is_server_available();
 bool is_http_success();
 bool is_module_ready();
+bool is_http_busy();
 char* get_response();
 
 #endif

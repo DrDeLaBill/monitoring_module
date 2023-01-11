@@ -7,6 +7,9 @@
 
 #include "sim_module.h"
 
+#include <string.h>
+#include <stdlib.h>
+
 #include "settings.h"
 #include "utils.h"
 #include "ina3221_sensor.h"
@@ -21,7 +24,7 @@
 #define RESTART_WAIT     1000
 #define CONF_CMD_SIZE    9
 #define GPRS_CMD_SIZE    40
-#define HTTP_ACT_SIZE    40
+#define HTTP_ACT_SIZE    60
 // SIM module states
 #define RESET_STATE      0x00
 #define MODULE_READY     0x01
@@ -42,6 +45,7 @@ void _send_AT_command(const char* command);
 void _reset_module();
 void _start_module();
 void _stop_http();
+void _clear_response();
 void _update_line_counter(uint8_t *line_break_counter);
 bool _if_reset_state();
 bool _if_module_ready();
@@ -82,6 +86,7 @@ const char gprs_config_list[][GPRS_CMD_SIZE] = {
 
 char response[RESPONSE_SIZE] = {};
 char http_response[RESPONSE_SIZE] = {};
+bool _http_busy = false;
 
 
 void sim_proccess_input(const char input_chr)
@@ -164,15 +169,19 @@ void sim_module_proccess()
 void connect_to_server()
 {
 	char http_act[HTTP_ACT_SIZE] = {};
-	snprintf(http_act, "AT+CHTTPACT=\"%s\",%s\r\n", module_settings.server_url, module_settings.server_port, HTTP_ACT_SIZE);
+	snprintf(http_act, sizeof(http_act), "AT+CHTTPACT=\"%s\",%s\r\n", module_settings.server_url, module_settings.server_port);
 	_send_AT_command(http_act);
 }
 
 void send_http(const char* data)
 {
+	if (is_server_available()) {
+		return;
+	}
 	if (!strlen(data)) {
 		return;
 	}
+	_http_busy = true;
 	_send_AT_command(data);
 }
 
@@ -191,8 +200,14 @@ bool is_http_success()
 	return !_if_has_error() && _if_http_success();
 }
 
+bool is_http_busy()
+{
+	return _http_busy;
+}
+
 char* get_response()
 {
+	_http_busy = false;
 	return http_response;
 }
 
@@ -279,6 +294,7 @@ void _stop_http()
 
 void _reset_module()
 {
+	_http_busy = false;
 	HAL_GPIO_WritePin(SIM_MODULE_RESET_PORT, SIM_MODULE_RESET_PIN, GPIO_PIN_RESET);
 }
 

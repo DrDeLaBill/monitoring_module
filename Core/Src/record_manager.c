@@ -26,7 +26,7 @@ bool _is_enough_space();
 
 
 const char* RECORD_TAG = "RCRD";
-const char* record_filename = "log.bin";
+const char* RECORD_FILENAME = "log.bin";
 
 
 uint8_t record_load_ok;
@@ -41,7 +41,7 @@ record_status_t next_record_load() {
 	UINT br;
 	UINT ptr = 0;
 	char filename[64] = {};
-	snprintf(filename, sizeof(filename), "%s" "%s", DIOSPIPath, record_filename);
+	snprintf(filename, sizeof(filename), "%s" "%s", DIOSPIPath, RECORD_FILENAME);
 
 	FRESULT res;
 do_readline:
@@ -101,7 +101,7 @@ record_status_t record_save() {
 	record_sd_payload_t tmpbuf;
 	memset(&tmpbuf, 0, sizeof(tmpbuf));
 
-	record_tag_t** pos = settings_cbs;
+	record_tag_t** pos = record_cbs;
 	while((*pos)) {
 		if((*pos)->save_cb) (*pos)->save_cb(&tmpbuf);
 		pos++;
@@ -120,31 +120,32 @@ record_status_t record_save() {
 	Debug_HexDump(RECORD_TAG, (uint8_t*)&tmpbuf, sizeof(tmpbuf));
 
 	char filename[64];
-	snprintf(filename, sizeof(filename), "%s" "%s", record_filename);
+	snprintf(filename, sizeof(filename), "%s" "%s", RECORD_FILENAME);
 
 	UINT br;
 	FRESULT res = intstor_append_file(filename, &tmpbuf, sizeof(tmpbuf), &br);
 	if(res != FR_OK) {
 		record_load_ok = 0;
 		LOG_DEBUG(RECORD_TAG, "record NOT saved\n");
-		return SETTINGS_ERROR;
+		return RECORD_ERROR;
 	}
 
 	LOG_DEBUG(RECORD_TAG, "record saved\n");
-	return SETTINGS_OK;
+	return RECORD_OK;
 }
 
-record_status_t record_change(uint32_t id, record_sd_payload_t *payload_change)
+record_status_t record_change(uint32_t old_id)
 {
 	record_sd_payload_t tmpbuf;
 	memset(&tmpbuf, 0, sizeof(tmpbuf));
 
+	// Find line
 	record_load_ok = 1;
 
 	UINT br;
 	UINT ptr = 0;
 	char filename[64] = {};
-	snprintf(filename, sizeof(filename), "%s" "%s", DIOSPIPath, record_filename);
+	snprintf(filename, sizeof(filename), "%s" "%s", DIOSPIPath, RECORD_FILENAME);
 
 	FRESULT res;
 do_readline:
@@ -153,12 +154,29 @@ do_readline:
 		LOG_DEBUG(RECORD_TAG, "record not found\r\n");
 		goto do_fail;
 	}
-	if (tmpbuf.v1.payload_record.id != id) {
+	if (tmpbuf.v1.payload_record.id != old_id) {
 		ptr += sizeof(tmpbuf);
 		goto do_readline;
 	}
 
-	res = intstor_change_file(filename, &payload_change, sizeof(payload_change), &br, ptr);
+	// Change line
+	memset(&tmpbuf, 0, sizeof(tmpbuf));
+	record_tag_t** pos = record_cbs;
+	while((*pos)) {
+		if((*pos)->save_cb) (*pos)->save_cb(&tmpbuf);
+		pos++;
+	}
+
+	tmpbuf.header.magic = RECORD_SD_PAYLOAD_MAGIC;
+	tmpbuf.header.version = RECORD_SD_PAYLOAD_VERSION;
+
+	WORD crc = 0;
+	uint32_t tmp = sizeof(tmpbuf.bits);
+	for(uint16_t i = 0; i < sizeof(tmpbuf.bits); i++)
+		DIO_SPI_CardCRC16(&crc, tmpbuf.bits[i]);
+	tmpbuf.crc = crc;
+
+	res = instor_change_file(filename, &tmpbuf, sizeof(tmpbuf), &br, ptr);
 	if(res != FR_OK) {
 		record_load_ok = 0;
 		LOG_DEBUG(RECORD_TAG, "record NOT saved\n");
@@ -185,17 +203,17 @@ uint32_t get_new_id()
 
 	record_load_ok = 1;
 
-	FRESULT res = instor_find_file(record_filename);
+	FRESULT res = instor_find_file(RECORD_FILENAME);
 	if (res != FR_OK) {
 		record_load_ok = 0;
-		LOG_DEBUG(RECORD_TAG, "find_file(%s) error=%i\n", record_filename, res);
+		LOG_DEBUG(RECORD_TAG, "find_file(%s) error=%i\n", RECORD_FILENAME, res);
 		return FIRST_ID;
 	}
 
 	UINT br;
 	UINT ptr = DIOSPIFileInfo.fsize - sizeof(record_sd_payload_t);
 	char filename[64] = {};
-	snprintf(filename, sizeof(filename), "%s" "%s", DIOSPIPath, record_filename);
+	snprintf(filename, sizeof(filename), "%s" "%s", DIOSPIPath, RECORD_FILENAME);
 
 	res = intstor_read_line(filename, &tmpbuf, sizeof(tmpbuf), &br, ptr);
 	if(res != FR_OK) {
@@ -249,7 +267,7 @@ do_first_id:
 
 record_status_t remove_old_records()
 {
-	if (instor_remove_file(record_filename)) {
+	if (instor_remove_file(RECORD_FILENAME)) {
 		return RECORD_OK;
 	}
 	return RECORD_ERROR;

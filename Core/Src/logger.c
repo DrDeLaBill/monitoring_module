@@ -17,15 +17,22 @@
 #include "settings.h"
 
 
-#define LOG_SIZE      250
+#define LOG_SIZE 250
 
 
 void _general_record_save(record_sd_payload_t* payload);
 void _general_record_load(const record_sd_payload_t* payload);
 void _send_http_log();
+void _make_measurements();
+void _parse_response(const char* response);
 
 
-const char *LOG_TAG = "LOG";
+const char* LOG_TAG       = "LOG";
+const char* ID_FIELD      = "id=";
+const char* TIME_FIELD    = "time=";
+const char* LEVEL_FIELD   = "level=";
+const char* PRESS_1_FIELD = "press_1=";
+const char* PRESS_2_FIELD = "press_2=";
 
 
 LogRecord log_record;
@@ -42,23 +49,13 @@ dio_timer_t log_timer;
 
 void _general_record_save(record_sd_payload_t* payload)
 {
-	payload->v1.payload_record.id      = get_new_id();
-	payload->v1.payload_record.cf_id   = CF_VERSION;
-	payload->v1.payload_record.fw_id   = FW_VERSION;
-	payload->v1.payload_record.level   = get_liquid_level();
-	payload->v1.payload_record.press_1 = INA3221_getCurrent_mA(1);
-	payload->v1.payload_record.press_2 = INA3221_getCurrent_mA(2);
-	snprintf(
-		payload->v1.payload_record.time,
-		sizeof(payload->v1.payload_record.time),
-		"%d-%02d-%02dT%02d:%02d:%02d",
-		DS1307_GetYear(),
-		DS1307_GetMonth(),
-		DS1307_GetDate(),
-		DS1307_GetHour(),
-		DS1307_GetMinute(),
-		DS1307_GetSecond()
-	);
+	payload->v1.payload_record.id      = log_record.id;
+	payload->v1.payload_record.cf_id   = log_record.cf_id;
+	payload->v1.payload_record.fw_id   = log_record.fw_id;
+	payload->v1.payload_record.level   = log_record.level;
+	payload->v1.payload_record.press_1 = log_record.press_1;
+	payload->v1.payload_record.press_2 = log_record.press_2;
+	strncpy(payload->v1.payload_record.time, log_record.time, sizeof(log_record.time));
 }
 
 void _general_record_load(const record_sd_payload_t* payload)
@@ -88,18 +85,23 @@ void logger_proccess()
 	}
 
 	if (is_http_success()) {
-		LOG_DEBUG(LOG_TAG, "%s\r\n", get_response());
+		_parse_response(get_response());
 	}
 
 	if (Util_TimerPending(&log_timer)) {
 		return;
 	}
 
+	_make_measurements();
 	record_save();
 }
 
 void _send_http_log()
 {
+	if (is_http_busy()) {
+		return;
+	}
+
 	record_status_t res = next_record_load();
 	if (res != RECORD_OK) {
 		LOG_DEBUG(LOG_TAG, "error next_record_load()");
@@ -131,5 +133,45 @@ void _send_http_log()
 		log_record.press_2,
 		END_OF_STRING
 	);
+
 	send_http(data);
+}
+
+void _make_measurements()
+{
+	log_record.fw_id   = CF_VERSION;
+	log_record.cf_id   = FW_VERSION;
+	log_record.id      = get_new_id();
+	log_record.level   = get_liquid_level();
+	log_record.press_1 = INA3221_getCurrent_mA(1);
+	log_record.press_2 = INA3221_getCurrent_mA(2);
+	snprintf(
+		log_record.time,
+		sizeof(log_record.time),
+		"%d-%02d-%02dT%02d:%02d:%02d",
+		DS1307_GetYear(),
+		DS1307_GetMonth(),
+		DS1307_GetDate(),
+		DS1307_GetHour(),
+		DS1307_GetMinute(),
+		DS1307_GetSecond()
+	);
+}
+
+void _parse_response(const char* response)
+{
+	LOG_DEBUG(LOG_TAG, " SERVER RESPONSE\r\n%s\r\n", response);
+
+	uint32_t old_id = log_record.id;
+
+	char *var_ptr = strstr(response, ID_FIELD) + strlen(ID_FIELD) + 1;
+	log_record.id = atoi(var_ptr);
+	var_ptr = strstr(response, LEVEL_FIELD) + strlen(LEVEL_FIELD) + 1;
+	log_record.level = atof(var_ptr);
+	var_ptr = strstr(response, PRESS_1_FIELD) + strlen(PRESS_1_FIELD) + 1;
+	log_record.press_1 = atof(var_ptr);
+	var_ptr = strstr(response, PRESS_2_FIELD) + strlen(PRESS_2_FIELD) + 1;
+	log_record.press_2 = atof(var_ptr);
+
+	record_change(old_id);
 }

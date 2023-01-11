@@ -89,7 +89,7 @@ extern ADC_HandleTypeDef hadc1;
 extern UART_HandleTypeDef huart1;
 #define SIM_MODULE_UART huart1
 #define SIM_MODULE_RESET_PORT SIM_RESET_GPIO_Port
-#define SIM_MODULE_RESET_PIN SIM_RESET_GPIO_Port
+#define SIM_MODULE_RESET_PIN SIM_RESET_Pin
 // Clock
 extern I2C_HandleTypeDef hi2c1;
 #define CLOCK_I2C hi2c1
