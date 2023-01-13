@@ -45,10 +45,22 @@ void pump_init()
 	HAL_GPIO_WritePin(PUMP_LED_GPIO_Port, PUMP_LED_Pin, RESET);
 	_set_current_time(&startTime);
 	_calculate_work_time();
+	if (module_settings.milliliters_per_day == 0) {
+		LOG_DEBUG(PUMP_TAG, "No setting: milliliters_per_day\r\n");
+	}
+	if (module_settings.pump_speed == 0) {
+		LOG_DEBUG(PUMP_TAG, "No setting: pump_speed\r\n");
+	}
 }
 
 void pump_proccess()
 {
+	if (module_settings.milliliters_per_day == 0) {
+		return;
+	}
+	if (module_settings.pump_speed == 0) {
+		return;
+	}
 	if (_if_time_to_start_pump()) {
 		_calculate_work_time();
 		_start_pump();
@@ -61,14 +73,6 @@ void pump_proccess()
 
 void _calculate_work_time()
 {
-	if (module_settings.milliliters_per_day == 0) {
-		LOG_DEBUG(PUMP_TAG, "No setting: milliliters_per_day\r\n");
-		return;
-	}
-	if (module_settings.pump_speed == 0) {
-		LOG_DEBUG(PUMP_TAG, "No setting: pump_speed\r\n");
-		return;
-	}
 	uint8_t needed_time = module_settings.milliliters_per_day * MINUTES_PER_HOUR / HOURS_PER_DAY / module_settings.pump_speed / CYCLES_PER_HOUR;
 	if (needed_time > (MINUTES_PER_HOUR / CYCLES_PER_HOUR)) {
 		needed_time = MINUTES_PER_HOUR / CYCLES_PER_HOUR;

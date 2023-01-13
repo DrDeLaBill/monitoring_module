@@ -15,7 +15,6 @@
 extern settings_tag_t general_settings_load;
 extern ModuleSettings module_settings;
 
-bool set_clock_initialized(bool value);
 void show_settings();
 int _write(int file, uint8_t *ptr, int len);
 

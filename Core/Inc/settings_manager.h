@@ -42,7 +42,7 @@ typedef struct _module_settings {
 	// Pump speed: milliliters per hour
 	uint32_t pump_speed;
 	// External clock state
-	uint8_t clock_initialized;
+	uint8_t is_time_recieved;
 	// Measure delay in milliseconds
 	uint32_t sleep_time;
 	// Current server log ID

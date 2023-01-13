@@ -32,7 +32,7 @@ const char* TIME_RESP_FIELD = "time=";
 
 void clock_proccess()
 {
-	if (module_settings.clock_initialized) {
+	if (module_settings.is_time_recieved) {
 		return;
 	}
 
@@ -88,6 +88,6 @@ void _set_response_time(const char* response)
 	time_ptr = strstr(time_ptr, ":") + 1;
 	DS1307_SetSecond(atoi(time_ptr));
 
-	module_settings.clock_initialized = true;
+	module_settings.is_time_recieved = true;
 	settings_save();
 }

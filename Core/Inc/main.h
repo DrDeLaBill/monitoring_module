@@ -72,8 +72,8 @@ void Error_Handler(void);
 //Settings
 #define SETTINGS_UART huart2;
 //SD card
-extern SPI_HandleTypeDef hspi2;
-#define SD_HSPI hspi2
+extern SPI_HandleTypeDef hspi1;
+#define SD_HSPI hspi1
 #define SD_CS_GPIO_Port SPI1_SD_NSS_GPIO_Port
 #define SD_CS_Pin SPI1_SD_NSS_Pin
 // Shunt

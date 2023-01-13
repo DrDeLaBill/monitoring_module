@@ -6,7 +6,9 @@
  */
 
 #include "stm32f1xx_hal.h"
+
 #include <fatfs.h>
+#include <string.h>
 //
 #include "utils.h"
 //
@@ -102,7 +104,6 @@ settings_status_t settings_save() {
 	tmpbuf.header.version = SETTINGS_SD_PAYLOAD_VERSION;
 
 	WORD crc = 0;
-	uint32_t tmp = sizeof(tmpbuf.bits);
 	for(uint16_t i = 0; i < sizeof(tmpbuf.bits); i++)
 		DIO_SPI_CardCRC16(&crc, tmpbuf.bits[i]);
 	tmpbuf.crc = crc;

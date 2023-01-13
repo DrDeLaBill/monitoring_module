@@ -18,19 +18,15 @@ extern "C"{
 void DS1307_Init() {
 	DS1307_SetClockHalt(0);
 	if (DS1307_GetYear() > YEAR_LIMIT) {
-		module_settings.clock_initialized = false;
-	}
-	if (!module_settings.clock_initialized) {
+		module_settings.is_time_recieved = false;
 		DS1307_SetYear(2000);
 		DS1307_SetMonth(1);
 		DS1307_SetDate(1);
 		DS1307_SetHour(0);
 		DS1307_SetMinute(0);
 		DS1307_SetSecond(0);
-		module_settings.clock_initialized = true;
 		settings_save();
 	}
-	settings_save();
 }
 
 /**

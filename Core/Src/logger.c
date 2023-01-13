@@ -8,6 +8,8 @@
 #include "logger.h"
 
 #include <stdbool.h>
+#include <string.h>
+#include <stdlib.h>
 
 #include "defines.h"
 #include "utils.h"
@@ -15,6 +17,8 @@
 #include "record_manager.h"
 #include "sim_module.h"
 #include "settings.h"
+#include "ds1307_for_stm32_hal.h"
+#include "ina3221_sensor.h"
 
 
 #define LOG_SIZE 250
@@ -115,9 +119,9 @@ void _send_http_log()
 		"POST /api/v1/send HTTP/1.1\r\n"
 		"Host: %s:%s\r\n"
 		"Content-Type: text/plain\r\n"
-		"fw_id=%d;"
-		"cf_id=%d;"
-		"id=%d;"
+		"fw_id=%lu;"
+		"cf_id=%lu;"
+		"id=%lu;"
 		"time=%s;"
 		"level=%.2f;"
 		"press_1=%.2f;"
@@ -128,6 +132,7 @@ void _send_http_log()
 		log_record.fw_id,
 		log_record.cf_id,
 		log_record.id,
+		log_record.time,
 		log_record.level,
 		log_record.press_1,
 		log_record.press_2,

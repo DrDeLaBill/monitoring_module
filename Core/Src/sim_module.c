@@ -27,14 +27,14 @@
 #define HTTP_ACT_SIZE    60
 // SIM module states
 #define RESET_STATE      0x00
-#define MODULE_READY     0x01
-#define GPRS_READY       0x02
-#define WAIT_MODULE      0x04
-#define WAIT_HTTP        0x08
-#define CMD_SUCCESS      0x10
-#define HTTP_ACT_SUCCESS 0x20
-#define HTTP_SUCCESS     0x40
-#define ERROR_STATE      0x80
+#define MODULE_READY     0b00000001
+#define GPRS_READY       0b00000010
+#define WAIT_MODULE      0b00000100
+#define WAIT_HTTP        0b00001000
+#define CMD_SUCCESS      0b00010000
+#define HTTP_ACT_SUCCESS 0b00100000
+#define HTTP_SUCCESS     0b01000000
+#define ERROR_STATE      0b10000000
 #define LOAD_SUCCESS	 MODULE_READY | GPRS_READY | HTTP_SUCCESS
 
 

@@ -17,7 +17,6 @@
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
-#include <record_manager.h>
 #include "main.h"
 #include "adc.h"
 #include "crc.h"
@@ -48,6 +47,7 @@
 // Clock module
 #include "clock.h"
 // Data logger
+#include "logger.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -99,7 +99,6 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-  dio_timer_t log_timer;
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -118,31 +117,28 @@ int main(void)
   MX_USART1_UART_Init();
   MX_USART2_UART_Init();
   MX_FATFS_Init();
-  MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
 	HAL_Delay(100);
+	// Clock
+	DS1307_Init();
     // Settings initializing
 	settings_reset();
 	settings_load();
     // DIO SPI
 	DIO_SPI_Delay_cb = &my_delay_ms;
 
-	// Clock
-	DS1307_Init();
 	// Shunt
 	INA3221_begin();
 	// UART command manager
 	command_manager_begin();
 	// Liquid sensor
 	liquid_sensor_begin();
-	// Pump
-	pump_init();
 	// SIM module
 	sim_module_begin();
-	// Data logger
+	//Log manager
 	logger_manager_begin();
-	//Log timer
-	Util_TimerStart(&log_timer, module_settings.sleep_time);
+	// Pump
+	pump_init();
   /* USER CODE END 2 */
 
   /* Infinite loop */

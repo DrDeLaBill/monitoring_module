@@ -8,7 +8,7 @@
 #define END_OF_STRING 0x1a
 
 
-void sim_module_degin();
+void sim_module_begin();
 void sim_module_proccess();
 void sim_proccess_input(const char input_chr);
 void connect_to_server();

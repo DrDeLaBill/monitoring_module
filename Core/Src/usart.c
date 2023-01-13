@@ -27,7 +27,6 @@
 
 char sim_input_chr = 0;
 char cmd_input_chr = 0;
-char* tmp[40] = {};
 
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
@@ -73,7 +72,8 @@ void MX_USART1_UART_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN USART1_Init 2 */
-	HAL_UART_Receive_IT(&huart1, &sim_input_chr, sizeof(char));
+	HAL_UART_Receive_IT(&COMMAND_UART, &cmd_input_chr, sizeof(char));
+	HAL_UART_Receive_IT(&SIM_MODULE_UART, &sim_input_chr, sizeof(char));
   /* USER CODE END USART1_Init 2 */
 
 }
