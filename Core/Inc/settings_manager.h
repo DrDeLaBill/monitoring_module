@@ -46,7 +46,9 @@ typedef struct _module_settings {
 	// Measure delay in milliseconds
 	uint32_t sleep_time;
 	// Current server log ID
-	uint32_t cur_log_id;
+	uint32_t server_log_id;
+	// Current pump work hours
+	uint32_t pump_work_seconds;
 } ModuleSettings;
 
 
@@ -83,8 +85,6 @@ extern uint8_t settings_load_ok;
 void settings_reset();
 settings_status_t settings_load();
 settings_status_t settings_save();
-
-
 
 
 #endif /* INC_SETTINGS_MANAGER_H_ */

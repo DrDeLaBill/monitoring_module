@@ -7,11 +7,14 @@
 
 #include "pump.h"
 
+#include <stdlib.h>
+
 #include "settings.h"
 #include "defines.h"
 #include "utils.h"
 #include "liquid_sensor.h"
 #include "ds1307_for_stm32_hal.h"
+#include "sim_module.h"
 
 
 #define CYCLES_PER_HOUR    4
@@ -20,6 +23,7 @@
 #define SECONDS_PER_MINUTE 60
 #define MIN_PUMP_WORK_TIME SECONDS_PER_MINUTE
 #define MINUTES_PER_HOUR   60
+#define LOG_SIZE           140
 
 
 void _calculate_work_time();
@@ -33,28 +37,36 @@ void _start_pump();
 void _stop_pump();
 uint8_t _days_in_month(uint8_t year, uint8_t month);
 bool _is_leap_year(uint8_t year);
+void _show_work_time();
+void _write_work_time_to_log();
+void _send_work_time();
+void _send_work_request();
 
-const char* PUMP_TAG = "PUMP";
+
+const char* PUMP_TAG = "\r\nPUMP";
 uint8_t current_state = RESET;
 DateTime startTime = {};
 DateTime stopTime = {};
 
+
 void pump_init()
 {
 	HAL_GPIO_WritePin(PUMP_GPIO_Port, PUMP_Pin, RESET);
-	HAL_GPIO_WritePin(PUMP_LED_GPIO_Port, PUMP_LED_Pin, RESET);
 	_set_current_time(&startTime);
-	_calculate_work_time();
 	if (module_settings.milliliters_per_day == 0) {
 		LOG_DEBUG(PUMP_TAG, "No setting: milliliters_per_day\r\n");
+		return;
 	}
 	if (module_settings.pump_speed == 0) {
 		LOG_DEBUG(PUMP_TAG, "No setting: pump_speed\r\n");
+		return;
 	}
+	_calculate_work_time();
 }
 
 void pump_proccess()
 {
+	_send_work_time();
 	if (module_settings.milliliters_per_day == 0) {
 		return;
 	}
@@ -64,10 +76,13 @@ void pump_proccess()
 	if (_if_time_to_start_pump()) {
 		_calculate_work_time();
 		_start_pump();
+		_write_work_time_to_log();
+		_show_work_time();
 	}
 	if (_if_time_to_stop_pump()) {
 		_calculate_pause_time();
 		_stop_pump();
+		_show_work_time();
 	}
 }
 
@@ -125,8 +140,8 @@ void _filterTime(DateTime *targetTime)
 
 bool _if_pump_work_time_too_short()
 {
-	uint32_t start_time = _daytime_to_int(&startTime),
-			 stop_time = _daytime_to_int(&stopTime);
+	long long start_time = _daytime_to_int(&startTime),
+			  stop_time = _daytime_to_int(&stopTime);
 	return abs(start_time - stop_time) < MIN_PUMP_WORK_TIME;
 }
 
@@ -167,7 +182,6 @@ bool _if_time_to_stop_pump()
 void _start_pump()
 {
 	if (_if_pump_work_time_too_short()) {
-		HAL_GPIO_WritePin(PUMP_LED_GPIO_Port, PUMP_LED_Pin, RESET);
 		return;
 	}
 	if (current_state == SET) {
@@ -176,7 +190,6 @@ void _start_pump()
 	current_state = SET;
 	LOG_DEBUG(PUMP_TAG,	"PUMP ON\r\n");
 	HAL_GPIO_WritePin(PUMP_GPIO_Port, PUMP_Pin, current_state);
-	HAL_GPIO_WritePin(PUMP_LED_GPIO_Port, PUMP_LED_Pin, current_state);
 }
 
 void _stop_pump()
@@ -186,7 +199,77 @@ void _stop_pump()
 	}
 	current_state = RESET;
 	LOG_DEBUG(PUMP_TAG, "PUMP OFF\r\n");
-	HAL_GPIO_WritePin(PUMP_GPIO_Port, PUMP_Pin, RESET);
+	HAL_GPIO_WritePin(PUMP_GPIO_Port, PUMP_Pin, current_state);
+}
+
+void _show_work_time()
+{
+	LOG_DEBUG(
+		PUMP_TAG,
+		"\r\nwork time: \t%u-%02u-%02uT%02u:%02u:%02u -> %u-%02u-%02uT%02u:%02u:%02u\r\n\r\n",
+		startTime.year,
+		startTime.month,
+		startTime.date,
+		startTime.hour,
+		startTime.minute,
+		startTime.second,
+		stopTime.year,
+		stopTime.month,
+		stopTime.date,
+		stopTime.hour,
+		stopTime.minute,
+		stopTime.second
+	);
+}
+
+void _write_work_time_to_log()
+{
+	uint32_t start_time = _daytime_to_int(&startTime),
+			 stop_time  = _daytime_to_int(&stopTime);
+	module_settings.pump_work_seconds += abs(stop_time - start_time);
+	settings_save();
+}
+
+void _send_work_time()
+{
+	if (!module_settings.pump_work_seconds) {
+		return;
+	}
+
+	if (is_server_available()) {
+		_send_work_request();
+	}
+
+	if (is_http_success()) {
+		module_settings.pump_work_seconds = 0;
+		settings_save();
+	}
+}
+
+void _send_work_request()
+{
+	if (is_http_busy()) {
+		return;
+	}
+
+	char data[LOG_SIZE] = {};
+	snprintf(
+		data,
+		sizeof(data),
+		"POST /api/v1/send-work HTTP/1.1\r\n"
+		"Host: %s:%s\r\n"
+		"Content-Type: text/plain\r\n"
+		"id=%lu\r\n"
+		"work=%lu;"
+		"%c\r\n",
+		module_settings.server_url,
+		module_settings.server_port,
+		module_settings.id,
+		module_settings.pump_work_seconds,
+		END_OF_STRING
+	);
+
+	send_http(data);
 }
 
 uint8_t _days_in_month(uint8_t year, uint8_t month)

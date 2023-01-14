@@ -8,7 +8,8 @@ extern "C"{
 #endif
 
 
-#define YEAR_LIMIT 3000
+#define YEAR_MAX 3000
+#define YEAR_MIN 3000
 
 
 /**
@@ -17,7 +18,8 @@ extern "C"{
  */
 void DS1307_Init() {
 	DS1307_SetClockHalt(0);
-	if (DS1307_GetYear() > YEAR_LIMIT) {
+	uint16_t ds_year = DS1307_GetYear();
+	if (ds_year < YEAR_MIN || ds_year > YEAR_MAX) {
 		module_settings.is_time_recieved = false;
 		DS1307_SetYear(2000);
 		DS1307_SetMonth(1);

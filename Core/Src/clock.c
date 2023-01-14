@@ -36,10 +36,6 @@ void clock_proccess()
 		return;
 	}
 
-	if (is_module_ready() && !is_server_available()) {
-		connect_to_server();
-	}
-
 	if (is_server_available()) {
 		_send_time_request();
 	}

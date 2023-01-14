@@ -48,6 +48,9 @@
 #include "clock.h"
 // Data logger
 #include "logger.h"
+// Server
+#include "server.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -139,6 +142,8 @@ int main(void)
 	logger_manager_begin();
 	// Pump
 	pump_init();
+	// State LED
+	HAL_GPIO_WritePin(STATE_LED_GPIO_Port, STATE_LED_Pin, SET);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -148,6 +153,8 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+	  // Server
+	  server_proccess();
 	  // Pump
 	  pump_proccess();
 	  // Liquid sensor

@@ -8,6 +8,7 @@
 #include "liquid_sensor.h"
 
 #include <stdbool.h>
+#include <stdlib.h>
 
 #include "defines.h"
 #include "settings.h"

@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include "stm32f1xx_hal.h"
 #include "utils.h"
+#include "defines.h"
 
 
 void Util_TimerStart(dio_timer_t* tm, uint32_t waitMs) {

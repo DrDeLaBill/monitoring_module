@@ -14,10 +14,10 @@
 
 #include "utils.h"
 #include "settings_manager.h"
-#include "record_manager.h"
 
 // Clock
 #include "ds1307_for_stm32_hal.h"
+
 
 #define DEFAULT_SLEEPING_TIME 900000
 #define MIN_TANK_VOLUME       500
@@ -30,9 +30,11 @@ void _general_settings_default(settings_sd_payload_t* payload);
 void _general_settings_save(settings_sd_payload_t* payload);
 void _general_settings_load(const settings_sd_payload_t* payload);
 
+
 const char *SETTINGS_TAG = "STNGS";
 const char *_default_server_url = "192.168.0.1";
 const char *_default_server_port = "80";
+
 
 ModuleSettings module_settings;
 settings_tag_t general_settings_load = {
@@ -44,6 +46,7 @@ settings_tag_t* settings_cbs[] = {
 	&general_settings_load,
 	NULL
 };
+
 
 void _general_settings_default(settings_sd_payload_t* payload) {
 	LOG_DEBUG(SETTINGS_TAG, "SET DEFAULT SETTINGS\r\n");
@@ -60,7 +63,8 @@ void _general_settings_default(settings_sd_payload_t* payload) {
 	payload->v1.payload_settings.pump_speed = 0;
 	payload->v1.payload_settings.sleep_time = DEFAULT_SLEEPING_TIME;
 	payload->v1.payload_settings.is_time_recieved = false;
-	payload->v1.payload_settings.cur_log_id = FIRST_ID;
+	payload->v1.payload_settings.server_log_id = 0;
+	payload->v1.payload_settings.pump_work_seconds = 0;
 	show_settings();
 }
 
@@ -78,7 +82,8 @@ void _general_settings_save(settings_sd_payload_t* payload) {
 	payload->v1.payload_settings.pump_speed = module_settings.pump_speed;
 	payload->v1.payload_settings.sleep_time = module_settings.sleep_time;
 	payload->v1.payload_settings.is_time_recieved = module_settings.is_time_recieved;
-	payload->v1.payload_settings.cur_log_id = module_settings.cur_log_id;
+	payload->v1.payload_settings.server_log_id = module_settings.server_log_id;
+	payload->v1.payload_settings.pump_work_seconds = module_settings.pump_work_seconds;
 	show_settings();
 }
 
@@ -95,7 +100,8 @@ void _general_settings_load(const settings_sd_payload_t* payload) {
 	module_settings.pump_speed = payload->v1.payload_settings.pump_speed;
 	module_settings.sleep_time = payload->v1.payload_settings.sleep_time;
 	module_settings.is_time_recieved = payload->v1.payload_settings.is_time_recieved;
-	module_settings.cur_log_id = payload->v1.payload_settings.cur_log_id;
+	module_settings.server_log_id = payload->v1.payload_settings.server_log_id;
+	module_settings.pump_work_seconds = payload->v1.payload_settings.pump_work_seconds;
 	show_settings();
 }
 
@@ -113,7 +119,8 @@ void show_settings()
 		"Target: %lu ml/d\r\n"
 		"Pump speed: %lu ml/h\r\n"
 		"Sleep time: %lu sec\r\n"
-		"Current log ID: %lu\r\n\r\n",
+		"Server log ID: %lu\r\n"
+		"Pump work: %lu sec\r\n\r\n",
 		DS1307_GetYear(),
 		DS1307_GetMonth(),
 		DS1307_GetDate(),
@@ -130,7 +137,8 @@ void show_settings()
 		module_settings.milliliters_per_day,
 		module_settings.pump_speed,
 		module_settings.sleep_time / MILLIS_IN_SECOND,
-		module_settings.cur_log_id
+		module_settings.server_log_id,
+		module_settings.pump_work_seconds
 	);
 }
 
@@ -138,6 +146,5 @@ int _write(int file, uint8_t *ptr, int len) {
 	for (int DataIdx = 0; DataIdx < len; DataIdx++) {
 		ITM_SendChar(*ptr++);
 	}
-	HAL_UART_Transmit(&COMMAND_UART, ptr, len, DEFAULT_UART_DELAY);
 	return len;
 }

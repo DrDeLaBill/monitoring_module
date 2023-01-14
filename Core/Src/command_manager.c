@@ -34,6 +34,7 @@ void _show_liters_ADC_min();
 void _show_liters_per_month();
 void _show_pump_speed();
 void _show_sleeping_time();
+void _show_settings();
 
 
 const char *COMMAND_TAG = "UARTCMD";
@@ -109,7 +110,7 @@ void _execute_command()
 		module_settings.id = (uint32_t)atoi(command[1]);
 		_show_id();
 	} else if (strncmp("setsleep", command[0], CHAR_COMMAND_SIZE) == 0) {
-		module_settings.sleep_time = atoi(command[1]);
+		module_settings.sleep_time = atoi(command[1]) * 1000;
 		_show_sleeping_time();
 	} else if (strncmp("seturl", command[0], CHAR_COMMAND_SIZE) == 0) {
 		strncpy(module_settings.server_url, command[1], sizeof(module_settings.server_url));
@@ -144,6 +145,7 @@ void _execute_command()
 	}
 
 	settings_save();
+	_show_settings();
 	_clear_command();
 }
 
@@ -234,4 +236,18 @@ void _show_sleeping_time()
 	char response[UART_RESPONSE_SIZE] = {};
 	snprintf(response, UART_RESPONSE_SIZE, "Sleep time: %lu sec\r\n", module_settings.sleep_time / MILLIS_IN_SECOND);
 	_send_uart_response(response);
+}
+
+void _show_settings()
+{
+	_show_id();
+	_show_server_url();
+	_show_server_port();
+	_show_liters_max();
+	_show_liters_min();
+	_show_liters_ADC_max();
+	_show_liters_ADC_min();
+	_show_liters_per_month();
+	_show_pump_speed();
+	_show_sleeping_time();
 }

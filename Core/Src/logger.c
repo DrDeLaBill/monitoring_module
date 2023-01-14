@@ -28,7 +28,9 @@ void _general_record_save(record_sd_payload_t* payload);
 void _general_record_load(const record_sd_payload_t* payload);
 void _send_http_log();
 void _make_measurements();
+void _show_measurements();
 void _parse_response(const char* response);
+void _timer_start();
 
 
 const char* LOG_TAG       = "LOG";
@@ -75,15 +77,11 @@ void _general_record_load(const record_sd_payload_t* payload)
 
 void logger_manager_begin()
 {
-	Util_TimerStart(&log_timer, module_settings.sleep_time);
+	update_log_timer();
 }
 
 void logger_proccess()
 {
-	if (is_module_ready() && !is_server_available()) {
-		connect_to_server();
-	}
-
 	if (is_server_available()) {
 		_send_http_log();
 	}
@@ -97,7 +95,14 @@ void logger_proccess()
 	}
 
 	_make_measurements();
+	_show_measurements();
 	record_save();
+	update_log_timer();
+}
+
+void update_log_timer()
+{
+	Util_TimerStart(&log_timer, module_settings.sleep_time);
 }
 
 void _send_http_log()
@@ -108,7 +113,7 @@ void _send_http_log()
 
 	record_status_t res = next_record_load();
 	if (res != RECORD_OK) {
-		LOG_DEBUG(LOG_TAG, "error next_record_load()");
+		LOG_DEBUG(LOG_TAG, "error next_record_load()\r\n");
 		return;
 	}
 
@@ -122,6 +127,7 @@ void _send_http_log()
 		"fw_id=%lu;"
 		"cf_id=%lu;"
 		"id=%lu;"
+		"log_id=%lu;"
 		"time=%s;"
 		"level=%.2f;"
 		"press_1=%.2f;"
@@ -131,6 +137,7 @@ void _send_http_log()
 		module_settings.server_port,
 		log_record.fw_id,
 		log_record.cf_id,
+		module_settings.id,
 		log_record.id,
 		log_record.time,
 		log_record.level,
@@ -163,6 +170,23 @@ void _make_measurements()
 	);
 }
 
+void _show_measurements()
+{
+	LOG_DEBUG(
+		LOG_TAG,
+		"\r\nID: %lu\r\n"
+		"Time: %s\r\n"
+		"Level: %.2f\r\n"
+		"Press 1: %.2f\r\n"
+		"Press 2: %.2f\r\n",
+		log_record.id,
+		log_record.time,
+		log_record.level,
+		log_record.press_1,
+		log_record.press_2
+	);
+}
+
 void _parse_response(const char* response)
 {
 	LOG_DEBUG(LOG_TAG, " SERVER RESPONSE\r\n%s\r\n", response);
@@ -179,4 +203,7 @@ void _parse_response(const char* response)
 	log_record.press_2 = atof(var_ptr);
 
 	record_change(old_id);
+
+	module_settings.server_log_id = log_record.id;
+	settings_save();
 }

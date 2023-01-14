@@ -57,7 +57,7 @@ do_readline:
 		ptr += sizeof(tmpbuf);
 		goto do_readline;
 	}
-	if (tmpbuf.v1.payload_record.id < module_settings.cur_log_id) {
+	if (tmpbuf.v1.payload_record.id < module_settings.server_log_id) {
 		ptr += sizeof(tmpbuf);
 		goto do_readline;
 	}
@@ -85,9 +85,6 @@ do_readline:
 	}
 
 	if(!record_load_ok) return RECORD_ERROR;
-
-	module_settings.cur_log_id = tmpbuf.v1.payload_record.id;
-	settings_save();
 
 	return RECORD_OK;
 }
@@ -120,7 +117,7 @@ record_status_t record_save() {
 	Debug_HexDump(RECORD_TAG, (uint8_t*)&tmpbuf, sizeof(tmpbuf));
 
 	char filename[64];
-	snprintf(filename, sizeof(filename), "%s" "%s", RECORD_FILENAME);
+	snprintf(filename, sizeof(filename), "%s" "%s", DIOSPIPath, RECORD_FILENAME);
 
 	UINT br;
 	FRESULT res = intstor_append_file(filename, &tmpbuf, sizeof(tmpbuf), &br);
@@ -242,7 +239,6 @@ uint32_t get_new_id()
 		return RECORD_ERROR;
 	}
 
-	LOG_DEBUG(RECORD_TAG, "loading record\n");
 	record_tag_t** pos = record_cbs;
 	while((*pos)) {
 		if((*pos)->load_cb) (*pos)->load_cb(&tmpbuf);
@@ -258,18 +254,25 @@ uint32_t get_new_id()
 		goto do_first_id;
 	}
 
+	LOG_DEBUG(RECORD_TAG, "next record id - %lu\r\n", new_id);
+
 	return new_id;
 
 do_first_id:
 
+	LOG_DEBUG(RECORD_TAG, "set first record id - %lu\r\n", FIRST_ID);
 	return FIRST_ID;
 }
 
 record_status_t remove_old_records()
 {
+	char filename[64] = {};
+	snprintf(filename, sizeof(filename), "%s" "%s", DIOSPIPath, RECORD_FILENAME);
 	if (instor_remove_file(RECORD_FILENAME)) {
+		LOG_DEBUG(RECORD_TAG, "file %s removed\r\n", filename);
 		return RECORD_OK;
 	}
+	LOG_DEBUG(RECORD_TAG, "file %s not removed\r\n", filename);
 	return RECORD_ERROR;
 }
 
@@ -281,10 +284,11 @@ bool _is_enough_space()
 	res = instor_get_free_clust(&fre_clust);
 	if (res != FR_OK) {
 		LOG_DEBUG(RECORD_TAG, "unable to get free space\r\n");
-		return false;
+		return true;
 	}
 
 	if (fre_clust < CLUSTERS_MIN) {
+		LOG_DEBUG(RECORD_TAG, "There is no enough space\r\n");
 		return false;
 	}
 

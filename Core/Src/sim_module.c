@@ -20,13 +20,13 @@
 #define UART_TIMEOUT     100
 #define END_OF_STRING    0x1a
 #define RESPONSE_SIZE    80
-#define UART_WAIT        10000
+#define UART_WAIT        20000
 #define RESTART_WAIT     1000
 #define CONF_CMD_SIZE    9
 #define GPRS_CMD_SIZE    40
 #define HTTP_ACT_SIZE    60
 // SIM module states
-#define RESET_STATE      0x00
+#define RESET_STATE      0b00000000
 #define MODULE_READY     0b00000001
 #define GPRS_READY       0b00000010
 #define WAIT_MODULE      0b00000100
@@ -35,7 +35,7 @@
 #define HTTP_ACT_SUCCESS 0b00100000
 #define HTTP_SUCCESS     0b01000000
 #define ERROR_STATE      0b10000000
-#define LOAD_SUCCESS	 MODULE_READY | GPRS_READY | HTTP_SUCCESS
+#define LOAD_SUCCESS	 MODULE_READY | GPRS_READY | CMD_SUCCESS
 
 
 void _check_module_response();
@@ -66,7 +66,7 @@ struct _sim_module_state {
 
 const char* SIM_TAG = "SIM";
 const char* SUCCESS_CMD_RESP = "OK";
-const char* SUCCESS_HTTP_ACT = "CHTTPACT: REQUEST";
+const char* SUCCESS_HTTP_ACT = "+CHTTPACT: REQUEST";
 const char* SUCCESS_HTTP_RESP = "200 ok";
 const char* LINE_BREAK = "\r\n";
 const char sim_config_list[][CONF_CMD_SIZE] = {
@@ -79,7 +79,7 @@ const char gprs_config_list[][GPRS_CMD_SIZE] = {
 	{"AT+CGDCONT=1,\"IP\",\"internet\",\"0.0.0.0\""},
 	{"AT+CGSOCKCONT=1,\"IP\",\"internet\""},
 	{"AT+CSOCKSETPN=1"},
-	{"AT+CSOCKSETPN=0"},
+//	{"AT+CSOCKSETPN=0"},
 	{"AT+CHTTPSSTART"},
 	{""}
 };
@@ -102,21 +102,21 @@ void sim_proccess_input(const char input_chr)
 	_update_line_counter(&line_break_counter);
 
 	if (strstr(response, SUCCESS_CMD_RESP)) {
-		LOG_DEBUG(SIM_TAG, "%s\r\n", response);
+		LOG_DEBUG(SIM_TAG, "CMD command success %s\r\n", response);
 		sim_state.state |= CMD_SUCCESS;
 		sim_state.state &= ~WAIT_MODULE;
 		_clear_response();
 	}
 
 	if (strstr(response, SUCCESS_HTTP_ACT)) {
-		LOG_DEBUG(SIM_TAG, "%s\r\n", response);
+		LOG_DEBUG(SIM_TAG, "HTTP ACT success %s\r\n", response);
 		sim_state.state |= HTTP_ACT_SUCCESS;
 		sim_state.state &= ~WAIT_HTTP;
 		_clear_response();
 	}
 
 	if (strstr(response, SUCCESS_HTTP_RESP)) {
-		LOG_DEBUG(SIM_TAG, "%s\r\n", response);
+		LOG_DEBUG(SIM_TAG, "HTTP success %s\r\n", response);
 		sim_state.state |= HTTP_SUCCESS;
 		sim_state.state &= ~WAIT_HTTP;
 		_clear_response();
