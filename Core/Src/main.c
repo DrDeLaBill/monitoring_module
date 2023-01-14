@@ -155,6 +155,8 @@ int main(void)
     /* USER CODE BEGIN 3 */
 	  // Server
 	  server_proccess();
+	  // Clock update
+	  clock_proccess();
 	  // Pump
 	  pump_proccess();
 	  // Liquid sensor
