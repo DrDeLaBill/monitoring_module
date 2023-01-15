@@ -48,8 +48,6 @@
 #include "clock.h"
 // Data logger
 #include "logger.h"
-// Server
-#include "server.h"
 
 /* USER CODE END Includes */
 
@@ -122,14 +120,14 @@ int main(void)
   MX_FATFS_Init();
   /* USER CODE BEGIN 2 */
 	HAL_Delay(100);
-	// Clock
-	DS1307_Init();
-    // Settings initializing
-	settings_reset();
-	settings_load();
     // DIO SPI
 	DIO_SPI_Delay_cb = &my_delay_ms;
-
+    // Settings initializing
+	if (settings_load() != SETTINGS_OK) {
+		settings_reset();
+	}
+	// Clock
+	DS1307_Init();
 	// Shunt
 	INA3221_begin();
 	// UART command manager
@@ -153,8 +151,6 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  // Server
-	  server_proccess();
 	  // Clock update
 	  clock_proccess();
 	  // Pump

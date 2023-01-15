@@ -82,15 +82,24 @@ void logger_manager_begin()
 
 void logger_proccess()
 {
-	if (is_server_available()) {
+	if (if_http_ready()) {
 		_send_http_log();
 	}
 
-	if (is_http_success()) {
+	if (has_http_response(LOG_TAG)) {
 		_parse_response(get_response());
 	}
 
+	if (log_timer.delay != module_settings.sleep_time) {
+		log_timer.delay = module_settings.sleep_time;
+	}
+
 	if (Util_TimerPending(&log_timer)) {
+		return;
+	}
+
+	if (!module_settings.sleep_time) {
+		LOG_DEBUG(LOG_TAG, "no setting - sleep_time\r\n");
 		return;
 	}
 
@@ -107,7 +116,7 @@ void update_log_timer()
 
 void _send_http_log()
 {
-	if (is_http_busy()) {
+	if (if_sim_module_busy()) {
 		return;
 	}
 
@@ -145,8 +154,7 @@ void _send_http_log()
 		log_record.press_2,
 		END_OF_STRING
 	);
-
-	send_http(data);
+	send_http(LOG_TAG, data);
 }
 
 void _make_measurements()
@@ -202,8 +210,13 @@ void _parse_response(const char* response)
 	var_ptr = strstr(response, PRESS_2_FIELD) + strlen(PRESS_2_FIELD) + 1;
 	log_record.press_2 = atof(var_ptr);
 
+	if (old_id == log_record.id) {
+		goto do_update_id;
+	}
+
 	record_change(old_id);
 
+do_update_id:
 	module_settings.server_log_id = log_record.id;
 	settings_save();
 }

@@ -65,7 +65,7 @@ void _general_settings_default(settings_sd_payload_t* payload) {
 	payload->v1.payload_settings.is_time_recieved = false;
 	payload->v1.payload_settings.server_log_id = 0;
 	payload->v1.payload_settings.pump_work_seconds = 0;
-	show_settings();
+	settings_save();
 }
 
 

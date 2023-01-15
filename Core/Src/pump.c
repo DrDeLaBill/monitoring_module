@@ -236,11 +236,15 @@ void _send_work_time()
 		return;
 	}
 
-	if (is_server_available()) {
+	if (if_sim_module_busy()) {
+		return;
+	}
+
+	if (if_http_ready()) {
 		_send_work_request();
 	}
 
-	if (is_http_success()) {
+	if (has_http_response(PUMP_TAG)) {
 		module_settings.pump_work_seconds = 0;
 		settings_save();
 	}
@@ -248,10 +252,6 @@ void _send_work_time()
 
 void _send_work_request()
 {
-	if (is_http_busy()) {
-		return;
-	}
-
 	char data[LOG_SIZE] = {};
 	snprintf(
 		data,
@@ -268,8 +268,7 @@ void _send_work_request()
 		module_settings.pump_work_seconds,
 		END_OF_STRING
 	);
-
-	send_http(data);
+	send_http(PUMP_TAG, data);
 }
 
 uint8_t _days_in_month(uint8_t year, uint8_t month)

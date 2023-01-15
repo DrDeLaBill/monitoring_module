@@ -260,7 +260,7 @@ uint32_t get_new_id()
 
 do_first_id:
 
-	LOG_DEBUG(RECORD_TAG, "set first record id - %lu\r\n", FIRST_ID);
+	LOG_DEBUG(RECORD_TAG, "set first record id - %d\r\n", FIRST_ID);
 	return FIRST_ID;
 }
 

@@ -36,21 +36,21 @@ void clock_proccess()
 		return;
 	}
 
-	if (is_server_available()) {
+	if (if_sim_module_busy()) {
+		return;
+	}
+
+	if (if_http_ready()) {
 		_send_time_request();
 	}
 
-	if (is_http_success()) {
+	if (has_http_response(CLOCK_TAG)) {
 		_set_response_time(get_response());
 	}
 }
 
 void _send_time_request()
 {
-	if (is_http_busy()) {
-		return;
-	}
-
 	char data[REQUEST_SIZE] = {};
 	snprintf(
 		data,
@@ -63,8 +63,7 @@ void _send_time_request()
 		module_settings.server_port,
 		END_OF_STRING
 	);
-
-	send_http(data);
+	send_http(CLOCK_TAG, data);
 }
 
 void _set_response_time(const char* response)
