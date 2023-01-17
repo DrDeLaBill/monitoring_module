@@ -10,11 +10,17 @@
 
 #include "record_manager.h"
 
+
+#define LOG_SIZE 250
+
+
 extern record_tag_t general_record_load;
 extern LogRecord log_record;
+
 
 void logger_manager_begin();
 void logger_proccess();
 void update_log_timer();
+
 
 #endif /* INC_LOGGER_H_ */

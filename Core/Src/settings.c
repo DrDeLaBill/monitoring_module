@@ -143,6 +143,7 @@ void show_settings()
 }
 
 int _write(int file, uint8_t *ptr, int len) {
+	HAL_UART_Transmit(&COMMAND_UART, (uint8_t *) ptr, len, DEFAULT_UART_DELAY);
 	for (int DataIdx = 0; DataIdx < len; DataIdx++) {
 		ITM_SendChar(*ptr++);
 	}

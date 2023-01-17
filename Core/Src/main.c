@@ -44,8 +44,6 @@
 #include "liquid_sensor.h"
 // Logger manager
 #include "pump.h"
-// Clock module
-#include "clock.h"
 // Data logger
 #include "logger.h"
 
@@ -151,8 +149,6 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  // Clock update
-	  clock_proccess();
 	  // Pump
 	  pump_proccess();
 	  // Liquid sensor

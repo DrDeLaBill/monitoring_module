@@ -21,9 +21,6 @@
 #include "ina3221_sensor.h"
 
 
-#define LOG_SIZE 250
-
-
 void _general_record_save(record_sd_payload_t* payload);
 void _general_record_load(const record_sd_payload_t* payload);
 void _send_http_log();
@@ -35,7 +32,7 @@ void _timer_start();
 
 const char* LOG_TAG       = "LOG";
 const char* ID_FIELD      = "id=";
-const char* TIME_FIELD    = "time=";
+const char* TIME_FIELD    = "t=";
 const char* LEVEL_FIELD   = "level=";
 const char* PRESS_1_FIELD = "press_1=";
 const char* PRESS_2_FIELD = "press_2=";
@@ -82,11 +79,11 @@ void logger_manager_begin()
 
 void logger_proccess()
 {
-	if (if_http_ready()) {
+	if (if_network_ready()) {
 		_send_http_log();
 	}
 
-	if (has_http_response(LOG_TAG)) {
+	if (has_http_response()) {
 		_parse_response(get_response());
 	}
 
@@ -116,10 +113,6 @@ void update_log_timer()
 
 void _send_http_log()
 {
-	if (if_sim_module_busy()) {
-		return;
-	}
-
 	record_status_t res = next_record_load();
 	if (res != RECORD_OK) {
 		LOG_DEBUG(LOG_TAG, "error next_record_load()\r\n");
@@ -133,14 +126,17 @@ void _send_http_log()
 		"POST /api/v1/send HTTP/1.1\r\n"
 		"Host: %s:%s\r\n"
 		"Content-Type: text/plain\r\n"
+		"\r\n"
 		"fw_id=%lu;"
 		"cf_id=%lu;"
 		"id=%lu;"
-		"log_id=%lu;"
-		"time=%s;"
-		"level=%.2f;"
-		"press_1=%.2f;"
-		"press_2=%.2f\r\n"
+		"d="
+			"id=%lu;"
+			"t=%s;"
+			"level=%.2f;"
+			"press_1=%.2f;"
+			"press_2=%.2f;"
+			"pump=%lu\r\n"
 		"%c\r\n",
 		module_settings.server_url,
 		module_settings.server_port,
@@ -152,9 +148,10 @@ void _send_http_log()
 		log_record.level,
 		log_record.press_1,
 		log_record.press_2,
+		module_settings.pump_work_seconds,
 		END_OF_STRING
 	);
-	send_http(LOG_TAG, data);
+	send_http(data);
 }
 
 void _make_measurements()
@@ -202,21 +199,78 @@ void _parse_response(const char* response)
 	uint32_t old_id = log_record.id;
 
 	char *var_ptr = strstr(response, ID_FIELD) + strlen(ID_FIELD) + 1;
-	log_record.id = atoi(var_ptr);
-	var_ptr = strstr(response, LEVEL_FIELD) + strlen(LEVEL_FIELD) + 1;
-	log_record.level = atof(var_ptr);
-	var_ptr = strstr(response, PRESS_1_FIELD) + strlen(PRESS_1_FIELD) + 1;
-	log_record.press_1 = atof(var_ptr);
-	var_ptr = strstr(response, PRESS_2_FIELD) + strlen(PRESS_2_FIELD) + 1;
-	log_record.press_2 = atof(var_ptr);
-
-	if (old_id == log_record.id) {
-		goto do_update_id;
+	if (!var_ptr) {
+		goto do_error;
 	}
+	log_record.id = atoi(var_ptr);
+
+	var_ptr = strstr(response, LEVEL_FIELD) + strlen(LEVEL_FIELD) + 1;
+	if (!var_ptr) {
+		goto do_error;
+	}
+	log_record.level = atof(var_ptr);
+
+	var_ptr = strstr(response, PRESS_1_FIELD) + strlen(PRESS_1_FIELD) + 1;
+	if (!var_ptr) {
+		goto do_error;
+	}
+	log_record.press_1 = atof(var_ptr);
+
+	var_ptr = strstr(response, PRESS_2_FIELD) + strlen(PRESS_2_FIELD) + 1;
+	if (!var_ptr) {
+		goto do_error;
+	}
+	log_record.press_2 = atof(var_ptr);
 
 	record_change(old_id);
 
-do_update_id:
+	var_ptr = strstr(response, TIME_FIELD) + strlen(TIME_FIELD) + 1;
+	if (!var_ptr) {
+		goto do_error;
+	}
+	DS1307_SetYear(atoi(var_ptr));
+
+	var_ptr = strstr(var_ptr, "-") + 1;
+	if (!var_ptr) {
+		goto do_error;
+	}
+	DS1307_SetMonth(atoi(var_ptr));
+
+	var_ptr = strstr(var_ptr, "-") + 1;
+	if (!var_ptr) {
+		goto do_error;
+	}
+	DS1307_SetDate(atoi(var_ptr));
+
+	var_ptr = strstr(var_ptr, "T") + 1;
+	if (!var_ptr) {
+		goto do_error;
+	}
+	DS1307_SetHour(atoi(var_ptr));
+
+	var_ptr = strstr(var_ptr, ":") + 1;
+	if (!var_ptr) {
+		goto do_error;
+	}
+	DS1307_SetMinute(atoi(var_ptr));
+	if (!var_ptr) {
+		goto do_error;
+	}
+
+	var_ptr = strstr(var_ptr, ":") + 1;
+	if (!var_ptr) {
+		goto do_error;
+	}
+	DS1307_SetSecond(atoi(var_ptr));
+
+	goto do_success;
+
+
+do_error:
+	LOG_DEBUG(LOG_TAG, " unable to parse response - %s\r\n", response);
+
+do_success:
 	module_settings.server_log_id = log_record.id;
+	module_settings.is_time_recieved = true;
 	settings_save();
 }

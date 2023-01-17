@@ -39,8 +39,6 @@ uint8_t _days_in_month(uint8_t year, uint8_t month);
 bool _is_leap_year(uint8_t year);
 void _show_work_time();
 void _write_work_time_to_log();
-void _send_work_time();
-void _send_work_request();
 
 
 const char* PUMP_TAG = "\r\nPUMP";
@@ -66,7 +64,6 @@ void pump_init()
 
 void pump_proccess()
 {
-	_send_work_time();
 	if (module_settings.milliliters_per_day == 0) {
 		return;
 	}
@@ -206,7 +203,10 @@ void _show_work_time()
 {
 	LOG_DEBUG(
 		PUMP_TAG,
-		"\r\nwork time: \t%u-%02u-%02uT%02u:%02u:%02u -> %u-%02u-%02uT%02u:%02u:%02u\r\n\r\n",
+		"\r\n"
+		"start %u-%02u-%02uT%02u:%02u:%02u\r\n"
+		"stop  %u-%02u-%02uT%02u:%02u:%02u\r\n"
+		"now   %u-%02u-%02uT%02u:%02u:%02\r\n\r\n",
 		startTime.year,
 		startTime.month,
 		startTime.date,
@@ -218,7 +218,13 @@ void _show_work_time()
 		stopTime.date,
 		stopTime.hour,
 		stopTime.minute,
-		stopTime.second
+		stopTime.second,
+		DS1307_GetYear(),
+		DS1307_GetMonth(),
+		DS1307_GetDate(),
+		DS1307_GetHour(),
+		DS1307_GetMinute(),
+		DS1307_GetSecond()
 	);
 }
 
@@ -228,47 +234,6 @@ void _write_work_time_to_log()
 			 stop_time  = _daytime_to_int(&stopTime);
 	module_settings.pump_work_seconds += abs(stop_time - start_time);
 	settings_save();
-}
-
-void _send_work_time()
-{
-	if (!module_settings.pump_work_seconds) {
-		return;
-	}
-
-	if (if_sim_module_busy()) {
-		return;
-	}
-
-	if (if_http_ready()) {
-		_send_work_request();
-	}
-
-	if (has_http_response(PUMP_TAG)) {
-		module_settings.pump_work_seconds = 0;
-		settings_save();
-	}
-}
-
-void _send_work_request()
-{
-	char data[LOG_SIZE] = {};
-	snprintf(
-		data,
-		sizeof(data),
-		"POST /api/v1/send-work HTTP/1.1\r\n"
-		"Host: %s:%s\r\n"
-		"Content-Type: text/plain\r\n"
-		"id=%lu\r\n"
-		"work=%lu;"
-		"%c\r\n",
-		module_settings.server_url,
-		module_settings.server_port,
-		module_settings.id,
-		module_settings.pump_work_seconds,
-		END_OF_STRING
-	);
-	send_http(PUMP_TAG, data);
 }
 
 uint8_t _days_in_month(uint8_t year, uint8_t month)
