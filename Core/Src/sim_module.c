@@ -9,6 +9,8 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <strings.h>
+#include <ctype.h>
 
 #include "settings.h"
 #include "utils.h"
@@ -19,11 +21,11 @@
 #define LINE_BREAK_COUNT 2
 #define UART_TIMEOUT     100
 #define END_OF_STRING    0x1a
-#define RESPONSE_SIZE    200
+#define RESPONSE_SIZE    400
 #define MAX_ERRORS       5
 #define CNFG_WAIT        20000
-#define HTTP_ACT_WAIT    120000
-#define RESTART_WAIT     5000
+#define HTTP_ACT_WAIT    40000
+#define RESTART_WAIT     10000
 #define HTTP_ACT_SIZE    60
 
 
@@ -31,9 +33,10 @@ void _set_active_state(void (*cmd_state) (void));
 void _execute_state(const char* cmd, uint16_t delay);
 void _send_AT_command(const char* cmd);
 void _check_response(const char* needed_resp);
-void _do_error();
+void _do_error(uint8_t attempts);
 
 void _cmd_AT_state();
+void _cmd_ATI_state();
 void _cmd_ATE0_state();
 void _cmd_CPIN_state();
 void _cmd_CGDCONT_state();
@@ -47,7 +50,6 @@ void _cmd_CHTTPSSTOP_state();
 void _clear_response();
 void _reset_module();
 void _start_module();
-void _update_line_counter();
 void _shift_response();
 
 enum {
@@ -62,15 +64,14 @@ struct _sim_state {
 	dio_timer_t start_timer;
 	dio_timer_t delay_timer;
 	dio_timer_t restart_timer;
-	uint8_t line_break_counter;
 	uint8_t state;
 	uint8_t error_count;
 } sim_state;
 
 const char* SIM_TAG = "SIM";
 
-const char* SUCCESS_CMD_RESP = "OK";
-const char* SUCCESS_HTTP_ACT = "+CHTTPACT: REQUEST";
+const char* SUCCESS_CMD_RESP = "ok";
+const char* SUCCESS_HTTP_ACT = "+chttpact: request";
 const char* SUCCESS_HTTP_RESP = "200 ok";
 const char* LINE_BREAK = "\r\n";
 
@@ -103,9 +104,7 @@ void sim_proccess_input(const char input_chr)
 		_shift_response();
 	}
 
-	response[strlen(response)] = input_chr;
-
-	_update_line_counter(&sim_state.line_break_counter);
+	response[strlen(response)] = tolower(input_chr);
 }
 
 void send_http(const char* data)
@@ -118,7 +117,7 @@ void send_http(const char* data)
 
 bool has_http_response()
 {
-	return sim_state.line_break_counter == 2 && sim_state.active_cmd_state == NULL;
+	return strnstr(http_response, SUCCESS_HTTP_RESP, strlen(http_response)) && sim_state.active_cmd_state == _cmd_send_state;
 }
 
 bool if_network_ready()
@@ -128,10 +127,6 @@ bool if_network_ready()
 
 char* get_response()
 {
-	char *ptr = strnstr(http_response, "\r\n\r\n", strlen(http_response));
-	if (!ptr) {
-		_clear_response();
-	}
 	return http_response;
 }
 
@@ -156,6 +151,7 @@ void _send_AT_command(const char* cmd)
 	snprintf(at_cmd, cmd_size, " %s%s", cmd, LINE_BREAK);
 	HAL_UART_Transmit(&SIM_MODULE_UART, (uint8_t*)at_cmd, strlen(at_cmd), UART_TIMEOUT);
 	LOG_DEBUG(SIM_TAG, " send -%s\r\n", at_cmd);
+	free(at_cmd);
 }
 
 void _check_response(const char* needed_resp)
@@ -167,7 +163,7 @@ void _check_response(const char* needed_resp)
 		_clear_response();
 	}
 
-	if (strnstr(response, needed_resp, strlen(response))) {
+	if (strnstr(response, needed_resp, sizeof(response))) {
 		LOG_DEBUG(SIM_TAG, " success -%s\r\n", response);
 		sim_state.state = SIM_SUCCESS;
 		sim_state.error_count = 0;
@@ -175,7 +171,7 @@ void _check_response(const char* needed_resp)
 	}
 }
 
-void _do_error()
+void _do_error(uint8_t attempts)
 {
 	if (Util_TimerPending(&sim_state.restart_timer)) {
 		_set_active_state(&_cmd_AT_state);
@@ -184,15 +180,15 @@ void _do_error()
 		return;
 	}
 
-	if (sim_state.error_count < MAX_ERRORS) {
-		LOG_DEBUG(SIM_TAG, " retry command, attempt number %d\r\n", sim_state.error_count + 2);
+	if (sim_state.error_count < attempts) {
+		LOG_DEBUG(SIM_TAG, " retry command, attempt number %d\r\n", sim_state.error_count + 1);
 		sim_state.state = READY;
 		_clear_response();
 		_start_module();
 		return;
 	}
 
-	if (sim_state.error_count >= MAX_ERRORS) {
+	if (sim_state.error_count >= attempts) {
 		LOG_DEBUG(SIM_TAG, " too many errors\r\n");
 		_reset_module();
 		Util_TimerStart(&sim_state.restart_timer, RESTART_WAIT);
@@ -202,33 +198,14 @@ void _do_error()
 
 void _clear_response()
 {
-	sim_state.line_break_counter = 0;
 	memset(response, 0, sizeof(response));
 	memset(http_response, 0, sizeof(http_response));
 }
 
-void _update_line_counter()
-{
-	if (strlen(response) == 0) {
-		return;
-	}
-
-	uint8_t pointer = strlen(response) - 1;
-	if (response[pointer] == '\r') {
-		return;
-	}
-	if (response[pointer] == '\n') {
-		sim_state.line_break_counter++;
-		return;
-	}
-	sim_state.line_break_counter = 0;
-	return;
-}
-
 void _shift_response()
 {
-	strncpy(response, response + RESPONSE_SIZE / 2, RESPONSE_SIZE);
-	memset(response + RESPONSE_SIZE / 2, 0, RESPONSE_SIZE / 2);
+	strncpy(response, response + sizeof(response) / 2, sizeof(response));
+	memset(response + sizeof(response) / 2, 0, sizeof(response) / 2);
 }
 
 void _reset_module()
@@ -236,7 +213,7 @@ void _reset_module()
 	if (Util_TimerPending(&sim_state.restart_timer)) {
 		return;
 	}
-	LOG_DEBUG(SIM_TAG, " sim module OFF\r\n");
+	LOG_DEBUG(SIM_TAG, " sim module RESTART\r\n");
 	HAL_GPIO_WritePin(SIM_MODULE_RESET_PORT, SIM_MODULE_RESET_PIN, GPIO_PIN_RESET);
 }
 
@@ -260,10 +237,26 @@ void _cmd_AT_state()
 		_check_response(SUCCESS_CMD_RESP);
 	}
 	if (sim_state.state == SIM_SUCCESS) {
+		_set_active_state(&_cmd_ATI_state);
+	}
+	if (sim_state.state == SIM_ERROR) {
+		_do_error(MAX_ERRORS);
+	}
+}
+
+void _cmd_ATI_state()
+{
+	if (sim_state.state == READY) {
+		_execute_state("ATI", CNFG_WAIT);
+	}
+	if (sim_state.state == WAIT) {
+		_check_response(SUCCESS_CMD_RESP);
+	}
+	if (sim_state.state == SIM_SUCCESS) {
 		_set_active_state(&_cmd_ATE0_state);
 	}
 	if (sim_state.state == SIM_ERROR) {
-		_do_error();
+		_do_error(MAX_ERRORS);
 	}
 }
 
@@ -279,7 +272,7 @@ void _cmd_ATE0_state()
 		_set_active_state(&_cmd_CPIN_state);
 	}
 	if (sim_state.state == SIM_ERROR) {
-		_do_error();
+		_do_error(MAX_ERRORS);
 	}
 }
 
@@ -295,7 +288,7 @@ void _cmd_CPIN_state()
 		_set_active_state(&_cmd_CGDCONT_state);
 	}
 	if (sim_state.state == SIM_ERROR) {
-		_do_error();
+		_do_error(MAX_ERRORS);
 	}
 }
 
@@ -311,7 +304,7 @@ void _cmd_CGDCONT_state()
 		_set_active_state(&_cmd_CGSOCKCONT_state);
 	}
 	if (sim_state.state == SIM_ERROR) {
-		_do_error();
+		_do_error(MAX_ERRORS);
 	}
 }
 
@@ -327,7 +320,7 @@ void _cmd_CGSOCKCONT_state()
 		_set_active_state(&_cmd_CSOCKSETPN_state);
 	}
 	if (sim_state.state == SIM_ERROR) {
-		_do_error();
+		_do_error(MAX_ERRORS);
 	}
 }
 
@@ -343,7 +336,7 @@ void _cmd_CSOCKSETPN_state()
 		_set_active_state(&_cmd_CHTTPSSTART_state);
 	}
 	if (sim_state.state == SIM_ERROR) {
-		_do_error();
+		_do_error(MAX_ERRORS);
 	}
 }
 
@@ -359,7 +352,7 @@ void _cmd_CHTTPSSTART_state()
 		_set_active_state(&_cmd_CHTTPACT_state);
 	}
 	if (sim_state.state == SIM_ERROR) {
-		_do_error();
+		_do_error(MAX_ERRORS);
 	}
 }
 
@@ -377,7 +370,7 @@ void _cmd_CHTTPACT_state()
 		_set_active_state(&_cmd_send_state);
 	}
 	if (sim_state.state == SIM_ERROR) {
-		_do_error();
+		_do_error(MAX_ERRORS);
 	}
 }
 
@@ -391,10 +384,11 @@ void _cmd_send_state()
 		_check_response(SUCCESS_HTTP_RESP);
 	}
 	if (sim_state.state == SIM_SUCCESS) {
+		strncpy(http_response, response, strlen(http_response));
 		_set_active_state(&_cmd_CHTTPSSTOP_state);
 	}
 	if (sim_state.state == SIM_ERROR) {
-		_do_error();
+		_do_error(1);
 	}
 }
 
@@ -410,6 +404,6 @@ void _cmd_CHTTPSSTOP_state()
 		_set_active_state(&_cmd_CHTTPSSTART_state);
 	}
 	if (sim_state.state == SIM_ERROR) {
-		_do_error();
+		_do_error(MAX_ERRORS);
 	}
 }

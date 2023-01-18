@@ -1,8 +1,11 @@
 /* An STM32 HAL library written for the DS1307 real-time clock IC. */
 /* Library by @eepj www.github.com/eepj */
 #include "ds1307_for_stm32_hal.h"
+
 #include "main.h"
 #include "settings.h"
+#include "utils.h"
+
 #ifdef __cplusplus
 extern "C"{
 #endif
@@ -10,6 +13,9 @@ extern "C"{
 
 #define YEAR_MAX 3000
 #define YEAR_MIN 3000
+
+
+const char* DS_TAG = "DS13";
 
 
 /**
@@ -20,6 +26,7 @@ void DS1307_Init() {
 	DS1307_SetClockHalt(0);
 	uint16_t ds_year = DS1307_GetYear();
 	if (ds_year < YEAR_MIN || ds_year > YEAR_MAX) {
+		LOG_DEBUG(DS_TAG, " set default time\r\n");
 		module_settings.is_time_recieved = false;
 		DS1307_SetYear(2000);
 		DS1307_SetMonth(1);

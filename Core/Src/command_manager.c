@@ -54,7 +54,7 @@ void cmd_proccess_input(const char input_chr)
 void command_manager_begin()
 {
 	_clear_command();
-	HAL_UART_Receive_IT(&COMMAND_UART, command_buffer, sizeof(char));
+	HAL_UART_Receive_IT(&COMMAND_UART, (uint8_t*) command_buffer, sizeof(char));
 }
 
 bool _validate_command()
@@ -106,7 +106,9 @@ void _execute_command()
 		_clear_command();
 	}
 
-	if (strncmp("setid", command[0], CHAR_COMMAND_SIZE) == 0) {
+	if (strncmp("settings", command[0], CHAR_COMMAND_SIZE) == 0) {
+		_show_settings();
+	} else if (strncmp("setid", command[0], CHAR_COMMAND_SIZE) == 0) {
 		module_settings.id = (uint32_t)atoi(command[1]);
 		_show_id();
 	} else if (strncmp("setsleep", command[0], CHAR_COMMAND_SIZE) == 0) {
@@ -151,7 +153,7 @@ void _execute_command()
 
 void _send_uart_response(const char* message)
 {
-	HAL_UART_Transmit(&COMMAND_UART, message, strlen(message), DEFAULT_UART_DELAY);
+	HAL_UART_Transmit(&COMMAND_UART, (uint8_t*) message, strlen(message), DEFAULT_UART_DELAY);
 }
 
 void _clear_command()

@@ -123,35 +123,46 @@ void _send_http_log()
 	snprintf(
 		data,
 		sizeof(data),
-		"POST /api/v1/send HTTP/1.1\r\n"
-		"Host: %s:%s\r\n"
-		"Content-Type: text/plain\r\n"
-		"\r\n"
-		"fw_id=%lu;"
-		"cf_id=%lu;"
-		"id=%lu;"
+		"id=%lu\n"
+		"fw_id=%lu\n"
+		"cf_id=%lu\n"
+		"t=%s\n"
 		"d="
 			"id=%lu;"
-			"t=%s;"
 			"level=%.2f;"
 			"press_1=%.2f;"
 			"press_2=%.2f;"
-			"pump=%lu\r\n"
-		"%c\r\n",
-		module_settings.server_url,
-		module_settings.server_port,
+			"pump=%lu\n",
+		module_settings.id,
 		log_record.fw_id,
 		log_record.cf_id,
-		module_settings.id,
-		log_record.id,
 		log_record.time,
+		log_record.id,
 		log_record.level,
 		log_record.press_1,
 		log_record.press_2,
-		module_settings.pump_work_seconds,
+		module_settings.pump_work_seconds
+	);
+
+	char request[LOG_SIZE] = {};
+	snprintf(
+		request,
+		sizeof(request),
+		"POST /api/v1/send HTTP/1.1\r\n"
+		"Host: %s\r\n"
+		"User-Agent: zhelezyaka\r\n"
+		"Connection: close\r\n"
+		"Content-Type: text/plain\r\n"
+		"Content-Length: %u\r\n"
+		"\r\n"
+		"%s"
+		"%c",
+		module_settings.server_url,
+		strlen(data),
+		data,
 		END_OF_STRING
 	);
-	send_http(data);
+	send_http(request);
 }
 
 void _make_measurements()
@@ -198,25 +209,25 @@ void _parse_response(const char* response)
 
 	uint32_t old_id = log_record.id;
 
-	char *var_ptr = strstr(response, ID_FIELD) + strlen(ID_FIELD) + 1;
+	char *var_ptr = strnstr(response, ID_FIELD, strlen(response)) + strlen(ID_FIELD) + 1;
 	if (!var_ptr) {
 		goto do_error;
 	}
 	log_record.id = atoi(var_ptr);
 
-	var_ptr = strstr(response, LEVEL_FIELD) + strlen(LEVEL_FIELD) + 1;
+	var_ptr = strnstr(response, LEVEL_FIELD, strlen(response)) + strlen(LEVEL_FIELD) + 1;
 	if (!var_ptr) {
 		goto do_error;
 	}
 	log_record.level = atof(var_ptr);
 
-	var_ptr = strstr(response, PRESS_1_FIELD) + strlen(PRESS_1_FIELD) + 1;
+	var_ptr = strnstr(response, PRESS_1_FIELD, strlen(response)) + strlen(PRESS_1_FIELD) + 1;
 	if (!var_ptr) {
 		goto do_error;
 	}
 	log_record.press_1 = atof(var_ptr);
 
-	var_ptr = strstr(response, PRESS_2_FIELD) + strlen(PRESS_2_FIELD) + 1;
+	var_ptr = strnstr(response, PRESS_2_FIELD, strlen(response)) + strlen(PRESS_2_FIELD) + 1;
 	if (!var_ptr) {
 		goto do_error;
 	}
@@ -224,40 +235,37 @@ void _parse_response(const char* response)
 
 	record_change(old_id);
 
-	var_ptr = strstr(response, TIME_FIELD) + strlen(TIME_FIELD) + 1;
+	var_ptr = strnstr(response, TIME_FIELD, strlen(response)) + strlen(TIME_FIELD) + 1;
 	if (!var_ptr) {
 		goto do_error;
 	}
 	DS1307_SetYear(atoi(var_ptr));
 
-	var_ptr = strstr(var_ptr, "-") + 1;
+	var_ptr = strnstr(var_ptr, "-", strlen(var_ptr)) + 1;
 	if (!var_ptr) {
 		goto do_error;
 	}
 	DS1307_SetMonth(atoi(var_ptr));
 
-	var_ptr = strstr(var_ptr, "-") + 1;
+	var_ptr = strnstr(var_ptr, "-", strlen(var_ptr)) + 1;
 	if (!var_ptr) {
 		goto do_error;
 	}
 	DS1307_SetDate(atoi(var_ptr));
 
-	var_ptr = strstr(var_ptr, "T") + 1;
+	var_ptr = strnstr(var_ptr, "T", strlen(var_ptr)) + 1;
 	if (!var_ptr) {
 		goto do_error;
 	}
 	DS1307_SetHour(atoi(var_ptr));
 
-	var_ptr = strstr(var_ptr, ":") + 1;
+	var_ptr = strnstr(var_ptr, ":", strlen(var_ptr)) + 1;
 	if (!var_ptr) {
 		goto do_error;
 	}
 	DS1307_SetMinute(atoi(var_ptr));
-	if (!var_ptr) {
-		goto do_error;
-	}
 
-	var_ptr = strstr(var_ptr, ":") + 1;
+	var_ptr = strnstr(var_ptr, ":", strlen(var_ptr)) + 1;
 	if (!var_ptr) {
 		goto do_error;
 	}
