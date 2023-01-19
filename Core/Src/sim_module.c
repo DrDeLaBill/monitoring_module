@@ -16,16 +16,16 @@
 #include "utils.h"
 #include "ina3221_sensor.h"
 #include "liquid_sensor.h"
+#include "logger.h"
 
 
 #define LINE_BREAK_COUNT 2
 #define UART_TIMEOUT     100
 #define END_OF_STRING    0x1a
-#define RESPONSE_SIZE    400
 #define MAX_ERRORS       5
-#define CNFG_WAIT        20000
-#define HTTP_ACT_WAIT    40000
-#define RESTART_WAIT     10000
+#define CNFG_WAIT        10000
+#define HTTP_ACT_WAIT    15000
+#define RESTART_WAIT     5000
 #define HTTP_ACT_SIZE    60
 
 
@@ -33,10 +33,12 @@ void _set_active_state(void (*cmd_state) (void));
 void _execute_state(const char* cmd, uint16_t delay);
 void _send_AT_command(const char* cmd);
 void _check_response(const char* needed_resp);
+void _check_http_response();
+void _check_response_timer();
+void _validate_response(char* needed_resp);
 void _do_error(uint8_t attempts);
 
 void _cmd_AT_state();
-void _cmd_ATI_state();
 void _cmd_ATE0_state();
 void _cmd_CPIN_state();
 void _cmd_CGDCONT_state();
@@ -70,13 +72,14 @@ struct _sim_state {
 
 const char* SIM_TAG = "SIM";
 
-const char* SUCCESS_CMD_RESP = "ok";
-const char* SUCCESS_HTTP_ACT = "+chttpact: request";
+const char* SUCCESS_CMD_RESP  = "ok";
+const char* SUCCESS_HTTP_ACT  = "+chttpact: request";
+const char* SUCCESS_HTTP_RQST = "content-length: ";
 const char* SUCCESS_HTTP_RESP = "200 ok";
-const char* LINE_BREAK = "\r\n";
+const char* LINE_BREAK        = "\r\n";
+const char* DOUBLE_LINE_BREAK = "\r\n\r\n";
 
 char response[RESPONSE_SIZE] = {};
-char http_response[RESPONSE_SIZE] = {};
 
 
 void sim_module_begin() {
@@ -107,17 +110,37 @@ void sim_proccess_input(const char input_chr)
 	response[strlen(response)] = tolower(input_chr);
 }
 
-void send_http(const char* data)
+void send_http_post(const char* data)
 {
 	if (sim_state.state == WAIT) {
 		return;
 	}
-	_execute_state(data, HTTP_ACT_WAIT);
+	char request[LOG_SIZE] = {};
+	snprintf(
+		request,
+		sizeof(request),
+		"POST /api/v1/send HTTP/1.1\r\n"
+		"Host: %s:%s\r\n"
+		"User-Agent: zhelezyaka\r\n"
+		"Connection: close\r\n"
+		"Accept-Charset: utf-8, us-ascii\r\n"
+		"Content-Type: text/plain\r\n"
+		"Content-Length: %u\r\n"
+		"\r\n"
+		"%s"
+		"%c",
+		module_settings.server_url,
+		module_settings.server_port,
+		strlen(data),
+		data,
+		END_OF_STRING
+	);
+	_execute_state(request, HTTP_ACT_WAIT);
 }
 
 bool has_http_response()
 {
-	return strnstr(http_response, SUCCESS_HTTP_RESP, strlen(http_response)) && sim_state.active_cmd_state == _cmd_send_state;
+	return sim_state.active_cmd_state == _cmd_send_state && sim_state.state == SIM_SUCCESS;
 }
 
 bool if_network_ready()
@@ -127,7 +150,8 @@ bool if_network_ready()
 
 char* get_response()
 {
-	return http_response;
+	_set_active_state(&_cmd_CHTTPSSTOP_state);
+	return response;
 }
 
 void _set_active_state(void (*cmd_state) (void)) {
@@ -146,28 +170,62 @@ void _execute_state(const char* cmd, uint16_t delay)
 
 void _send_AT_command(const char* cmd)
 {
-	uint8_t cmd_size = strlen(cmd) + strlen(LINE_BREAK) + 1;
-	char *at_cmd = (char*)malloc((cmd_size + 1) * sizeof(char));
-	snprintf(at_cmd, cmd_size, " %s%s", cmd, LINE_BREAK);
-	HAL_UART_Transmit(&SIM_MODULE_UART, (uint8_t*)at_cmd, strlen(at_cmd), UART_TIMEOUT);
-	LOG_DEBUG(SIM_TAG, " send -%s\r\n", at_cmd);
-	free(at_cmd);
+	HAL_UART_Transmit(&SIM_MODULE_UART, (uint8_t*)cmd, strlen(cmd), UART_TIMEOUT);
+	HAL_UART_Transmit(&SIM_MODULE_UART, (uint8_t*)LINE_BREAK, strlen(LINE_BREAK), UART_TIMEOUT);
+	LOG_DEBUG(SIM_TAG, " send - %s\r\n", cmd);
 }
 
 void _check_response(const char* needed_resp)
 {
+	_check_response_timer();
+
+	_validate_response(needed_resp);
+}
+
+void _check_http_response()
+{
+	_check_response_timer();
+
+//	char *ptr = strnstr(response, SUCCESS_HTTP_RQST, strlen(response));
+//	if (!ptr) {
+//		return;
+//	}
+//
+//	ptr += strlen(SUCCESS_HTTP_RQST);
+//
+//	if (!strlen(ptr)) {
+//		return;
+//	}
+//
+//	uint16_t size = atoi(ptr);
+//	ptr = strnstr(ptr, DOUBLE_LINE_BREAK, strlen(ptr));
+//	if (!ptr) {
+//		return;
+//	}
+//	ptr += strlen(DOUBLE_LINE_BREAK);
+//
+//	if (strlen(ptr) >= size) {
+//		return;
+//	}
+//
+//	_validate_response(SUCCESS_HTTP_RESP);
+}
+
+void _check_response_timer()
+{
 	if (!Util_TimerPending(&sim_state.delay_timer)) {
-		LOG_DEBUG(SIM_TAG, " error -%s\r\n", response);
+		LOG_DEBUG(SIM_TAG, " error - %s\r\n", response);
 		sim_state.state = SIM_ERROR;
 		sim_state.error_count++;
-		_clear_response();
 	}
+}
 
+void _validate_response(char* needed_resp)
+{
 	if (strnstr(response, needed_resp, sizeof(response))) {
-		LOG_DEBUG(SIM_TAG, " success -%s\r\n", response);
+		LOG_DEBUG(SIM_TAG, " success - %s\r\n", response);
 		sim_state.state = SIM_SUCCESS;
 		sim_state.error_count = 0;
-		_clear_response();
 	}
 }
 
@@ -199,11 +257,11 @@ void _do_error(uint8_t attempts)
 void _clear_response()
 {
 	memset(response, 0, sizeof(response));
-	memset(http_response, 0, sizeof(http_response));
 }
 
 void _shift_response()
 {
+	LOG_DEBUG(SIM_TAG, " shift response - %s\r\n", response);
 	strncpy(response, response + sizeof(response) / 2, sizeof(response));
 	memset(response + sizeof(response) / 2, 0, sizeof(response) / 2);
 }
@@ -222,7 +280,6 @@ void _start_module()
 	if (Util_TimerPending(&sim_state.restart_timer)) {
 		return;
 	}
-	LOG_DEBUG(SIM_TAG, " sim module ON\r\n");
 	Util_TimerStart(&sim_state.start_timer, CNFG_WAIT);
 	HAL_GPIO_WritePin(SIM_MODULE_RESET_PORT, SIM_MODULE_RESET_PIN, GPIO_PIN_SET);
 }
@@ -232,22 +289,6 @@ void _cmd_AT_state()
 {
 	if (sim_state.state == READY) {
 		_execute_state("AT", CNFG_WAIT);
-	}
-	if (sim_state.state == WAIT) {
-		_check_response(SUCCESS_CMD_RESP);
-	}
-	if (sim_state.state == SIM_SUCCESS) {
-		_set_active_state(&_cmd_ATI_state);
-	}
-	if (sim_state.state == SIM_ERROR) {
-		_do_error(MAX_ERRORS);
-	}
-}
-
-void _cmd_ATI_state()
-{
-	if (sim_state.state == READY) {
-		_execute_state("ATI", CNFG_WAIT);
 	}
 	if (sim_state.state == WAIT) {
 		_check_response(SUCCESS_CMD_RESP);
@@ -381,14 +422,10 @@ void _cmd_send_state()
 		_set_active_state(&_cmd_send_state);
 	}
 	if (sim_state.state == WAIT) {
-		_check_response(SUCCESS_HTTP_RESP);
-	}
-	if (sim_state.state == SIM_SUCCESS) {
-		strncpy(http_response, response, strlen(http_response));
-		_set_active_state(&_cmd_CHTTPSSTOP_state);
+		_check_http_response();
 	}
 	if (sim_state.state == SIM_ERROR) {
-		_do_error(1);
+		_set_active_state(&_cmd_CHTTPSSTOP_state);
 	}
 }
 

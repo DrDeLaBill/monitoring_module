@@ -26,7 +26,7 @@ void _general_record_load(const record_sd_payload_t* payload);
 void _send_http_log();
 void _make_measurements();
 void _show_measurements();
-void _parse_response(const char* response);
+void _parse_response();
 void _timer_start();
 
 
@@ -84,7 +84,7 @@ void logger_proccess()
 	}
 
 	if (has_http_response()) {
-		_parse_response(get_response());
+		_parse_response();
 	}
 
 	if (log_timer.delay != module_settings.sleep_time) {
@@ -129,40 +129,22 @@ void _send_http_log()
 		"t=%s\n"
 		"d="
 			"id=%lu;"
-			"level=%.2f;"
-			"press_1=%.2f;"
-			"press_2=%.2f;"
+			"level=%d.%d;"
+			"press_1=%d.%d;"
+			"press_2=%d.%d;"
 			"pump=%lu\n",
 		module_settings.id,
 		log_record.fw_id,
 		log_record.cf_id,
 		log_record.time,
 		log_record.id,
-		log_record.level,
-		log_record.press_1,
-		log_record.press_2,
+		FLOAT_AS_STRINGS(log_record.level),
+		FLOAT_AS_STRINGS(log_record.press_1),
+		FLOAT_AS_STRINGS(log_record.press_2),
 		module_settings.pump_work_seconds
 	);
 
-	char request[LOG_SIZE] = {};
-	snprintf(
-		request,
-		sizeof(request),
-		"POST /api/v1/send HTTP/1.1\r\n"
-		"Host: %s\r\n"
-		"User-Agent: zhelezyaka\r\n"
-		"Connection: close\r\n"
-		"Content-Type: text/plain\r\n"
-		"Content-Length: %u\r\n"
-		"\r\n"
-		"%s"
-		"%c",
-		module_settings.server_url,
-		strlen(data),
-		data,
-		END_OF_STRING
-	);
-	send_http(request);
+	send_http_post(data);
 }
 
 void _make_measurements()
@@ -192,53 +174,29 @@ void _show_measurements()
 		LOG_TAG,
 		"\r\nID: %lu\r\n"
 		"Time: %s\r\n"
-		"Level: %.2f\r\n"
-		"Press 1: %.2f\r\n"
-		"Press 2: %.2f\r\n",
+		"Level: %d.%d\r\n"
+		"Press 1: %d.%d\r\n"
+		"Press 2: %d.%d\r\n",
 		log_record.id,
 		log_record.time,
-		log_record.level,
-		log_record.press_1,
-		log_record.press_2
+		FLOAT_AS_STRINGS(log_record.level),
+		FLOAT_AS_STRINGS(log_record.press_1),
+		FLOAT_AS_STRINGS(log_record.press_2)
 	);
 }
 
-void _parse_response(const char* response)
+void _parse_response()
 {
 	LOG_DEBUG(LOG_TAG, " SERVER RESPONSE\r\n%s\r\n", response);
 
 	uint32_t old_id = log_record.id;
 
-	char *var_ptr = strnstr(response, ID_FIELD, strlen(response)) + strlen(ID_FIELD) + 1;
+	char *var_ptr = get_response();
+	*var_ptr = strnstr(response, TIME_FIELD, strlen(response));
 	if (!var_ptr) {
 		goto do_error;
 	}
-	log_record.id = atoi(var_ptr);
-
-	var_ptr = strnstr(response, LEVEL_FIELD, strlen(response)) + strlen(LEVEL_FIELD) + 1;
-	if (!var_ptr) {
-		goto do_error;
-	}
-	log_record.level = atof(var_ptr);
-
-	var_ptr = strnstr(response, PRESS_1_FIELD, strlen(response)) + strlen(PRESS_1_FIELD) + 1;
-	if (!var_ptr) {
-		goto do_error;
-	}
-	log_record.press_1 = atof(var_ptr);
-
-	var_ptr = strnstr(response, PRESS_2_FIELD, strlen(response)) + strlen(PRESS_2_FIELD) + 1;
-	if (!var_ptr) {
-		goto do_error;
-	}
-	log_record.press_2 = atof(var_ptr);
-
-	record_change(old_id);
-
-	var_ptr = strnstr(response, TIME_FIELD, strlen(response)) + strlen(TIME_FIELD) + 1;
-	if (!var_ptr) {
-		goto do_error;
-	}
+	var_ptr += strlen(TIME_FIELD);
 	DS1307_SetYear(atoi(var_ptr));
 
 	var_ptr = strnstr(var_ptr, "-", strlen(var_ptr)) + 1;
@@ -253,7 +211,7 @@ void _parse_response(const char* response)
 	}
 	DS1307_SetDate(atoi(var_ptr));
 
-	var_ptr = strnstr(var_ptr, "T", strlen(var_ptr)) + 1;
+	var_ptr = strnstr(var_ptr, "t", strlen(var_ptr)) + 1;
 	if (!var_ptr) {
 		goto do_error;
 	}
@@ -270,6 +228,33 @@ void _parse_response(const char* response)
 		goto do_error;
 	}
 	DS1307_SetSecond(atoi(var_ptr));
+
+//	var_ptr = strnstr(response, ID_FIELD, strlen(response)) + strlen(ID_FIELD) + 1;
+//
+//	if (!var_ptr) {
+//		goto do_error;
+//	}
+//	log_record.id = atoi(var_ptr);
+//
+//	var_ptr = strnstr(response, LEVEL_FIELD, strlen(response)) + strlen(LEVEL_FIELD) + 1;
+//	if (!var_ptr) {
+//		goto do_error;
+//	}
+//	log_record.level = atof(var_ptr);
+//
+//	var_ptr = strnstr(response, PRESS_1_FIELD, strlen(response)) + strlen(PRESS_1_FIELD) + 1;
+//	if (!var_ptr) {
+//		goto do_error;
+//	}
+//	log_record.press_1 = atof(var_ptr);
+//
+//	var_ptr = strnstr(response, PRESS_2_FIELD, strlen(response)) + strlen(PRESS_2_FIELD) + 1;
+//	if (!var_ptr) {
+//		goto do_error;
+//	}
+//	log_record.press_2 = atof(var_ptr);
+//
+//	record_change(old_id);
 
 	goto do_success;
 

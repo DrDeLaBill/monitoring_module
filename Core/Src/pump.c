@@ -205,8 +205,7 @@ void _show_work_time()
 		PUMP_TAG,
 		"\r\n"
 		"start %u-%02u-%02uT%02u:%02u:%02u\r\n"
-		"stop  %u-%02u-%02uT%02u:%02u:%02u\r\n"
-		"now   %u-%02u-%02uT%02u:%02u:%02\r\n\r\n",
+		"stop  %u-%02u-%02uT%02u:%02u:%02u\r\n",
 		startTime.year,
 		startTime.month,
 		startTime.date,
@@ -218,7 +217,12 @@ void _show_work_time()
 		stopTime.date,
 		stopTime.hour,
 		stopTime.minute,
-		stopTime.second,
+		stopTime.second
+	);
+	LOG_DEBUG(
+		PUMP_TAG,
+		"\r\n"
+		"now   %u-%02u-%02uT%02u:%02u:%02u\r\n",
 		DS1307_GetYear(),
 		DS1307_GetMonth(),
 		DS1307_GetDate(),

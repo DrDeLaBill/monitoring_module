@@ -57,7 +57,7 @@ do_readline:
 		ptr += sizeof(tmpbuf);
 		goto do_readline;
 	}
-	if (tmpbuf.v1.payload_record.id < module_settings.server_log_id) {
+	if (tmpbuf.v1.payload_record.id <= module_settings.server_log_id) {
 		ptr += sizeof(tmpbuf);
 		goto do_readline;
 	}

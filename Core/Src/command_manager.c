@@ -34,6 +34,7 @@ void _show_liters_ADC_min();
 void _show_liters_per_month();
 void _show_pump_speed();
 void _show_sleeping_time();
+void _show_server_log_id();
 void _show_settings();
 
 
@@ -138,6 +139,9 @@ void _execute_command()
 	} else if (strncmp("setpumpspeed", command[0], CHAR_COMMAND_SIZE) == 0) {
 		module_settings.pump_speed = (uint32_t)atoi(command[1]);
 		_show_pump_speed();
+	} else if (strncmp("setlogid", command[0], CHAR_COMMAND_SIZE) == 0) {
+		module_settings.server_log_id = (uint32_t)atoi(command[1]);
+		_show_server_log_id();
 	} else if (strncmp("default", command[0], CHAR_COMMAND_SIZE) == 0) {
 		settings_reset();
 	} else {
@@ -240,6 +244,13 @@ void _show_sleeping_time()
 	_send_uart_response(response);
 }
 
+void _show_server_log_id()
+{
+	char response[UART_RESPONSE_SIZE] = {};
+	snprintf(response, UART_RESPONSE_SIZE, "Log ID: %lu\r\n", module_settings.server_log_id / MILLIS_IN_SECOND);
+	_send_uart_response(response);
+}
+
 void _show_settings()
 {
 	_show_id();
@@ -252,4 +263,5 @@ void _show_settings()
 	_show_liters_per_month();
 	_show_pump_speed();
 	_show_sleeping_time();
+	_show_server_log_id();
 }
