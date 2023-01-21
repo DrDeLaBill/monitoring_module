@@ -149,6 +149,10 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+	  // Watchdog timer update
+//	  HAL_WWDG_Refresh(&hwwdg);
+	  // Commands from UART
+	  command_manager_proccess();
 	  // Pump
 	  pump_proccess();
 	  // Liquid sensor

@@ -5,11 +5,11 @@
 #include <stdbool.h>
 
 
-#define RESPONSE_SIZE 360
+#define RESPONSE_SIZE 400
 #define END_OF_STRING 0x1a
 
 
-extern char response[RESPONSE_SIZE];
+extern char sim_response[RESPONSE_SIZE];
 
 
 void sim_module_begin();

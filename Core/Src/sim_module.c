@@ -79,7 +79,7 @@ const char* SUCCESS_HTTP_RESP = "200 ok";
 const char* LINE_BREAK        = "\r\n";
 const char* DOUBLE_LINE_BREAK = "\r\n\r\n";
 
-char response[RESPONSE_SIZE] = {};
+char sim_response[RESPONSE_SIZE] = {};
 
 
 void sim_module_begin() {
@@ -103,11 +103,11 @@ void sim_module_proccess()
 
 void sim_proccess_input(const char input_chr)
 {
-	if (strlen(response) >= sizeof(response) - 1) {
-		_shift_response();
+	uint16_t it = strlen(sim_response);
+	sim_response[it] = tolower(input_chr);
+	if (it >= sizeof(sim_response) - 1) {
+		_clear_response();
 	}
-
-	response[strlen(response)] = tolower(input_chr);
 }
 
 void send_http_post(const char* data)
@@ -151,7 +151,7 @@ bool if_network_ready()
 char* get_response()
 {
 	_set_active_state(&_cmd_CHTTPSSTOP_state);
-	return response;
+	return sim_response;
 }
 
 void _set_active_state(void (*cmd_state) (void)) {
@@ -186,35 +186,35 @@ void _check_http_response()
 {
 	_check_response_timer();
 
-//	char *ptr = strnstr(response, SUCCESS_HTTP_RQST, strlen(response));
-//	if (!ptr) {
-//		return;
-//	}
-//
-//	ptr += strlen(SUCCESS_HTTP_RQST);
-//
-//	if (!strlen(ptr)) {
-//		return;
-//	}
-//
-//	uint16_t size = atoi(ptr);
-//	ptr = strnstr(ptr, DOUBLE_LINE_BREAK, strlen(ptr));
-//	if (!ptr) {
-//		return;
-//	}
-//	ptr += strlen(DOUBLE_LINE_BREAK);
-//
-//	if (strlen(ptr) >= size) {
-//		return;
-//	}
-//
-//	_validate_response(SUCCESS_HTTP_RESP);
+	char *ptr = strnstr(sim_response, SUCCESS_HTTP_RQST, strlen(sim_response));
+	if (!ptr) {
+		return;
+	}
+
+	ptr += strlen(SUCCESS_HTTP_RQST);
+
+	if (!strlen(ptr)) {
+		return;
+	}
+
+	uint16_t size = atoi(ptr);
+	ptr = strnstr(ptr, DOUBLE_LINE_BREAK, strlen(ptr));
+	if (!ptr) {
+		return;
+	}
+	ptr += strlen(DOUBLE_LINE_BREAK);
+
+	if (strlen(ptr) < size) {
+		return;
+	}
+
+	_validate_response(SUCCESS_HTTP_RESP);
 }
 
 void _check_response_timer()
 {
 	if (!Util_TimerPending(&sim_state.delay_timer)) {
-		LOG_DEBUG(SIM_TAG, " error - %s\r\n", response);
+		LOG_DEBUG(SIM_TAG, " error - %s\r\n", sim_response);
 		sim_state.state = SIM_ERROR;
 		sim_state.error_count++;
 	}
@@ -222,8 +222,8 @@ void _check_response_timer()
 
 void _validate_response(char* needed_resp)
 {
-	if (strnstr(response, needed_resp, sizeof(response))) {
-		LOG_DEBUG(SIM_TAG, " success - %s\r\n", response);
+	if (strnstr(sim_response, needed_resp, sizeof(sim_response))) {
+		LOG_DEBUG(SIM_TAG, " success - %s\r\n", sim_response);
 		sim_state.state = SIM_SUCCESS;
 		sim_state.error_count = 0;
 	}
@@ -256,14 +256,14 @@ void _do_error(uint8_t attempts)
 
 void _clear_response()
 {
-	memset(response, 0, sizeof(response));
+	memset(sim_response, 0, sizeof(sim_response));
 }
 
 void _shift_response()
 {
-	LOG_DEBUG(SIM_TAG, " shift response - %s\r\n", response);
-	strncpy(response, response + sizeof(response) / 2, sizeof(response));
-	memset(response + sizeof(response) / 2, 0, sizeof(response) / 2);
+	LOG_DEBUG(SIM_TAG, " shift response - %s\r\n", sim_response);
+	strncpy(sim_response, sim_response + sizeof(sim_response) / 2, sizeof(sim_response));
+	memset(sim_response + sizeof(sim_response) / 2, 0, sizeof(sim_response) / 2);
 }
 
 void _reset_module()

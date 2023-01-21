@@ -115,7 +115,6 @@ void _send_http_log()
 {
 	record_status_t res = next_record_load();
 	if (res != RECORD_OK) {
-		LOG_DEBUG(LOG_TAG, "error next_record_load()\r\n");
 		return;
 	}
 
@@ -187,23 +186,22 @@ void _show_measurements()
 
 void _parse_response()
 {
-	LOG_DEBUG(LOG_TAG, " SERVER RESPONSE\r\n%s\r\n", response);
-
 	uint32_t old_id = log_record.id;
 
 	char *var_ptr = get_response();
-	*var_ptr = strnstr(response, TIME_FIELD, strlen(response));
+	var_ptr = strnstr(var_ptr, TIME_FIELD, strlen(var_ptr));
 	if (!var_ptr) {
 		goto do_error;
 	}
 	var_ptr += strlen(TIME_FIELD);
-	DS1307_SetYear(atoi(var_ptr));
+	uint16_t tmp = atoi(var_ptr);
+	DS1307_SetYear(tmp);
 
 	var_ptr = strnstr(var_ptr, "-", strlen(var_ptr)) + 1;
 	if (!var_ptr) {
 		goto do_error;
 	}
-	DS1307_SetMonth(atoi(var_ptr));
+	DS1307_SetMonth((uint8_t)atoi(var_ptr));
 
 	var_ptr = strnstr(var_ptr, "-", strlen(var_ptr)) + 1;
 	if (!var_ptr) {
@@ -260,7 +258,7 @@ void _parse_response()
 
 
 do_error:
-	LOG_DEBUG(LOG_TAG, " unable to parse response - %s\r\n", response);
+	LOG_DEBUG(LOG_TAG, " unable to parse response - %s\r\n", sim_response);
 
 do_success:
 	module_settings.server_log_id = log_record.id;

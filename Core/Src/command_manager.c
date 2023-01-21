@@ -16,6 +16,7 @@
 #include "settings_manager.h"
 #include "liquid_sensor.h"
 #include "utils.h"
+#include "ds1307_for_stm32_hal.h"
 
 
 bool _validate_command();
@@ -36,6 +37,7 @@ void _show_pump_speed();
 void _show_sleeping_time();
 void _show_server_log_id();
 void _show_settings();
+void _show_time();
 
 
 const char *COMMAND_TAG = "UARTCMD";
@@ -47,15 +49,19 @@ void cmd_proccess_input(const char input_chr)
 		_clear_command();
 	}
 	command_buffer[strlen(command_buffer)] = input_chr;
-	if (_validate_command()) {
-		_execute_command();
-	}
 }
 
 void command_manager_begin()
 {
 	_clear_command();
 	HAL_UART_Receive_IT(&COMMAND_UART, (uint8_t*) command_buffer, sizeof(char));
+}
+
+void command_manager_proccess()
+{
+	if (_validate_command()) {
+		_execute_command();
+	}
 }
 
 bool _validate_command()
@@ -66,7 +72,7 @@ bool _validate_command()
 
 	if (strlen(command_buffer) >= CHAR_COMMAND_SIZE) {
 		memset(command_buffer, 0, sizeof(command_buffer));
-		LOG_DEBUG(COMMAND_TAG, "Invalid UART command\r\n");
+		LOG_DEBUG(COMMAND_TAG, "Invalid UART command\n");
 		return false;
 	}
 
@@ -109,6 +115,10 @@ void _execute_command()
 
 	if (strncmp("settings", command[0], CHAR_COMMAND_SIZE) == 0) {
 		_show_settings();
+		goto do_end;
+	} else if (strncmp("time", command[0], CHAR_COMMAND_SIZE) == 0) {
+		_show_time();
+		goto do_end;
 	} else if (strncmp("setid", command[0], CHAR_COMMAND_SIZE) == 0) {
 		module_settings.id = (uint32_t)atoi(command[1]);
 		_show_id();
@@ -145,13 +155,15 @@ void _execute_command()
 	} else if (strncmp("default", command[0], CHAR_COMMAND_SIZE) == 0) {
 		settings_reset();
 	} else {
-		_send_uart_response("Invalid UART command\r\n");
+		_send_uart_response("Invalid UART command\n");
 		_clear_command();
-		return;
+		goto do_end;
 	}
 
 	settings_save();
 	_show_settings();
+
+do_end:
 	_clear_command();
 }
 
@@ -177,78 +189,108 @@ void _trim_command()
 void _show_id()
 {
 	char response[UART_RESPONSE_SIZE] = {};
-	snprintf(response, UART_RESPONSE_SIZE, "Device ID: %lu\r\n", module_settings.id);
+	snprintf(response, UART_RESPONSE_SIZE, "Device ID: %lu\n", module_settings.id);
 	_send_uart_response(response);
 }
 
 void _show_server_url()
 {
 	char response[UART_RESPONSE_SIZE] = {};
-	snprintf(response, UART_RESPONSE_SIZE, "URL: %s\r\n", module_settings.server_url);
+	snprintf(response, UART_RESPONSE_SIZE, "URL: %s\n", module_settings.server_url);
 	_send_uart_response(response);
 }
 
 void _show_server_port()
 {
 	char response[UART_RESPONSE_SIZE] = {};
-	snprintf(response, UART_RESPONSE_SIZE, "PORT: %s\r\n", module_settings.server_port);
+	snprintf(response, UART_RESPONSE_SIZE, "PORT: %s\n", module_settings.server_port);
 	_send_uart_response(response);
 }
 
 void _show_liters_max()
 {
 	char response[UART_RESPONSE_SIZE] = {};
-	snprintf(response, UART_RESPONSE_SIZE, "Liliters max: %hu l\r\n", module_settings.tank_liters_max);
+	snprintf(response, UART_RESPONSE_SIZE, "Liliters max: %hu l\n", module_settings.tank_liters_max);
 	_send_uart_response(response);
 }
 
 void _show_liters_min()
 {
 	char response[UART_RESPONSE_SIZE] = {};
-	snprintf(response, UART_RESPONSE_SIZE, "Liliters min: %hu l\r\n", module_settings.tank_liters_min);
+	snprintf(response, UART_RESPONSE_SIZE, "Liliters min: %hu l\n", module_settings.tank_liters_min);
 	_send_uart_response(response);
 }
 
 void _show_liters_ADC_max()
 {
 	char response[UART_RESPONSE_SIZE] = {};
-	snprintf(response, UART_RESPONSE_SIZE, "ADC max: %hu\r\n", module_settings.tank_ADC_max);
+	snprintf(response, UART_RESPONSE_SIZE, "ADC max: %hu\n", module_settings.tank_ADC_max);
 	_send_uart_response(response);
 }
 
 void _show_liters_ADC_min()
 {
 	char response[UART_RESPONSE_SIZE] = {};
-	snprintf(response, UART_RESPONSE_SIZE, "ADC min: %hu\r\n", module_settings.tank_ADC_min);
+	snprintf(response, UART_RESPONSE_SIZE, "ADC min: %hu\n", module_settings.tank_ADC_min);
 	_send_uart_response(response);
 }
 
 void _show_liters_per_month()
 {
 	char response[UART_RESPONSE_SIZE] = {};
-	snprintf(response, UART_RESPONSE_SIZE, "Milliliters per day: %lu ml/d\r\n", module_settings.milliliters_per_day);
+	snprintf(response, UART_RESPONSE_SIZE, "Milliliters per day: %lu ml/d\n", module_settings.milliliters_per_day);
 	_send_uart_response(response);
 }
 
 void _show_pump_speed()
 {
 	char response[UART_RESPONSE_SIZE] = {};
-	snprintf(response, UART_RESPONSE_SIZE, "Pump speed: %lu ml/h\r\n", module_settings.pump_speed);
+	snprintf(response, UART_RESPONSE_SIZE, "Pump speed: %lu ml/h\n", module_settings.pump_speed);
 	_send_uart_response(response);
 }
 
 void _show_sleeping_time()
 {
 	char response[UART_RESPONSE_SIZE] = {};
-	snprintf(response, UART_RESPONSE_SIZE, "Sleep time: %lu sec\r\n", module_settings.sleep_time / MILLIS_IN_SECOND);
+	snprintf(response, UART_RESPONSE_SIZE, "Sleep time: %lu sec\n", module_settings.sleep_time / MILLIS_IN_SECOND);
 	_send_uart_response(response);
 }
 
 void _show_server_log_id()
 {
 	char response[UART_RESPONSE_SIZE] = {};
-	snprintf(response, UART_RESPONSE_SIZE, "Log ID: %lu\r\n", module_settings.server_log_id / MILLIS_IN_SECOND);
+	snprintf(response, UART_RESPONSE_SIZE, "Log ID: %lu\n", module_settings.server_log_id / MILLIS_IN_SECOND);
 	_send_uart_response(response);
+}
+
+void _show_time()
+{
+	uint8_t date = DS1307_GetDate();
+	uint8_t month = DS1307_GetMonth();
+	uint16_t year = DS1307_GetYear();
+	uint8_t dow = DS1307_GetDayOfWeek();
+	uint8_t hour = DS1307_GetHour();
+	uint8_t minute = DS1307_GetMinute();
+	uint8_t second = DS1307_GetSecond();
+	int8_t zone_hr = DS1307_GetTimeZoneHour();
+	uint8_t zone_min = DS1307_GetTimeZoneMin();
+	char response[200] = { 0 };
+	sprintf(response, "ISO8601 FORMAT: %04d-%02d-%02dT%02d:%02d:%02d%+03d:%02d\n",
+			year, month, date, hour, minute, second, zone_hr, zone_min);
+	/* May show warning below. Ignore and proceed. */
+	LOG_DEBUG(COMMAND_TAG, ": %s\r\n", response);
+//	snprintf(
+//		response,
+//		sizeof(response),
+//		"\nTime: %lu-%02u-%02uT%02u:%02u:%02u\n",
+//		DS1307_GetYear(),
+//		DS1307_GetMonth(),
+//		DS1307_GetDate(),
+//		DS1307_GetHour(),
+//		DS1307_GetMinute(),
+//		DS1307_GetSecond()
+//	);
+//	_send_uart_response(response);
 }
 
 void _show_settings()
