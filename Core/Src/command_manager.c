@@ -259,38 +259,25 @@ void _show_sleeping_time()
 void _show_server_log_id()
 {
 	char response[UART_RESPONSE_SIZE] = {};
-	snprintf(response, UART_RESPONSE_SIZE, "Log ID: %lu\n", module_settings.server_log_id / MILLIS_IN_SECOND);
+	snprintf(response, UART_RESPONSE_SIZE, "Log ID: %lu\n", module_settings.server_log_id);
 	_send_uart_response(response);
 }
 
 void _show_time()
 {
-	uint8_t date = DS1307_GetDate();
-	uint8_t month = DS1307_GetMonth();
-	uint16_t year = DS1307_GetYear();
-	uint8_t dow = DS1307_GetDayOfWeek();
-	uint8_t hour = DS1307_GetHour();
-	uint8_t minute = DS1307_GetMinute();
-	uint8_t second = DS1307_GetSecond();
-	int8_t zone_hr = DS1307_GetTimeZoneHour();
-	uint8_t zone_min = DS1307_GetTimeZoneMin();
-	char response[200] = { 0 };
-	sprintf(response, "ISO8601 FORMAT: %04d-%02d-%02dT%02d:%02d:%02d%+03d:%02d\n",
-			year, month, date, hour, minute, second, zone_hr, zone_min);
-	/* May show warning below. Ignore and proceed. */
-	LOG_DEBUG(COMMAND_TAG, ": %s\r\n", response);
-//	snprintf(
-//		response,
-//		sizeof(response),
-//		"\nTime: %lu-%02u-%02uT%02u:%02u:%02u\n",
-//		DS1307_GetYear(),
-//		DS1307_GetMonth(),
-//		DS1307_GetDate(),
-//		DS1307_GetHour(),
-//		DS1307_GetMinute(),
-//		DS1307_GetSecond()
-//	);
-//	_send_uart_response(response);
+	char response[UART_RESPONSE_SIZE] = {};
+	snprintf(
+		response,
+		sizeof(response),
+		"\nTime: %lu-%02u-%02uT%02u:%02u:%02u\n",
+		DS1307_GetYear(),
+		DS1307_GetMonth(),
+		DS1307_GetDate(),
+		DS1307_GetHour(),
+		DS1307_GetMinute(),
+		DS1307_GetSecond()
+	);
+	_send_uart_response(response);
 }
 
 void _show_settings()

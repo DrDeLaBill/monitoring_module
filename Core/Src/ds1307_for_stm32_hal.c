@@ -11,8 +11,8 @@ extern "C"{
 #endif
 
 
-#define YEAR_MAX 3000
-#define YEAR_MIN 3000
+#define YEAR_MAX 4000
+#define YEAR_MIN 1000
 
 
 const char* DS_TAG = "DS13";
