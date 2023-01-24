@@ -31,6 +31,7 @@ void _timer_start();
 
 
 const char* LOG_TAG       = "LOG";
+const char* DATA_FIELD    = "\nd=";
 const char* ID_FIELD      = "id=";
 const char* TIME_FIELD    = "t=";
 const char* LEVEL_FIELD   = "level=";
@@ -186,8 +187,6 @@ void _show_measurements()
 
 void _parse_response()
 {
-	uint32_t old_id = log_record.id;
-
 	char *var_ptr = get_response();
 	var_ptr = strnstr(var_ptr, TIME_FIELD, strlen(var_ptr));
 	if (!var_ptr) {
@@ -227,41 +226,38 @@ void _parse_response()
 	}
 	DS1307_SetSecond(atoi(var_ptr));
 
-//	var_ptr = strnstr(response, ID_FIELD, strlen(response)) + strlen(ID_FIELD) + 1;
-//
-//	if (!var_ptr) {
-//		goto do_error;
-//	}
-//	log_record.id = atoi(var_ptr);
-//
-//	var_ptr = strnstr(response, LEVEL_FIELD, strlen(response)) + strlen(LEVEL_FIELD) + 1;
-//	if (!var_ptr) {
-//		goto do_error;
-//	}
-//	log_record.level = atof(var_ptr);
-//
-//	var_ptr = strnstr(response, PRESS_1_FIELD, strlen(response)) + strlen(PRESS_1_FIELD) + 1;
-//	if (!var_ptr) {
-//		goto do_error;
-//	}
-//	log_record.press_1 = atof(var_ptr);
-//
-//	var_ptr = strnstr(response, PRESS_2_FIELD, strlen(response)) + strlen(PRESS_2_FIELD) + 1;
-//	if (!var_ptr) {
-//		goto do_error;
-//	}
-//	log_record.press_2 = atof(var_ptr);
-//
+	module_settings.is_time_recieved = true;
+
+
+	var_ptr = get_response();
+	var_ptr = strnstr(var_ptr, DATA_FIELD, strlen(var_ptr)) + strlen(DATA_FIELD) + 1;
+	if (!var_ptr) {
+		goto do_success;
+	}
+
+	var_ptr = strnstr(var_ptr, ID_FIELD, strlen(var_ptr)) + strlen(ID_FIELD) + 1;
+	if (!var_ptr) {
+		goto do_success;
+	}
+	log_record.id = atoi(var_ptr);
+
+	if (!log_record.id) {
+		goto do_error;
+	}
+
 //	record_change(old_id);
 
 	goto do_success;
 
 
 do_error:
-	LOG_DEBUG(LOG_TAG, " unable to parse response - %s\r\n", sim_response);
+	log_record.id = module_settings.server_log_id;
+	LOG_DEBUG(LOG_TAG, " unable to parse response - %s\r\n", get_response());
+	goto do_exit;
 
 do_success:
 	module_settings.server_log_id = log_record.id;
-	module_settings.is_time_recieved = true;
+
+do_exit:
 	settings_save();
 }
