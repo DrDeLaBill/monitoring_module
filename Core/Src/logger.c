@@ -18,7 +18,7 @@
 #include "sim_module.h"
 #include "settings.h"
 #include "ds1307_for_stm32_hal.h"
-#include "ina3221_sensor.h"
+#include "pressure_sensor.h"
 
 
 void _general_record_save(record_sd_payload_t* payload);
@@ -98,6 +98,7 @@ void logger_proccess()
 
 	if (!module_settings.sleep_time) {
 		LOG_DEBUG(LOG_TAG, "no setting - sleep_time\r\n");
+		module_settings.sleep_time = DEFAULT_SLEEPING_TIME;
 		return;
 	}
 
@@ -153,8 +154,8 @@ void _make_measurements()
 	log_record.cf_id   = FW_VERSION;
 	log_record.id      = get_new_id();
 	log_record.level   = get_liquid_level();
-	log_record.press_1 = INA3221_getCurrent_mA(1);
-	log_record.press_2 = INA3221_getCurrent_mA(2);
+	log_record.press_1 = get_first_press();
+	log_record.press_2 = get_second_press();
 	snprintf(
 		log_record.time,
 		sizeof(log_record.time),

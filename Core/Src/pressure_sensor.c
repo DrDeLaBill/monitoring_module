@@ -54,7 +54,7 @@ void _do_channel_measurements(uint8_t channel_num)
 	if (measurement_buf[channel_num].shunt_buf < cur_level) {
 		measurement_buf[channel_num].shunt_buf = cur_level;
 	}
-	if (measurement_buf[channel_num].shunt_buf > cur_level) {
+	if (measurement_buf[channel_num].shunt_buf >= cur_level) {
 		measurement_buf[channel_num].shunt_val = measurement_buf[channel_num].shunt_buf;
 	}
 }

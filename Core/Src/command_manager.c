@@ -14,6 +14,7 @@
 
 #include "settings.h"
 #include "settings_manager.h"
+#include "record_manager.h"
 #include "liquid_sensor.h"
 #include "utils.h"
 #include "ds1307_for_stm32_hal.h"
@@ -154,9 +155,12 @@ void _execute_command()
 		_show_server_log_id();
 	} else if (strncmp("default", command[0], CHAR_COMMAND_SIZE) == 0) {
 		settings_reset();
+	} else if (strncmp("clearlog", command[0], CHAR_COMMAND_SIZE) == 0) {
+		remove_old_records();
+		module_settings.server_log_id = 0;
+		goto do_end;
 	} else {
 		_send_uart_response("Invalid UART command\n");
-		_clear_command();
 		goto do_end;
 	}
 

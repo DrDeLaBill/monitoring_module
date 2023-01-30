@@ -268,7 +268,7 @@ record_status_t remove_old_records()
 {
 	char filename[64] = {};
 	snprintf(filename, sizeof(filename), "%s" "%s", DIOSPIPath, RECORD_FILENAME);
-	if (instor_remove_file(RECORD_FILENAME)) {
+	if (instor_remove_file(RECORD_FILENAME) == FR_OK) {
 		LOG_DEBUG(RECORD_TAG, "file %s removed\r\n", filename);
 		return RECORD_OK;
 	}

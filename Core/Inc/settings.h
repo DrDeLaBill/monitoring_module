@@ -12,6 +12,10 @@
 #include <stdbool.h>
 #include "settings_manager.h"
 
+
+#define DEFAULT_SLEEPING_TIME 900000
+
+
 extern settings_tag_t general_settings_load;
 extern ModuleSettings module_settings;
 

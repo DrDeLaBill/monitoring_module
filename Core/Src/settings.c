@@ -19,7 +19,6 @@
 #include "ds1307_for_stm32_hal.h"
 
 
-#define DEFAULT_SLEEPING_TIME 900000
 #define MIN_TANK_VOLUME       3500
 #define MAX_TANK_VOLUME       50
 #define MAX_TANK_LTR          3500

@@ -14,7 +14,7 @@ typedef struct _channel_measurement {
 } channel_measurement;
 
 
-void void pressure_sensor_begin();
+void pressure_sensor_begin();
 float get_first_press();
 float get_second_press();
 void pressure_sensor_proccess();
