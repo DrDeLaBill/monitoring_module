@@ -20,8 +20,9 @@
 
 
 #define DEFAULT_SLEEPING_TIME 900000
-#define MIN_TANK_VOLUME       500
-#define MAX_TANK_VOLUME       3500
+#define MIN_TANK_VOLUME       3500
+#define MAX_TANK_VOLUME       50
+#define MAX_TANK_LTR          3500
 #define SETTING_VALUE_MIN     0
 #define MAX_ADC_VALUE         4095
 
@@ -56,10 +57,10 @@ void _general_settings_default(settings_sd_payload_t* payload) {
 	strncpy(payload->v1.payload_settings.server_url, _default_server_url, strlen(_default_server_url));
 	strncpy(payload->v1.payload_settings.server_port, _default_server_port ,strlen(_default_server_port));
 	payload->v1.payload_settings.tank_liters_min = 0.0;
-	payload->v1.payload_settings.tank_liters_max = MAX_TANK_VOLUME;
-	payload->v1.payload_settings.tank_ADC_max = 0;
-	payload->v1.payload_settings.tank_ADC_min = MAX_TANK_VOLUME;
-	payload->v1.payload_settings.milliliters_per_day = MAX_TANK_VOLUME;
+	payload->v1.payload_settings.tank_liters_max = MAX_TANK_LTR;
+	payload->v1.payload_settings.tank_ADC_max = MAX_TANK_VOLUME;
+	payload->v1.payload_settings.tank_ADC_min = MIN_TANK_VOLUME;
+	payload->v1.payload_settings.milliliters_per_day = MAX_TANK_LTR;
 	payload->v1.payload_settings.pump_speed = 0;
 	payload->v1.payload_settings.sleep_time = DEFAULT_SLEEPING_TIME;
 	payload->v1.payload_settings.is_time_recieved = false;

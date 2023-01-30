@@ -27,32 +27,14 @@ const char* LIQUID_TAG = "LQID";
 const char* error = "SENSOR ERROR";
 
 
-float liquid_level = 0.0;
-float liquid_level_buf = 0.0;
-
-
 void liquid_sensor_begin()
 {
 	HAL_ADCEx_Calibration_Start(&LIQUID_ADC);
 }
 
-void liquid_sensor_proccess()
-{
-	if (_get_liquid_adc_value() == 0) {
-		liquid_level_buf = 0.0;
-	}
-	float cur_level = _get_liquid_in_liters();
-	if (liquid_level_buf < cur_level) {
-		liquid_level_buf = cur_level;
-	}
-	if (liquid_level_buf > cur_level) {
-		liquid_level = liquid_level_buf;
-	}
-}
-
 float get_liquid_level()
 {
-	return liquid_level;
+	return _get_liquid_adc_value();
 }
 
 uint16_t _get_liquid_adc_value() {

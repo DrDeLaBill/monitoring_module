@@ -33,7 +33,7 @@
 // Settings
 #include "settings.h"
 // Shunt sensor
-#include "ina3221_sensor.h"
+#include "pressure_sensor.h"
 // UART command manager
 #include "command_manager.h"
 // SIM module
@@ -127,7 +127,7 @@ int main(void)
 	// Clock
 	DS1307_Init();
 	// Shunt
-	INA3221_begin();
+	pressure_sensor_begin();
 	// UART command manager
 	command_manager_begin();
 	// Liquid sensor
@@ -153,10 +153,10 @@ int main(void)
 //	  HAL_WWDG_Refresh(&hwwdg);
 	  // Commands from UART
 	  command_manager_proccess();
+	  // Shunt sensor
+	  pressure_sensor_proccess();
 	  // Pump
 	  pump_proccess();
-	  // Liquid sensor
-	  liquid_sensor_proccess();
 	  // Sim module
 	  sim_module_proccess();
 	  // Logger
