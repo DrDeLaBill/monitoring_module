@@ -6,12 +6,12 @@
  */
 
 
-#include "stm32f1xx_hal.h"
-
-#include <string.h>
+#include "record_manager.h"
 
 #include <fatfs.h>
-#include "record_manager.h"
+#include <string.h>
+#include "stm32f1xx_hal.h"
+
 #include "internal_storage.h"
 #include "sim_module.h"
 #include "settings.h"
@@ -22,7 +22,7 @@
 #define CLUSTERS_MIN 10
 
 
-bool _is_enough_space();
+uint32_t _get_free_space();
 
 
 const char* RECORD_TAG = "RCRD";
@@ -91,7 +91,7 @@ do_readline:
 
 
 record_status_t record_save() {
-	if (!_is_enough_space()) {
+	if (_get_free_space() < CLUSTERS_MIN) {
 		remove_old_records();
 	}
 
@@ -276,7 +276,7 @@ record_status_t remove_old_records()
 	return RECORD_ERROR;
 }
 
-bool _is_enough_space()
+uint32_t _get_free_space()
 {
 	DWORD fre_clust = 0;
 	FRESULT res = FR_OK;
@@ -284,13 +284,8 @@ bool _is_enough_space()
 	res = instor_get_free_clust(&fre_clust);
 	if (res != FR_OK) {
 		LOG_DEBUG(RECORD_TAG, "unable to get free space\r\n");
-		return true;
+		return 0xFFFFFFFF;
 	}
 
-	if (fre_clust < CLUSTERS_MIN) {
-		LOG_DEBUG(RECORD_TAG, "There is no enough space\r\n");
-		return false;
-	}
-
-	return true;
+	return fre_clust;
 }

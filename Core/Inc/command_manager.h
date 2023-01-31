@@ -10,7 +10,7 @@
 
 #include <stdbool.h>
 
-#define CHAR_COMMAND_SIZE 80
+#define CHAR_COMMAND_SIZE  40
 #define UART_RESPONSE_SIZE 40
 
 void command_manager_begin();

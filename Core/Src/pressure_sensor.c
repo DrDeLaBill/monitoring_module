@@ -9,6 +9,7 @@
 #include "pressure_sensor.h"
 
 #include "ina3221_sensor.h"
+#include "utils.h"
 
 
 #define ABS_VAL_MIN    50
@@ -16,6 +17,8 @@
 
 
 channel_measurement measurement_buf[CHANNELS_COUNT] = {};
+
+const char* PRESS_TAG = "PRES:";
 
 
 void _do_channel_measurements(uint8_t channel_num);
@@ -40,6 +43,7 @@ void pressure_sensor_proccess()
 {
 	_do_channel_measurements(0);
 	_do_channel_measurements(1);
+	LOG_DEBUG(PRESS_TAG, " 1 - %d.%d, 2 - %d.%d\n", FLOAT_AS_STRINGS(measurement_buf[0].shunt_buf), FLOAT_AS_STRINGS(measurement_buf[1].shunt_buf));
 }
 
 void _do_channel_measurements(uint8_t channel_num)

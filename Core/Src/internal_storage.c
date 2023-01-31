@@ -188,8 +188,11 @@ FRESULT instor_remove_file(const char* filename)
 	res = f_unlink(filename);
 	if(res != FR_OK) {
 		LOG_DEBUG(STOR_MODULE_TAG, "f_unlink(umount) error=%i\n", res);
+		out = res;
+		goto do_umount;
 	}
 
+do_umount:
 	res = f_mount(NULL, DIOSPIPath, 0);
 	if(res != FR_OK) {
 		LOG_DEBUG(STOR_MODULE_TAG, "f_mount(umount) error=%i\n", res);
@@ -203,6 +206,7 @@ FRESULT instor_find_file(const char* pattern)
 {
 	FRESULT res;
 	FRESULT out = FR_OK;
+	DIR dr;
 
 	res = f_mount(&DIOSPIFatFS, DIOSPIPath, 1);
 	if(res != FR_OK) {
@@ -210,11 +214,14 @@ FRESULT instor_find_file(const char* pattern)
 		return res;
 	}
 
-	res = f_findfirst(&DIOSPIPath, &DIOSPIFileInfo, DIOSPIPath, pattern);
+	res = f_findfirst(&dr, &DIOSPIFileInfo, DIOSPIPath, pattern);
 	if(res != FR_OK) {
-		LOG_DEBUG(STOR_MODULE_TAG, "f_unlink(umount) error=%i\n", res);
+		LOG_DEBUG(STOR_MODULE_TAG, "f_findfirst(umount) error=%i\n", res);
+		out = res;
+		goto do_umount;
 	}
 
+do_umount:
 	res = f_mount(NULL, DIOSPIPath, 0);
 	if(res != FR_OK) {
 		LOG_DEBUG(STOR_MODULE_TAG, "f_mount(umount) error=%i\n", res);
@@ -234,11 +241,14 @@ FRESULT instor_get_free_clust(DWORD *fre_clust)
 		return res;
 	}
 
-	res = f_getfree(DIOSPIPath, fre_clust, &DIOSPIFatFS);
+	res = f_getfree((TCHAR*)DIOSPIPath, fre_clust, &DIOSPIFatFS);
 	if(res != FR_OK) {
 		LOG_DEBUG(STOR_MODULE_TAG, "f_getfree(umount) error=%i\n", res);
+		out = res;
+		goto do_umount;
 	}
 
+do_umount:
 	res = f_mount(NULL, DIOSPIPath, 0);
 	if(res != FR_OK) {
 		LOG_DEBUG(STOR_MODULE_TAG, "f_mount(umount) error=%i\n", res);

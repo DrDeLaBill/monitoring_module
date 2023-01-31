@@ -117,7 +117,7 @@ int main(void)
   MX_USART2_UART_Init();
   MX_FATFS_Init();
   /* USER CODE BEGIN 2 */
-	HAL_Delay(100);
+	HAL_Delay(1000);
     // DIO SPI
 	DIO_SPI_Delay_cb = &my_delay_ms;
     // Settings initializing
@@ -156,7 +156,7 @@ int main(void)
 	  // Shunt sensor
 	  pressure_sensor_proccess();
 	  // Pump
-	  pump_proccess();
+//	  pump_proccess();
 	  // Sim module
 	  sim_module_proccess();
 	  // Logger

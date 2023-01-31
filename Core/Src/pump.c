@@ -33,6 +33,7 @@ void _filterTime(DateTime *targetTime);
 uint32_t _daytime_to_int(DateTime *datetime);
 bool _if_time_to_start_pump();
 bool _if_time_to_stop_pump();
+bool _if_pump_work_time_too_short();
 void _start_pump();
 void _stop_pump();
 uint8_t _days_in_month(uint8_t year, uint8_t month);
@@ -49,7 +50,8 @@ DateTime stopTime = {};
 
 void pump_init()
 {
-	HAL_GPIO_WritePin(PUMP_GPIO_Port, PUMP_Pin, RESET);
+//	HAL_GPIO_WritePin(PUMP_GPIO_Port, PUMP_Pin, RESET);
+	HAL_GPIO_WritePin(PUMP_GPIO_Port, PUMP_Pin, SET);
 	_set_current_time(&startTime);
 	if (module_settings.milliliters_per_day == 0) {
 		LOG_DEBUG(PUMP_TAG, "No setting: milliliters_per_day\r\n");
@@ -70,15 +72,18 @@ void pump_proccess()
 	if (module_settings.pump_speed == 0) {
 		return;
 	}
+	if (_if_time_to_stop_pump()) {
+		_calculate_pause_time();
+		_stop_pump();
+		_show_work_time();
+	}
+	if (_if_pump_work_time_too_short()) {
+		return;
+	}
 	if (_if_time_to_start_pump()) {
 		_calculate_work_time();
 		_start_pump();
 		_write_work_time_to_log();
-		_show_work_time();
-	}
-	if (_if_time_to_stop_pump()) {
-		_calculate_pause_time();
-		_stop_pump();
 		_show_work_time();
 	}
 }
@@ -178,9 +183,6 @@ bool _if_time_to_stop_pump()
 
 void _start_pump()
 {
-	if (_if_pump_work_time_too_short()) {
-		return;
-	}
 	if (current_state == SET) {
 		return;
 	}
