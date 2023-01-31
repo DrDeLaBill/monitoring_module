@@ -43,7 +43,7 @@ void pressure_sensor_proccess()
 {
 	_do_channel_measurements(0);
 	_do_channel_measurements(1);
-	LOG_DEBUG(PRESS_TAG, " 1 - %d.%d, 2 - %d.%d\n", FLOAT_AS_STRINGS(measurement_buf[0].shunt_buf), FLOAT_AS_STRINGS(measurement_buf[1].shunt_buf));
+//	LOG_DEBUG(PRESS_TAG, " 1 - %d.%d, 2 - %d.%d\n", FLOAT_AS_STRINGS(measurement_buf[0].shunt_buf), FLOAT_AS_STRINGS(measurement_buf[1].shunt_buf));
 }
 
 void _do_channel_measurements(uint8_t channel_num)

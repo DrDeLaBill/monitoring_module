@@ -50,8 +50,8 @@ DateTime stopTime = {};
 
 void pump_init()
 {
-//	HAL_GPIO_WritePin(PUMP_GPIO_Port, PUMP_Pin, RESET);
-	HAL_GPIO_WritePin(PUMP_GPIO_Port, PUMP_Pin, SET);
+	HAL_GPIO_WritePin(PUMP_GPIO_Port, PUMP_Pin, RESET);
+//	HAL_GPIO_WritePin(PUMP_GPIO_Port, PUMP_Pin, SET);
 	_set_current_time(&startTime);
 	if (module_settings.milliliters_per_day == 0) {
 		LOG_DEBUG(PUMP_TAG, "No setting: milliliters_per_day\r\n");
