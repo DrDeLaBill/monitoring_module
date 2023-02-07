@@ -273,7 +273,7 @@ void _show_time()
 	snprintf(
 		response,
 		sizeof(response),
-		"\nTime: %lu-%02u-%02uT%02u:%02u:%02u\n",
+		"\nTime: %u-%02u-%02uT%02u:%02u:%02u\n",
 		DS1307_GetYear(),
 		DS1307_GetMonth(),
 		DS1307_GetDate(),

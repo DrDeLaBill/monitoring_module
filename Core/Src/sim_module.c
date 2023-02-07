@@ -35,7 +35,7 @@ void _send_AT_command(const char* cmd);
 void _check_response(const char* needed_resp);
 void _check_http_response();
 void _check_response_timer();
-void _validate_response(char* needed_resp);
+void _validate_response(const char* needed_resp);
 void _do_error(uint8_t attempts);
 
 void _cmd_AT_state();
@@ -52,7 +52,6 @@ void _cmd_CHTTPSSTOP_state();
 void _clear_response();
 void _reset_module();
 void _start_module();
-void _shift_response();
 
 enum {
 	WAIT = 0,
@@ -220,7 +219,7 @@ void _check_response_timer()
 	}
 }
 
-void _validate_response(char* needed_resp)
+void _validate_response(const char* needed_resp)
 {
 	if (strnstr(sim_response, needed_resp, sizeof(sim_response))) {
 		LOG_DEBUG(SIM_TAG, " success - %s\r\n", sim_response);
@@ -257,13 +256,6 @@ void _do_error(uint8_t attempts)
 void _clear_response()
 {
 	memset(sim_response, 0, sizeof(sim_response));
-}
-
-void _shift_response()
-{
-	LOG_DEBUG(SIM_TAG, " shift response - %s\r\n", sim_response);
-	strncpy(sim_response, sim_response + sizeof(sim_response) / 2, sizeof(sim_response));
-	memset(sim_response + sizeof(sim_response) / 2, 0, sizeof(sim_response) / 2);
 }
 
 void _reset_module()

@@ -48,7 +48,7 @@ void INA3221_wireReadRegister(uint8_t reg, uint16_t *value)
 {
 	uint16_t response = 0;
 	HAL_I2C_Master_Transmit(&INA3221_I2C, (INA3221_ADDRESS << 1), &reg, 1, INA3221_MAX_TIMEOUT);
-	HAL_I2C_Master_Receive(&INA3221_I2C, (INA3221_ADDRESS << 1), &response, 2, INA3221_MAX_TIMEOUT);
+	HAL_I2C_Master_Receive(&INA3221_I2C, (INA3221_ADDRESS << 1), (uint8_t*)&response, 2, INA3221_MAX_TIMEOUT);
 	*value = (response << 8) + (response >> 8);
 }
 
