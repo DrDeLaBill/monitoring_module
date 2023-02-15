@@ -83,7 +83,7 @@ FRESULT intstor_write_file(const char* filename, const void* buf, UINT size, UIN
 		return res;
 	}
 
-	res = f_open(&DIOSPIFile, filename, FA_CREATE_ALWAYS|FA_WRITE);
+	res = f_open(&DIOSPIFile, filename, FA_CREATE_ALWAYS | FA_WRITE);
 	if(res != FR_OK) {
 		LOG_DEBUG(STOR_MODULE_TAG, "f_open() error=%i\n", res);
 		out = res;
@@ -137,7 +137,10 @@ FRESULT instor_change_file(const char* filename, const void* buf, UINT size, UIN
 		return res;
 	}
 
-	res = f_open(&DIOSPIFile, filename, FA_OPEN_ALWAYS|FA_WRITE);
+	res = f_open(&DIOSPIFile, filename, FA_OPEN_ALWAYS | FA_WRITE);
+	if (res == FR_NO_FILE) {
+		res = f_open(&DIOSPIFile, filename, FA_CREATE_ALWAYS | FA_WRITE);
+	}
 	if(res != FR_OK) {
 		LOG_DEBUG(STOR_MODULE_TAG, "f_open() error=%i\n", res);
 		out = res;
@@ -241,7 +244,8 @@ FRESULT instor_get_free_clust(DWORD *fre_clust)
 		return res;
 	}
 
-	res = f_getfree((TCHAR*)DIOSPIPath, fre_clust, &DIOSPIFatFS);
+	FATFS *dio_spi_fatfs_ptr = &DIOSPIFatFS;
+	res = f_getfree((TCHAR*)DIOSPIPath, fre_clust, &dio_spi_fatfs_ptr);
 	if(res != FR_OK) {
 		LOG_DEBUG(STOR_MODULE_TAG, "f_getfree(umount) error=%i\n", res);
 		out = res;

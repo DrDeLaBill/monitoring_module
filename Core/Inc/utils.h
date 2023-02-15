@@ -60,7 +60,7 @@ void Debug_HexDump(const char* tag, const uint8_t* buf, uint16_t len);
 #define SUBTRACT_DELTA(var, delta) { var -= (var <= delta) ? var : delta; }
 
 
-#define FLOAT_AS_STRINGS(fl_num) (int)fl_num, (int)(fl_num * 10) % 10
+#define FLOAT_AS_STRINGS(fl_num) (int)fl_num, (int)(fl_num * 100) % 100
 
 
 #endif /* INC_UTILS_H_ */

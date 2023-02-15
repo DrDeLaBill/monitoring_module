@@ -127,18 +127,25 @@ void _send_http_log()
 		"id=%lu\n"
 		"fw_id=%lu\n"
 		"cf_id=%lu\n"
-		"t=%s\n"
+		"t=%d-%02d-%02dT%02d:%02d:%02d\n"
 		"d="
 			"id=%lu;"
+			"t=%s;"
 			"level=%d.%d;"
-			"press_1=%d.%d;"
-			"press_2=%d.%d;"
+			"press_1=%d.%02d;"
+			"press_2=%d.%02d;"
 			"pump=%lu\n",
 		module_settings.id,
 		log_record.fw_id,
 		log_record.cf_id,
-		log_record.time,
+		DS1307_GetYear(),
+		DS1307_GetMonth(),
+		DS1307_GetDate(),
+		DS1307_GetHour(),
+		DS1307_GetMinute(),
+		DS1307_GetSecond(),
 		log_record.id,
+		log_record.time,
 		FLOAT_AS_STRINGS(log_record.level),
 		FLOAT_AS_STRINGS(log_record.press_1),
 		FLOAT_AS_STRINGS(log_record.press_2),
