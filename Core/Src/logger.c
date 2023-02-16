@@ -235,6 +235,7 @@ void _parse_response()
 	DS1307_SetSecond(atoi(var_ptr));
 
 	module_settings.is_time_recieved = true;
+	module_settings.server_log_id = log_record.id;
 
 
 	var_ptr = get_response();
@@ -264,7 +265,6 @@ do_error:
 	goto do_exit;
 
 do_success:
-	module_settings.server_log_id = log_record.id;
 
 do_exit:
 	settings_save();
