@@ -156,8 +156,7 @@ void _execute_command()
 	} else if (strncmp("default", command[0], CHAR_COMMAND_SIZE) == 0) {
 		settings_reset();
 	} else if (strncmp("clearlog", command[0], CHAR_COMMAND_SIZE) == 0) {
-		remove_old_records();
-		module_settings.server_log_id = 0;
+		clear_log();
 		goto do_end;
 	} else {
 		_send_uart_response("Invalid UART command\n");

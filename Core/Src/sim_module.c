@@ -120,7 +120,7 @@ void send_http_post(const char* data)
 		sizeof(request),
 		"POST /api/v1/send HTTP/1.1\r\n"
 		"Host: %s:%s\r\n"
-		"User-Agent: zhelezyaka\r\n"
+		"User-Agent: monitor\r\n"
 		"Connection: close\r\n"
 		"Accept-Charset: utf-8, us-ascii\r\n"
 		"Content-Type: text/plain\r\n"

@@ -44,6 +44,7 @@ const char* CF_TRGT_FIELD   = "trgt=";
 const char* CF_SLEEP_FIELD  = "sleep=";
 const char* CF_SPEED_FIELD  = "speed=";
 const char* CF_LOGID_FIELD  = "logid=";
+const char* CF_CLEAR_FIELD  = "clr=";
 
 
 LogRecord log_record;
@@ -118,6 +119,13 @@ void logger_proccess()
 void update_log_timer()
 {
 	Util_TimerStart(&log_timer, module_settings.sleep_time);
+}
+
+void clear_log()
+{
+	remove_old_records();
+	module_settings.server_log_id = 0;
+	module_settings.pump_work_seconds = 0;
 }
 
 void _send_http_log()
@@ -251,7 +259,7 @@ void _parse_response()
 
 	// Parse configuration:
 	var_ptr = get_response();
-	var_ptr = strnstr(var_ptr, CF_ID_FIELD, strlen(var_ptr)) + strlen(CF_ID_FIELD) + 1;
+	var_ptr = strnstr(var_ptr, CF_ID_FIELD, strlen(var_ptr)) + strlen(CF_ID_FIELD);
 	if (!var_ptr) {
 		goto do_error;
 	}
@@ -259,50 +267,56 @@ void _parse_response()
 	if (new_cf_id == module_settings.cf_id) {
 		goto do_success;
 	}
+	module_settings.cf_id = new_cf_id;
 
-	char *cnfg_ptr = strnstr(var_ptr, CF_DATA_FIELD, strlen(var_ptr)) + strlen(CF_DATA_FIELD) + 1;
+	char *cnfg_ptr = strnstr(var_ptr, CF_DATA_FIELD, strlen(var_ptr)) + strlen(CF_DATA_FIELD);
 	if (!var_ptr) {
 		goto do_error;
 	}
 
-	var_ptr = strnstr(cnfg_ptr, CF_PWR_FIELD, strlen(cnfg_ptr)) + strlen(CF_PWR_FIELD) + 1;
+	var_ptr = strnstr(cnfg_ptr, CF_PWR_FIELD, strlen(cnfg_ptr)) + strlen(CF_PWR_FIELD);
 	if (var_ptr) {
 		module_settings.module_enabled = atoi(var_ptr);
 	}
 
-	var_ptr = strnstr(cnfg_ptr, CF_LTRMIN_FIELD, strlen(cnfg_ptr)) + strlen(CF_LTRMIN_FIELD) + 1;
+	var_ptr = strnstr(cnfg_ptr, CF_LTRMIN_FIELD, strlen(cnfg_ptr)) + strlen(CF_LTRMIN_FIELD);
 	if (var_ptr) {
 		module_settings.tank_liters_min = atoi(var_ptr);
 	}
 
-	var_ptr = strnstr(cnfg_ptr, CF_LTRMAX_FIELD, strlen(cnfg_ptr)) + strlen(CF_LTRMAX_FIELD) + 1;
+	var_ptr = strnstr(cnfg_ptr, CF_LTRMAX_FIELD, strlen(cnfg_ptr)) + strlen(CF_LTRMAX_FIELD);
 	if (var_ptr) {
 		module_settings.tank_liters_max = atoi(var_ptr);
 	}
 
-	var_ptr = strnstr(cnfg_ptr, CF_TRGT_FIELD, strlen(cnfg_ptr)) + strlen(CF_TRGT_FIELD) + 1;
+	var_ptr = strnstr(cnfg_ptr, CF_TRGT_FIELD, strlen(cnfg_ptr)) + strlen(CF_TRGT_FIELD);
 	if (var_ptr) {
 		module_settings.milliliters_per_day = atoi(var_ptr);
 	}
 
-	var_ptr = strnstr(cnfg_ptr, CF_SLEEP_FIELD, strlen(cnfg_ptr)) + strlen(CF_SLEEP_FIELD) + 1;
+	var_ptr = strnstr(cnfg_ptr, CF_SLEEP_FIELD, strlen(cnfg_ptr)) + strlen(CF_SLEEP_FIELD);
 	if (var_ptr) {
 		module_settings.sleep_time = atoi(var_ptr);
 	}
 
-	var_ptr = strnstr(cnfg_ptr, CF_SPEED_FIELD, strlen(cnfg_ptr)) + strlen(CF_SPEED_FIELD) + 1;
+	var_ptr = strnstr(cnfg_ptr, CF_SPEED_FIELD, strlen(cnfg_ptr)) + strlen(CF_SPEED_FIELD);
 	if (var_ptr) {
 		module_settings.pump_speed = atoi(var_ptr);
 	}
 
-	var_ptr = strnstr(cnfg_ptr, CF_LOGID_FIELD, strlen(cnfg_ptr)) + strlen(CF_LOGID_FIELD) + 1;
+	var_ptr = strnstr(cnfg_ptr, CF_LOGID_FIELD, strlen(cnfg_ptr)) + strlen(CF_LOGID_FIELD);
 	if (var_ptr) {
 		module_settings.server_log_id = atoi(var_ptr);
 	}
 
-	var_ptr = strnstr(cnfg_ptr, CF_MOD_ID_FIELD, strlen(cnfg_ptr)) + strlen(CF_MOD_ID_FIELD) + 1;
+	var_ptr = strnstr(cnfg_ptr, CF_MOD_ID_FIELD, strlen(cnfg_ptr)) + strlen(CF_MOD_ID_FIELD);
 	if (var_ptr) {
 		module_settings.id = atoi(var_ptr);
+	}
+
+	var_ptr = strnstr(cnfg_ptr, CF_CLEAR_FIELD, strlen(cnfg_ptr)) + strlen(CF_CLEAR_FIELD);
+	if (var_ptr && atoi(var_ptr) == 1) {
+		clear_log();
 	}
 
 	LOG_DEBUG(LOG_TAG, " configuration updated\n");

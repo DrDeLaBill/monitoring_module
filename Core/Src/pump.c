@@ -43,6 +43,7 @@ void _write_work_time_to_log();
 
 
 const char* PUMP_TAG = "\r\nPUMP";
+
 uint8_t current_state = RESET;
 DateTime startTime = {};
 DateTime stopTime = {};
@@ -51,6 +52,7 @@ DateTime stopTime = {};
 void pump_init()
 {
 	HAL_GPIO_WritePin(PUMP_GPIO_Port, PUMP_Pin, RESET);
+	current_state = RESET;
 //	HAL_GPIO_WritePin(PUMP_GPIO_Port, PUMP_Pin, SET);
 	_set_current_time(&startTime);
 	if (module_settings.milliliters_per_day == 0) {

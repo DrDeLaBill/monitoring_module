@@ -21,6 +21,7 @@ extern LogRecord log_record;
 void logger_manager_begin();
 void logger_proccess();
 void update_log_timer();
+void clear_log();
 
 
 #endif /* INC_LOGGER_H_ */
