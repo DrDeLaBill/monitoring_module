@@ -51,7 +51,7 @@ cross-origin-opener-policy: same-origin
 t=2023-01-19t12:56:09.386436
 d_hwm=473830
 cf_id=33077616
-cf=id=123;ltrmin=100;ltrmax=1;trgt=4000;sleep=900;speed=1000;logid=1
+cf=id=123;ltrmin=100;ltrmax=1;trgt=4000;sleep=900;speed=1000;logid=1;clr=0
 ```
 
 - t - current time
