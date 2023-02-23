@@ -12,7 +12,7 @@
 
 // General settings
 #define FW_VERSION         1
-#define CF_VERSION         1
+#define CF_VERSION_DEFAULT 1
 #define MILLIS_IN_SECOND   1000
 #define DEFAULT_UART_DELAY 100
 #define DEFAULT_UART_SIZE  100

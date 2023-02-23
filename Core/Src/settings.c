@@ -62,9 +62,10 @@ void _general_settings_default(settings_sd_payload_t* payload) {
 	payload->v1.payload_settings.milliliters_per_day = MAX_TANK_LTR;
 	payload->v1.payload_settings.pump_speed = 0;
 	payload->v1.payload_settings.sleep_time = DEFAULT_SLEEPING_TIME;
-	payload->v1.payload_settings.is_time_recieved = false;
+	payload->v1.payload_settings.module_enabled = true;
 	payload->v1.payload_settings.server_log_id = 0;
 	payload->v1.payload_settings.pump_work_seconds = 0;
+	payload->v1.payload_settings.cf_id = CF_VERSION_DEFAULT;
 	settings_save();
 }
 
@@ -81,9 +82,10 @@ void _general_settings_save(settings_sd_payload_t* payload) {
 	payload->v1.payload_settings.milliliters_per_day = module_settings.milliliters_per_day;
 	payload->v1.payload_settings.pump_speed = module_settings.pump_speed;
 	payload->v1.payload_settings.sleep_time = module_settings.sleep_time;
-	payload->v1.payload_settings.is_time_recieved = module_settings.is_time_recieved;
+	payload->v1.payload_settings.module_enabled = module_settings.module_enabled;
 	payload->v1.payload_settings.server_log_id = module_settings.server_log_id;
 	payload->v1.payload_settings.pump_work_seconds = module_settings.pump_work_seconds;
+	payload->v1.payload_settings.cf_id = module_settings.cf_id;
 	show_settings();
 }
 
@@ -99,9 +101,10 @@ void _general_settings_load(const settings_sd_payload_t* payload) {
 	module_settings.milliliters_per_day = payload->v1.payload_settings.milliliters_per_day;
 	module_settings.pump_speed = payload->v1.payload_settings.pump_speed;
 	module_settings.sleep_time = payload->v1.payload_settings.sleep_time;
-	module_settings.is_time_recieved = payload->v1.payload_settings.is_time_recieved;
+	module_settings.module_enabled = payload->v1.payload_settings.module_enabled;
 	module_settings.server_log_id = payload->v1.payload_settings.server_log_id;
 	module_settings.pump_work_seconds = payload->v1.payload_settings.pump_work_seconds;
+	module_settings.cf_id = payload->v1.payload_settings.cf_id;
 	show_settings();
 }
 
@@ -109,18 +112,19 @@ void show_settings()
 {
 	LOG_DEBUG(
 		SETTINGS_TAG,
-		"Time: %u-%02u-%02uT%02u:%02u:%02u\r\n"
-		"Device ID: %lu\r\n"
-		"Server URL: %s:%s\r\n"
-		"ADC level MIN: %u\r\n"
-		"ADC level MAX: %u\r\n"
-		"Liquid level MIN: %u l\r\n"
-		"Liquid level MAX: %u l\r\n"
-		"Target: %lu ml/d\r\n"
-		"Pump speed: %lu ml/h\r\n"
-		"Sleep time: %lu sec\r\n"
-		"Server log ID: %lu\r\n"
-		"Pump work: %lu sec\r\n\r\n",
+		"\nTime: %u-%02u-%02uT%02u:%02u:%02u\r\n"
+		"Device ID: %lu\n"
+		"Server URL: %s:%s\n"
+		"ADC level MIN: %u\n"
+		"ADC level MAX: %u\n"
+		"Liquid level MIN: %u l\n"
+		"Liquid level MAX: %u l\n"
+		"Target: %lu ml/d\n"
+		"Pump speed: %lu ml/h\n"
+		"Sleep time: %lu sec\n"
+		"Server log ID: %lu\n"
+		"Pump work: %lu sec\n"
+		"Config ver: %d\n\n",
 		DS1307_GetYear(),
 		DS1307_GetMonth(),
 		DS1307_GetDate(),
@@ -138,7 +142,8 @@ void show_settings()
 		module_settings.pump_speed,
 		module_settings.sleep_time / MILLIS_IN_SECOND,
 		module_settings.server_log_id,
-		module_settings.pump_work_seconds
+		module_settings.pump_work_seconds,
+		module_settings.cf_id
 	);
 }
 

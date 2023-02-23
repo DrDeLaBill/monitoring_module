@@ -30,13 +30,20 @@ void _parse_response();
 void _timer_start();
 
 
-const char* LOG_TAG       = "LOG";
-const char* DATA_FIELD    = "\nd=";
-const char* ID_FIELD      = "id=";
-const char* TIME_FIELD    = "t=";
-const char* LEVEL_FIELD   = "level=";
-const char* PRESS_1_FIELD = "press_1=";
-const char* PRESS_2_FIELD = "press_2=";
+const char* LOG_TAG         = "LOG";
+
+const char* DATA_FIELD      = "\r\n\r\nd=";
+const char* TIME_FIELD      = "t=";
+const char* CF_ID_FIELD     = "cf_id=";
+const char* CF_DATA_FIELD   = "cf=";
+const char* CF_MOD_ID_FIELD = "id=";
+const char* CF_PWR_FIELD    = "pwr=";
+const char* CF_LTRMIN_FIELD = "ltrmin=";
+const char* CF_LTRMAX_FIELD = "ltrmax=";
+const char* CF_TRGT_FIELD   = "trgt=";
+const char* CF_SLEEP_FIELD  = "sleep=";
+const char* CF_SPEED_FIELD  = "speed=";
+const char* CF_LOGID_FIELD  = "logid=";
 
 
 LogRecord log_record;
@@ -115,11 +122,6 @@ void update_log_timer()
 
 void _send_http_log()
 {
-	record_status_t res = next_record_load();
-	if (res != RECORD_OK) {
-		return;
-	}
-
 	char data[LOG_SIZE] = {};
 	snprintf(
 		data,
@@ -127,14 +129,7 @@ void _send_http_log()
 		"id=%lu\n"
 		"fw_id=%lu\n"
 		"cf_id=%lu\n"
-		"t=%d-%02d-%02dT%02d:%02d:%02d\n"
-		"d="
-			"id=%lu;"
-			"t=%s;"
-			"level=%d.%d;"
-			"press_1=%d.%02d;"
-			"press_2=%d.%02d;"
-			"pump=%lu\n",
+		"t=%d-%02d-%02dT%02d:%02d:%02d\n",
 		module_settings.id,
 		log_record.fw_id,
 		log_record.cf_id,
@@ -143,24 +138,39 @@ void _send_http_log()
 		DS1307_GetDate(),
 		DS1307_GetHour(),
 		DS1307_GetMinute(),
-		DS1307_GetSecond(),
-		log_record.id,
-		log_record.time,
-		FLOAT_AS_STRINGS(log_record.level),
-		FLOAT_AS_STRINGS(log_record.press_1),
-		FLOAT_AS_STRINGS(log_record.press_2),
-		module_settings.pump_work_seconds
+		DS1307_GetSecond()
 	);
+
+	record_status_t record_res = next_record_load();
+	if (record_res == RECORD_OK) {
+		snprintf(
+			data + strlen(data),
+			sizeof(data) - strlen(data),
+			"d="
+				"id=%lu;"
+				"t=%s;"
+				"level=%d.%d;"
+				"press_1=%d.%02d;"
+				"press_2=%d.%02d;"
+				"pump=%lu\n",
+			log_record.id,
+			log_record.time,
+			FLOAT_AS_STRINGS(log_record.level),
+			FLOAT_AS_STRINGS(log_record.press_1),
+			FLOAT_AS_STRINGS(log_record.press_2),
+			module_settings.pump_work_seconds
+		);
+	}
 
 	send_http_post(data);
 }
 
 void _make_measurements()
 {
-	log_record.fw_id   = CF_VERSION;
-	log_record.cf_id   = FW_VERSION;
+	log_record.fw_id   = FW_VERSION;
+	log_record.cf_id   = module_settings.cf_id;
 	log_record.id      = get_new_id();
-	log_record.level   = get_liquid_level();
+	log_record.level   = get_liquid_liters();
 	log_record.press_1 = get_first_press();
 	log_record.press_2 = get_second_press();
 	snprintf(
@@ -196,6 +206,7 @@ void _show_measurements()
 void _parse_response()
 {
 	char *var_ptr = get_response();
+	// Parse time
 	var_ptr = strnstr(var_ptr, TIME_FIELD, strlen(var_ptr));
 	if (!var_ptr) {
 		goto do_error;
@@ -234,37 +245,78 @@ void _parse_response()
 	}
 	DS1307_SetSecond(atoi(var_ptr));
 
-	module_settings.is_time_recieved = true;
 	module_settings.server_log_id = log_record.id;
+	LOG_DEBUG(LOG_TAG, " response recieve success - time updated, server log id updated\n");
 
 
+	// Parse configuration:
 	var_ptr = get_response();
-	var_ptr = strnstr(var_ptr, DATA_FIELD, strlen(var_ptr)) + strlen(DATA_FIELD) + 1;
+	var_ptr = strnstr(var_ptr, CF_ID_FIELD, strlen(var_ptr)) + strlen(CF_ID_FIELD) + 1;
 	if (!var_ptr) {
+		goto do_error;
+	}
+	uint32_t new_cf_id = atoi(var_ptr);
+	if (new_cf_id == module_settings.cf_id) {
 		goto do_success;
 	}
 
-	var_ptr = strnstr(var_ptr, ID_FIELD, strlen(var_ptr)) + strlen(ID_FIELD) + 1;
+	char *cnfg_ptr = strnstr(var_ptr, CF_DATA_FIELD, strlen(var_ptr)) + strlen(CF_DATA_FIELD) + 1;
 	if (!var_ptr) {
-		goto do_success;
-	}
-	log_record.id = atoi(var_ptr);
-
-	if (!log_record.id) {
 		goto do_error;
 	}
 
-//	record_change(old_id);
+	var_ptr = strnstr(cnfg_ptr, CF_PWR_FIELD, strlen(cnfg_ptr)) + strlen(CF_PWR_FIELD) + 1;
+	if (var_ptr) {
+		module_settings.module_enabled = atoi(var_ptr);
+	}
+
+	var_ptr = strnstr(cnfg_ptr, CF_LTRMIN_FIELD, strlen(cnfg_ptr)) + strlen(CF_LTRMIN_FIELD) + 1;
+	if (var_ptr) {
+		module_settings.tank_liters_min = atoi(var_ptr);
+	}
+
+	var_ptr = strnstr(cnfg_ptr, CF_LTRMAX_FIELD, strlen(cnfg_ptr)) + strlen(CF_LTRMAX_FIELD) + 1;
+	if (var_ptr) {
+		module_settings.tank_liters_max = atoi(var_ptr);
+	}
+
+	var_ptr = strnstr(cnfg_ptr, CF_TRGT_FIELD, strlen(cnfg_ptr)) + strlen(CF_TRGT_FIELD) + 1;
+	if (var_ptr) {
+		module_settings.milliliters_per_day = atoi(var_ptr);
+	}
+
+	var_ptr = strnstr(cnfg_ptr, CF_SLEEP_FIELD, strlen(cnfg_ptr)) + strlen(CF_SLEEP_FIELD) + 1;
+	if (var_ptr) {
+		module_settings.sleep_time = atoi(var_ptr);
+	}
+
+	var_ptr = strnstr(cnfg_ptr, CF_SPEED_FIELD, strlen(cnfg_ptr)) + strlen(CF_SPEED_FIELD) + 1;
+	if (var_ptr) {
+		module_settings.pump_speed = atoi(var_ptr);
+	}
+
+	var_ptr = strnstr(cnfg_ptr, CF_LOGID_FIELD, strlen(cnfg_ptr)) + strlen(CF_LOGID_FIELD) + 1;
+	if (var_ptr) {
+		module_settings.server_log_id = atoi(var_ptr);
+	}
+
+	var_ptr = strnstr(cnfg_ptr, CF_MOD_ID_FIELD, strlen(cnfg_ptr)) + strlen(CF_MOD_ID_FIELD) + 1;
+	if (var_ptr) {
+		module_settings.id = atoi(var_ptr);
+	}
+
+	LOG_DEBUG(LOG_TAG, " configuration updated\n");
+	show_settings();
 
 	goto do_success;
 
 
 do_error:
-	log_record.id = module_settings.server_log_id;
 	LOG_DEBUG(LOG_TAG, " unable to parse response - %s\r\n", get_response());
 	goto do_exit;
 
 do_success:
+	goto do_exit;
 
 do_exit:
 	settings_save();

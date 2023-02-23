@@ -66,6 +66,10 @@ void pump_init()
 
 void pump_proccess()
 {
+	if (module_settings.module_enabled == 0) {
+		_stop_pump();
+		return;
+	}
 	if (module_settings.milliliters_per_day == 0) {
 		return;
 	}

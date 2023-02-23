@@ -28,7 +28,6 @@ void DS1307_Init() {
 	uint16_t ds_year = DS1307_GetYear();
 	if (ds_year < YEAR_MIN || ds_year > YEAR_MAX) {
 		LOG_DEBUG(DS_TAG, " set default time\r\n");
-		module_settings.is_time_recieved = false;
 		DS1307_SetYear(2000);
 		DS1307_SetMonth(1);
 		DS1307_SetDate(1);

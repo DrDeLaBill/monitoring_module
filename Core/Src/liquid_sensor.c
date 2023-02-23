@@ -32,12 +32,7 @@ void liquid_sensor_begin()
 	HAL_ADCEx_Calibration_Start(&LIQUID_ADC);
 }
 
-float get_liquid_level()
-{
-	return _get_liquid_adc_value();
-}
-
-uint16_t _get_liquid_adc_value() {
+uint16_t get_liquid_adc() {
 	HAL_ADC_Start(&LIQUID_ADC);
 	HAL_ADC_PollForConversion(&LIQUID_ADC, READ_TIMEOUT);
 	uint16_t liquid_ADC_value = HAL_ADC_GetValue(&LIQUID_ADC);
@@ -45,9 +40,9 @@ uint16_t _get_liquid_adc_value() {
 	return liquid_ADC_value;
 }
 
-float _get_liquid_in_liters()
+float get_liquid_liters()
 {
-	uint16_t liquid_ADC_value = _get_liquid_adc_value();
+	uint16_t liquid_ADC_value = get_liquid_adc();
 	if (liquid_ADC_value > MAX_ADC_VALUE) {
 		LOG_DEBUG(LIQUID_TAG, "%s\r\n", error);
 		return LIQUID_ERROR;
