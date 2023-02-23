@@ -64,3 +64,4 @@ cf=id=123;ltrmin=100;ltrmax=1;trgt=4000;sleep=900;speed=1000;logid=1
     - sleep - log frequency (in seconds)
     - speed - pump speed (in milliliters per hour)
     - logid - last log id in server DB
+    - clr - remove old log
