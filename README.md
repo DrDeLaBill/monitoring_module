@@ -1,8 +1,10 @@
 #MONITORING MODULE
 
+
 ---
 
 ###UART COMMANDS
+
 
 - settings - get current settings
 - time - get module time
@@ -21,6 +23,7 @@
 - clearlog - remove old log
 
 ###POST RESPONSE PARAMS
+
 
 - t - current time
 - cf_id - current configuration, updates if module settings changes
