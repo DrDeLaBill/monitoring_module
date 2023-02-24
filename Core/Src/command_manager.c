@@ -13,6 +13,7 @@
 #include <stdlib.h>
 
 #include "settings.h"
+#include "logger.h"
 #include "settings_manager.h"
 #include "record_manager.h"
 #include "liquid_sensor.h"
@@ -41,8 +42,9 @@ void _show_settings();
 void _show_time();
 
 
-const char *COMMAND_TAG = "UARTCMD";
+const char *COMMAND_TAG = "CMND";
 char command_buffer[CHAR_COMMAND_SIZE] = {};
+
 
 void cmd_proccess_input(const char input_chr)
 {
@@ -72,8 +74,8 @@ bool _validate_command()
 	}
 
 	if (strlen(command_buffer) >= CHAR_COMMAND_SIZE) {
-		memset(command_buffer, 0, sizeof(command_buffer));
-		LOG_DEBUG(COMMAND_TAG, "Invalid UART command\n");
+		_clear_command();
+		_send_uart_response("Invalid UART command\n");
 		return false;
 	}
 
@@ -124,7 +126,7 @@ void _execute_command()
 		module_settings.id = (uint32_t)atoi(command[1]);
 		_show_id();
 	} else if (strncmp("setsleep", command[0], CHAR_COMMAND_SIZE) == 0) {
-		module_settings.sleep_time = atoi(command[1]) * 1000;
+		module_settings.sleep_time = atoi(command[1]) * MILLIS_IN_SECOND;
 		_show_sleeping_time();
 	} else if (strncmp("seturl", command[0], CHAR_COMMAND_SIZE) == 0) {
 		strncpy(module_settings.server_url, command[1], sizeof(module_settings.server_url));

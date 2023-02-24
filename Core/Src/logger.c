@@ -32,7 +32,6 @@ void _timer_start();
 
 const char* LOG_TAG         = "LOG";
 
-const char* DATA_FIELD      = "\r\n\r\nd=";
 const char* TIME_FIELD      = "t=";
 const char* CF_ID_FIELD     = "cf_id=";
 const char* CF_DATA_FIELD   = "cf=";
@@ -223,35 +222,35 @@ void _parse_response()
 	uint16_t tmp = atoi(var_ptr);
 	DS1307_SetYear(tmp);
 
-	var_ptr = strnstr(var_ptr, "-", strlen(var_ptr)) + 1;
+	var_ptr = strnstr(var_ptr, "-", strlen(var_ptr));
 	if (!var_ptr) {
 		goto do_error;
 	}
-	DS1307_SetMonth((uint8_t)atoi(var_ptr));
+	DS1307_SetMonth((uint8_t)atoi(var_ptr + 1));
 
-	var_ptr = strnstr(var_ptr, "-", strlen(var_ptr)) + 1;
+	var_ptr = strnstr(var_ptr, "-", strlen(var_ptr));
 	if (!var_ptr) {
 		goto do_error;
 	}
-	DS1307_SetDate(atoi(var_ptr));
+	DS1307_SetDate(atoi(var_ptr + 1));
 
-	var_ptr = strnstr(var_ptr, "t", strlen(var_ptr)) + 1;
+	var_ptr = strnstr(var_ptr, "t", strlen(var_ptr));
 	if (!var_ptr) {
 		goto do_error;
 	}
-	DS1307_SetHour(atoi(var_ptr));
+	DS1307_SetHour(atoi(var_ptr + 1));
 
-	var_ptr = strnstr(var_ptr, ":", strlen(var_ptr)) + 1;
+	var_ptr = strnstr(var_ptr, ":", strlen(var_ptr));
 	if (!var_ptr) {
 		goto do_error;
 	}
-	DS1307_SetMinute(atoi(var_ptr));
+	DS1307_SetMinute(atoi(var_ptr + 1));
 
-	var_ptr = strnstr(var_ptr, ":", strlen(var_ptr)) + 1;
+	var_ptr = strnstr(var_ptr, ":", strlen(var_ptr));
 	if (!var_ptr) {
 		goto do_error;
 	}
-	DS1307_SetSecond(atoi(var_ptr));
+	DS1307_SetSecond(atoi(var_ptr + 1));
 
 	module_settings.server_log_id = log_record.id;
 	LOG_DEBUG(LOG_TAG, " response recieve success - time updated, server log id updated\n");
@@ -259,63 +258,64 @@ void _parse_response()
 
 	// Parse configuration:
 	var_ptr = get_response();
-	var_ptr = strnstr(var_ptr, CF_ID_FIELD, strlen(var_ptr)) + strlen(CF_ID_FIELD);
+	var_ptr = strnstr(var_ptr, CF_ID_FIELD, strlen(var_ptr));
 	if (!var_ptr) {
 		goto do_error;
 	}
-	uint32_t new_cf_id = atoi(var_ptr);
+	uint32_t new_cf_id = atoi(var_ptr + strlen(CF_ID_FIELD));
 	if (new_cf_id == module_settings.cf_id) {
 		goto do_success;
 	}
 	module_settings.cf_id = new_cf_id;
 
-	char *cnfg_ptr = strnstr(var_ptr, CF_DATA_FIELD, strlen(var_ptr)) + strlen(CF_DATA_FIELD);
+	char *cnfg_ptr = strnstr(var_ptr, CF_DATA_FIELD, strlen(var_ptr));
 	if (!var_ptr) {
 		goto do_error;
 	}
+	cnfg_ptr += strlen(CF_DATA_FIELD);
 
-	var_ptr = strnstr(cnfg_ptr, CF_PWR_FIELD, strlen(cnfg_ptr)) + strlen(CF_PWR_FIELD);
+	var_ptr = strnstr(cnfg_ptr, CF_PWR_FIELD, strlen(cnfg_ptr));
 	if (var_ptr) {
-		module_settings.module_enabled = atoi(var_ptr);
+		module_settings.module_enabled = atoi(var_ptr + strlen(CF_PWR_FIELD));
 	}
 
-	var_ptr = strnstr(cnfg_ptr, CF_LTRMIN_FIELD, strlen(cnfg_ptr)) + strlen(CF_LTRMIN_FIELD);
+	var_ptr = strnstr(cnfg_ptr, CF_LTRMIN_FIELD, strlen(cnfg_ptr));
 	if (var_ptr) {
-		module_settings.tank_liters_min = atoi(var_ptr);
+		module_settings.tank_liters_min = atoi(var_ptr + strlen(CF_LTRMIN_FIELD));
 	}
 
-	var_ptr = strnstr(cnfg_ptr, CF_LTRMAX_FIELD, strlen(cnfg_ptr)) + strlen(CF_LTRMAX_FIELD);
+	var_ptr = strnstr(cnfg_ptr, CF_LTRMAX_FIELD, strlen(cnfg_ptr));
 	if (var_ptr) {
-		module_settings.tank_liters_max = atoi(var_ptr);
+		module_settings.tank_liters_max = atoi(var_ptr + strlen(CF_LTRMAX_FIELD));
 	}
 
-	var_ptr = strnstr(cnfg_ptr, CF_TRGT_FIELD, strlen(cnfg_ptr)) + strlen(CF_TRGT_FIELD);
+	var_ptr = strnstr(cnfg_ptr, CF_TRGT_FIELD, strlen(cnfg_ptr));
 	if (var_ptr) {
-		module_settings.milliliters_per_day = atoi(var_ptr);
+		module_settings.milliliters_per_day = atoi(var_ptr + strlen(CF_TRGT_FIELD));
 	}
 
-	var_ptr = strnstr(cnfg_ptr, CF_SLEEP_FIELD, strlen(cnfg_ptr)) + strlen(CF_SLEEP_FIELD);
+	var_ptr = strnstr(cnfg_ptr, CF_SLEEP_FIELD, strlen(cnfg_ptr));
 	if (var_ptr) {
-		module_settings.sleep_time = atoi(var_ptr);
+		module_settings.sleep_time = atoi(var_ptr + strlen(CF_SLEEP_FIELD)) * MILLIS_IN_SECOND;
 	}
 
-	var_ptr = strnstr(cnfg_ptr, CF_SPEED_FIELD, strlen(cnfg_ptr)) + strlen(CF_SPEED_FIELD);
+	var_ptr = strnstr(cnfg_ptr, CF_SPEED_FIELD, strlen(cnfg_ptr));
 	if (var_ptr) {
-		module_settings.pump_speed = atoi(var_ptr);
+		module_settings.pump_speed = atoi(var_ptr + strlen(CF_SPEED_FIELD));
 	}
 
-	var_ptr = strnstr(cnfg_ptr, CF_LOGID_FIELD, strlen(cnfg_ptr)) + strlen(CF_LOGID_FIELD);
+	var_ptr = strnstr(cnfg_ptr, CF_LOGID_FIELD, strlen(cnfg_ptr));
 	if (var_ptr) {
-		module_settings.server_log_id = atoi(var_ptr);
+		module_settings.server_log_id = atoi(var_ptr + strlen(CF_LOGID_FIELD));
 	}
 
-	var_ptr = strnstr(cnfg_ptr, CF_MOD_ID_FIELD, strlen(cnfg_ptr)) + strlen(CF_MOD_ID_FIELD);
+	var_ptr = strnstr(cnfg_ptr, CF_MOD_ID_FIELD, strlen(cnfg_ptr));
 	if (var_ptr) {
-		module_settings.id = atoi(var_ptr);
+		module_settings.id = atoi(var_ptr + strlen(CF_MOD_ID_FIELD));
 	}
 
-	var_ptr = strnstr(cnfg_ptr, CF_CLEAR_FIELD, strlen(cnfg_ptr)) + strlen(CF_CLEAR_FIELD);
-	if (var_ptr && atoi(var_ptr) == 1) {
+	var_ptr = strnstr(cnfg_ptr, CF_CLEAR_FIELD, strlen(cnfg_ptr));
+	if (var_ptr && atoi(var_ptr + strlen(CF_CLEAR_FIELD)) == 1) {
 		clear_log();
 	}
 
@@ -330,8 +330,8 @@ do_error:
 	goto do_exit;
 
 do_success:
+	settings_save();
 	goto do_exit;
 
 do_exit:
-	settings_save();
 }
