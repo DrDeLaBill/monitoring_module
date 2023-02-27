@@ -12,5 +12,6 @@
 
 void pump_init();
 void pump_proccess();
+void pump_show_work();
 
 #endif /* INC_PUMP_H_ */

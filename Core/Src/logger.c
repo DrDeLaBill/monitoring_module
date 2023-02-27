@@ -15,6 +15,7 @@
 #include "utils.h"
 #include "liquid_sensor.h"
 #include "record_manager.h"
+#include "settings_manager.h"
 #include "sim_module.h"
 #include "settings.h"
 #include "ds1307_for_stm32_hal.h"
@@ -120,11 +121,19 @@ void update_log_timer()
 	Util_TimerStart(&log_timer, module_settings.sleep_time);
 }
 
+void update_log_sleep(uint32_t time)
+{
+	module_settings.sleep_time = time;
+	log_timer.delay = time;
+	settings_save();
+}
+
 void clear_log()
 {
 	remove_old_records();
 	module_settings.server_log_id = 0;
 	module_settings.pump_work_seconds = 0;
+	settings_save();
 }
 
 void _send_http_log()
@@ -334,4 +343,5 @@ do_success:
 	goto do_exit;
 
 do_exit:
+	return;
 }

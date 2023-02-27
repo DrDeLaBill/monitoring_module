@@ -38,7 +38,6 @@ void _start_pump();
 void _stop_pump();
 uint8_t _days_in_month(uint8_t year, uint8_t month);
 bool _is_leap_year(uint8_t year);
-void _show_work_time();
 void _write_work_time_to_log();
 
 
@@ -81,7 +80,7 @@ void pump_proccess()
 	if (_if_time_to_stop_pump()) {
 		_calculate_pause_time();
 		_stop_pump();
-		_show_work_time();
+		pump_show_work();
 	}
 	if (_if_pump_work_time_too_short()) {
 		return;
@@ -90,7 +89,7 @@ void pump_proccess()
 		_calculate_work_time();
 		_start_pump();
 		_write_work_time_to_log();
-		_show_work_time();
+		pump_show_work();
 	}
 }
 
@@ -207,13 +206,15 @@ void _stop_pump()
 	HAL_GPIO_WritePin(PUMP_GPIO_Port, PUMP_Pin, current_state);
 }
 
-void _show_work_time()
+void pump_show_work()
 {
 	LOG_DEBUG(
 		PUMP_TAG,
-		"\r\n"
-		"start %u-%02u-%02uT%02u:%02u:%02u\r\n"
-		"stop  %u-%02u-%02uT%02u:%02u:%02u\r\n",
+		"\n"
+		"start %u-%02u-%02uT%02u:%02u:%02u\n"
+		"stop  %u-%02u-%02uT%02u:%02u:%02u\n"
+		"\n"
+		"now   %u-%02u-%02uT%02u:%02u:%02u\n",
 		startTime.year,
 		startTime.month,
 		startTime.date,
@@ -225,12 +226,7 @@ void _show_work_time()
 		stopTime.date,
 		stopTime.hour,
 		stopTime.minute,
-		stopTime.second
-	);
-	LOG_DEBUG(
-		PUMP_TAG,
-		"\r\n"
-		"now   %u-%02u-%02uT%02u:%02u:%02u\r\n",
+		stopTime.second,
 		DS1307_GetYear(),
 		DS1307_GetMonth(),
 		DS1307_GetDate(),

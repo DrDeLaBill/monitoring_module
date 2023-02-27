@@ -14,6 +14,7 @@
 
 #include "utils.h"
 #include "settings_manager.h"
+#include "command_manager.h"
 
 // Clock
 #include "ds1307_for_stm32_hal.h"
@@ -110,41 +111,14 @@ void _general_settings_load(const settings_sd_payload_t* payload) {
 
 void show_settings()
 {
+#ifdef DEBUG
 	LOG_DEBUG(
 		SETTINGS_TAG,
-		"\nTime: %u-%02u-%02uT%02u:%02u:%02u\r\n"
-		"Device ID: %lu\n"
-		"Server URL: %s:%s\n"
-		"ADC level MIN: %u\n"
-		"ADC level MAX: %u\n"
-		"Liquid level MIN: %u l\n"
-		"Liquid level MAX: %u l\n"
-		"Target: %lu ml/d\n"
-		"Pump speed: %lu ml/h\n"
-		"Sleep time: %lu sec\n"
-		"Server log ID: %lu\n"
-		"Pump work: %lu sec\n"
-		"Config ver: %d\n\n",
-		DS1307_GetYear(),
-		DS1307_GetMonth(),
-		DS1307_GetDate(),
-		DS1307_GetHour(),
-		DS1307_GetMinute(),
-		DS1307_GetSecond(),
-		module_settings.id,
-		module_settings.server_url,
-		module_settings.server_port,
-		module_settings.tank_ADC_max,
-		module_settings.tank_ADC_min,
-		module_settings.tank_liters_min,
-		module_settings.tank_liters_max,
-		module_settings.milliliters_per_day,
-		module_settings.pump_speed,
-		module_settings.sleep_time / MILLIS_IN_SECOND,
-		module_settings.server_log_id,
-		module_settings.pump_work_seconds,
-		module_settings.cf_id
+		SPRINTF_SETTINGS_FORMAT
 	);
+#else
+	UART_RESPONSE(SPRINTF_SETTINGS_FORMAT);
+#endif
 }
 
 int _write(int file, uint8_t *ptr, int len) {

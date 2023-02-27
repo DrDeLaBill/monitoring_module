@@ -18,32 +18,68 @@
 #include "record_manager.h"
 #include "liquid_sensor.h"
 #include "utils.h"
-#include "ds1307_for_stm32_hal.h"
+#include "pump.h"
 
 
 bool _validate_command();
 void _execute_command();
-void _send_uart_response(const char* message);
 void _clear_command();
-void _trim_command();
 void _clear_command();
-void _show_id();
-void _show_server_url();
-void _show_server_port();
-void _show_liters_max();
-void _show_liters_min();
-void _show_liters_ADC_max();
-void _show_liters_ADC_min();
-void _show_liters_per_month();
-void _show_pump_speed();
-void _show_sleeping_time();
-void _show_server_log_id();
-void _show_settings();
-void _show_time();
+
+void _cmd_action_status();
+void _cmd_action_time();
+void _cmd_action_default();
+void _cmd_action_clearlog();
+void _cmd_action_setid();
+void _cmd_action_setsleep();
+void _cmd_action_seturl();
+void _cmd_action_setport();
+void _cmd_action_setlitersmin();
+void _cmd_action_setlitersmax();
+void _cmd_action_saveadcmin();
+void _cmd_action_saveadcmax();
+void _cmd_action_settarget();
+void _cmd_action_setpumpspeed();
+void _cmd_action_setlogid();
 
 
-const char *COMMAND_TAG = "CMND";
+const char* COMMAND_TAG = "CMND";
+
+const char* CMD_SETTINGS     = "status";
+const char* CMD_DEFAULT      = "default";
+const char* CMD_CLEARLOG     = "clearlog";
+const char* CMD_SETID        = "setid";
+const char* CMD_SETSLEEP     = "setsleep";
+const char* CMD_SETURL       = "seturl";
+const char* CMD_SETPORT      = "setport";
+const char* CMD_SETLITERSMIN = "setlitersmin";
+const char* CMD_SETLITERSMAX = "setlitersmax";
+const char* CMD_SAVEADCMIN   = "saveadcmin";
+const char* CMD_SAVEADCMAX   = "saveadcmax";
+const char* CMD_SETTARGET    = "settarget";
+const char* CMD_SETPUMPSPEED = "setpumpspeed";
+const char* CMD_SETLOGID     = "setlogid";
+
+const char* MSG_INVALID_LITERS = "Invalid liters value\n";
+
 char command_buffer[CHAR_COMMAND_SIZE] = {};
+
+cmd_state command_states[] = {
+	{&CMD_SETTINGS, &_cmd_action_status},
+	{&CMD_DEFAULT, &_cmd_action_default},
+	{&CMD_CLEARLOG, &_cmd_action_clearlog},
+	{&CMD_SETID, &_cmd_action_setid},
+	{&CMD_SETSLEEP, &_cmd_action_setsleep},
+	{&CMD_SETURL, &_cmd_action_setsleep},
+	{&CMD_SETPORT, &_cmd_action_setport},
+	{&CMD_SETLITERSMIN, &_cmd_action_setlitersmin},
+	{&CMD_SETLITERSMAX, &_cmd_action_setlitersmax},
+	{&CMD_SAVEADCMIN, &_cmd_action_saveadcmin},
+	{&CMD_SAVEADCMAX, &_cmd_action_saveadcmax},
+	{&CMD_SETTARGET, &_cmd_action_settarget},
+	{&CMD_SETPUMPSPEED, &_cmd_action_setpumpspeed},
+	{&CMD_SETLOGID, &_cmd_action_setlogid}
+};
 
 
 void cmd_proccess_input(const char input_chr)
@@ -75,7 +111,6 @@ bool _validate_command()
 
 	if (strlen(command_buffer) >= CHAR_COMMAND_SIZE) {
 		_clear_command();
-		_send_uart_response("Invalid UART command\n");
 		return false;
 	}
 
@@ -87,94 +122,24 @@ bool _validate_command()
 	return false;
 }
 
-/**
- * TODO: описание для команд
- */
 void _execute_command()
 {
-    char command[2][CHAR_COMMAND_SIZE] = {{}, {}};
-
-	_trim_command();
-
-	char* token = strtok(command_buffer, " ");
-	if (token == NULL) {
-		_clear_command();
-	}
-	strncpy(command[0], token, CHAR_COMMAND_SIZE);
-
-	token = strtok(NULL, " ");
-	if (token == NULL) {
-		strncpy(command[0], command_buffer, CHAR_COMMAND_SIZE);
-	}
-	strncpy(command[1], token, CHAR_COMMAND_SIZE);
-
-	if (!strlen(command[0])) {
-		_clear_command();
+	for (uint8_t i = 0; i < sizeof(command_states) / sizeof(cmd_state); i++) {
+		if (strncmp(
+				*command_states[i].cmd_name,
+				strtok(command_buffer, " "),
+				strlen(*command_states[i].cmd_name
+		))) {
+			command_states[i].cmd_action();
+			goto do_end;
+		}
 	}
 
-	if (strlen(command[0]) > CHAR_SETIINGS_SIZE) {
-		_clear_command();
-	}
-
-	if (strncmp("settings", command[0], CHAR_COMMAND_SIZE) == 0) {
-		_show_settings();
-		goto do_end;
-	} else if (strncmp("time", command[0], CHAR_COMMAND_SIZE) == 0) {
-		_show_time();
-		goto do_end;
-	} else if (strncmp("setid", command[0], CHAR_COMMAND_SIZE) == 0) {
-		module_settings.id = (uint32_t)atoi(command[1]);
-		_show_id();
-	} else if (strncmp("setsleep", command[0], CHAR_COMMAND_SIZE) == 0) {
-		module_settings.sleep_time = atoi(command[1]) * MILLIS_IN_SECOND;
-		_show_sleeping_time();
-	} else if (strncmp("seturl", command[0], CHAR_COMMAND_SIZE) == 0) {
-		strncpy(module_settings.server_url, command[1], sizeof(module_settings.server_url));
-		_show_server_url();
-	} else if (strncmp("setport", command[0], CHAR_COMMAND_SIZE) == 0) {
-		strncpy(module_settings.server_port, command[1], sizeof(module_settings.server_port));
-		_show_server_port();
-	} else if (strncmp("setlitersmin", command[0], CHAR_COMMAND_SIZE) == 0) {
-		module_settings.tank_liters_min = atoi(command[1]);
-		_show_liters_min();
-	} else if (strncmp("setlitersmax", command[0], CHAR_COMMAND_SIZE) == 0) {
-		module_settings.tank_liters_max = atoi(command[1]);
-		_show_liters_max();
-	} else if (strncmp("saveadcmmin", command[0], CHAR_COMMAND_SIZE) == 0) {
-		module_settings.tank_ADC_min = get_liquid_adc();
-		_show_liters_ADC_min();
-	} else if (strncmp("saveadcmax", command[0], CHAR_COMMAND_SIZE) == 0) {
-		module_settings.tank_ADC_max = get_liquid_adc();
-		_show_liters_ADC_max();
-	} else if (strncmp("settarget", command[0], CHAR_COMMAND_SIZE) == 0) {
-		module_settings.milliliters_per_day = atoi(command[1]);
-		_show_liters_per_month();
-	} else if (strncmp("setpumpspeed", command[0], CHAR_COMMAND_SIZE) == 0) {
-		module_settings.pump_speed = (uint32_t)atoi(command[1]);
-		_show_pump_speed();
-	} else if (strncmp("setlogid", command[0], CHAR_COMMAND_SIZE) == 0) {
-		module_settings.server_log_id = (uint32_t)atoi(command[1]);
-		_show_server_log_id();
-	} else if (strncmp("default", command[0], CHAR_COMMAND_SIZE) == 0) {
-		settings_reset();
-	} else if (strncmp("clearlog", command[0], CHAR_COMMAND_SIZE) == 0) {
-		clear_log();
-		goto do_end;
-	} else {
-		_send_uart_response("Invalid UART command\n");
-		goto do_end;
-	}
-
-	settings_save();
-	_show_settings();
+	UART_RESPONSE("Invalid UART command\n");
+	goto do_end;
 
 do_end:
 	_clear_command();
-}
-
-void _send_uart_response(const char* message)
-{
-	HAL_UART_Transmit(&COMMAND_UART, (uint8_t*) message, strlen(message), DEFAULT_UART_DELAY);
 }
 
 void _clear_command()
@@ -182,120 +147,120 @@ void _clear_command()
 	memset(command_buffer, 0, sizeof(command_buffer));
 }
 
-void _trim_command()
+void _cmd_action_status()
 {
-	for (uint8_t i = 0; i < strlen(command_buffer); i++) {
-		if (command_buffer[i] == '\r' || command_buffer[0] == '\n') {
-			command_buffer[i] = ' ';
-		}
+	show_settings();
+	pump_show_work();
+}
+
+void _cmd_action_default()
+{
+	settings_reset();
+	show_settings();
+}
+
+void _cmd_action_clearlog()
+{
+	clear_log();
+}
+
+void _cmd_action_setid()
+{
+	char* token = strtok(NULL, " ");
+	if (token == NULL) {
+		UART_RESPONSE("Invalid id\n");
 	}
+	module_settings.id = (uint32_t)atoi(token);
+	settings_save();
 }
 
-void _show_id()
+void _cmd_action_setsleep()
 {
-	char response[UART_RESPONSE_SIZE] = {};
-	snprintf(response, UART_RESPONSE_SIZE, "Device ID: %lu\n", module_settings.id);
-	_send_uart_response(response);
+	char* token = strtok(NULL, " ");
+	if (token == NULL) {
+		UART_RESPONSE("Invalid time\n");
+	}
+	update_log_sleep( atoi(token) * MILLIS_IN_SECOND);
 }
 
-void _show_server_url()
+void _cmd_action_seturl()
 {
-	char response[UART_RESPONSE_SIZE] = {};
-	snprintf(response, UART_RESPONSE_SIZE, "URL: %s\n", module_settings.server_url);
-	_send_uart_response(response);
+	char* token = strtok(NULL, " ");
+	if (token == NULL) {
+		UART_RESPONSE("Invalid URL\n");
+	}
+	strncpy(module_settings.server_url, token, sizeof(module_settings.server_url));
+	settings_save();
 }
 
-void _show_server_port()
+void _cmd_action_setport()
 {
-	char response[UART_RESPONSE_SIZE] = {};
-	snprintf(response, UART_RESPONSE_SIZE, "PORT: %s\n", module_settings.server_port);
-	_send_uart_response(response);
+	char* token = strtok(NULL, " ");
+	if (token == NULL) {
+		UART_RESPONSE("Invalid port\n");
+	}
+	strncpy(module_settings.server_port, token, sizeof(module_settings.server_port));
+	settings_save();
 }
 
-void _show_liters_max()
+void _cmd_action_setlitersmin()
 {
-	char response[UART_RESPONSE_SIZE] = {};
-	snprintf(response, UART_RESPONSE_SIZE, "Liliters max: %hu l\n", module_settings.tank_liters_max);
-	_send_uart_response(response);
+	char* token = strtok(NULL, " ");
+	if (token == NULL) {
+		UART_RESPONSE(MSG_INVALID_LITERS);
+	}
+	module_settings.tank_liters_min = atoi(token);
+	settings_save();
 }
 
-void _show_liters_min()
+void _cmd_action_setlitersmax()
 {
-	char response[UART_RESPONSE_SIZE] = {};
-	snprintf(response, UART_RESPONSE_SIZE, "Liliters min: %hu l\n", module_settings.tank_liters_min);
-	_send_uart_response(response);
+	char* token = strtok(NULL, " ");
+	if (token == NULL) {
+		UART_RESPONSE(MSG_INVALID_LITERS);
+	}
+	module_settings.tank_liters_max = atoi(token);
+	settings_save();
 }
 
-void _show_liters_ADC_max()
+void _cmd_action_saveadcmin()
 {
-	char response[UART_RESPONSE_SIZE] = {};
-	snprintf(response, UART_RESPONSE_SIZE, "ADC max: %hu\n", module_settings.tank_ADC_max);
-	_send_uart_response(response);
+	module_settings.tank_ADC_min = get_liquid_adc();
+	settings_save();
 }
 
-void _show_liters_ADC_min()
+void _cmd_action_saveadcmax()
 {
-	char response[UART_RESPONSE_SIZE] = {};
-	snprintf(response, UART_RESPONSE_SIZE, "ADC min: %hu\n", module_settings.tank_ADC_min);
-	_send_uart_response(response);
+	module_settings.tank_ADC_max = get_liquid_adc();
+	settings_save();
 }
 
-void _show_liters_per_month()
+void _cmd_action_settarget()
 {
-	char response[UART_RESPONSE_SIZE] = {};
-	snprintf(response, UART_RESPONSE_SIZE, "Milliliters per day: %lu ml/d\n", module_settings.milliliters_per_day);
-	_send_uart_response(response);
+	char* token = strtok(NULL, " ");
+	if (token == NULL) {
+		UART_RESPONSE(MSG_INVALID_LITERS);
+	}
+	module_settings.milliliters_per_day = atoi(token);
+	settings_save();
 }
 
-void _show_pump_speed()
+void _cmd_action_setpumpspeed()
 {
-	char response[UART_RESPONSE_SIZE] = {};
-	snprintf(response, UART_RESPONSE_SIZE, "Pump speed: %lu ml/h\n", module_settings.pump_speed);
-	_send_uart_response(response);
+	char* token = strtok(NULL, " ");
+	if (token == NULL) {
+		UART_RESPONSE(MSG_INVALID_LITERS);
+	}
+	module_settings.pump_speed = (uint32_t)atoi(token);
+	settings_save();
 }
 
-void _show_sleeping_time()
+void _cmd_action_setlogid()
 {
-	char response[UART_RESPONSE_SIZE] = {};
-	snprintf(response, UART_RESPONSE_SIZE, "Sleep time: %lu sec\n", module_settings.sleep_time / MILLIS_IN_SECOND);
-	_send_uart_response(response);
-}
-
-void _show_server_log_id()
-{
-	char response[UART_RESPONSE_SIZE] = {};
-	snprintf(response, UART_RESPONSE_SIZE, "Log ID: %lu\n", module_settings.server_log_id);
-	_send_uart_response(response);
-}
-
-void _show_time()
-{
-	char response[UART_RESPONSE_SIZE] = {};
-	snprintf(
-		response,
-		sizeof(response),
-		"\nTime: %u-%02u-%02uT%02u:%02u:%02u\n",
-		DS1307_GetYear(),
-		DS1307_GetMonth(),
-		DS1307_GetDate(),
-		DS1307_GetHour(),
-		DS1307_GetMinute(),
-		DS1307_GetSecond()
-	);
-	_send_uart_response(response);
-}
-
-void _show_settings()
-{
-	_show_id();
-	_show_server_url();
-	_show_server_port();
-	_show_liters_max();
-	_show_liters_min();
-	_show_liters_ADC_max();
-	_show_liters_ADC_min();
-	_show_liters_per_month();
-	_show_pump_speed();
-	_show_sleeping_time();
-	_show_server_log_id();
+	char* token = strtok(NULL, " ");
+	if (token == NULL) {
+		UART_RESPONSE("Invalid log ID\n");
+	}
+	module_settings.server_log_id = (uint32_t)atoi(token);
+	settings_save();
 }

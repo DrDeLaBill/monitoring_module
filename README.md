@@ -4,7 +4,7 @@
 
 ### UART COMMANDS
 
-- settings - get current settings
+- status - get current settings
 - time - get module time
 - setid (uint id) - set new module id
 - setsleep (uint time) - set log frequency (in seconds)
@@ -14,7 +14,7 @@
 - setlitersmax (uint liters) - set tank max level (in milliliters)
 - saveadcmin - save current liquid sensor value as min value
 - saveadcmax - save current liquid sensor value as max value
-- settsrget (uint liters) - set target liguid capacity per day (in milliliters)
+- settarget (uint liters) - set target liguid capacity per day (in milliliters)
 - setpumpspeed (uint liters) - pump speed (in milliliters per hour)
 - setlogid (uint id) - set last log id in server DB
 - default - set default settings
