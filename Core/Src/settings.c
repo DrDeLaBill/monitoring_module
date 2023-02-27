@@ -111,14 +111,10 @@ void _general_settings_load(const settings_sd_payload_t* payload) {
 
 void show_settings()
 {
-#ifdef DEBUG
 	LOG_DEBUG(
 		SETTINGS_TAG,
 		SPRINTF_SETTINGS_FORMAT
 	);
-#else
-	UART_RESPONSE(SPRINTF_SETTINGS_FORMAT);
-#endif
 }
 
 int _write(int file, uint8_t *ptr, int len) {

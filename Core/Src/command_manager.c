@@ -45,7 +45,7 @@ void _cmd_action_setlogid();
 
 const char* COMMAND_TAG = "CMND";
 
-const char* CMD_SETTINGS     = "status";
+const char* CMD_STATUS     = "status";
 const char* CMD_DEFAULT      = "default";
 const char* CMD_CLEARLOG     = "clearlog";
 const char* CMD_SETID        = "setid";
@@ -65,7 +65,7 @@ const char* MSG_INVALID_LITERS = "Invalid liters value\n";
 char command_buffer[CHAR_COMMAND_SIZE] = {};
 
 cmd_state command_states[] = {
-	{&CMD_SETTINGS, &_cmd_action_status},
+	{&CMD_STATUS, &_cmd_action_status},
 	{&CMD_DEFAULT, &_cmd_action_default},
 	{&CMD_CLEARLOG, &_cmd_action_clearlog},
 	{&CMD_SETID, &_cmd_action_setid},
@@ -125,7 +125,7 @@ bool _validate_command()
 void _execute_command()
 {
 	for (uint8_t i = 0; i < sizeof(command_states) / sizeof(cmd_state); i++) {
-		if (strncmp(
+		if (!strncmp(
 				*command_states[i].cmd_name,
 				strtok(command_buffer, " "),
 				strlen(*command_states[i].cmd_name
@@ -135,7 +135,7 @@ void _execute_command()
 		}
 	}
 
-	UART_RESPONSE("Invalid UART command\n");
+	UART_MSG("Invalid UART command\n");
 	goto do_end;
 
 do_end:
@@ -149,7 +149,7 @@ void _clear_command()
 
 void _cmd_action_status()
 {
-	show_settings();
+	UART_MSG(SPRINTF_SETTINGS_FORMAT);
 	pump_show_work();
 }
 
@@ -168,7 +168,7 @@ void _cmd_action_setid()
 {
 	char* token = strtok(NULL, " ");
 	if (token == NULL) {
-		UART_RESPONSE("Invalid id\n");
+		UART_MSG("Invalid id\n");
 	}
 	module_settings.id = (uint32_t)atoi(token);
 	settings_save();
@@ -178,7 +178,7 @@ void _cmd_action_setsleep()
 {
 	char* token = strtok(NULL, " ");
 	if (token == NULL) {
-		UART_RESPONSE("Invalid time\n");
+		UART_MSG("Invalid time\n");
 	}
 	update_log_sleep( atoi(token) * MILLIS_IN_SECOND);
 }
@@ -187,7 +187,7 @@ void _cmd_action_seturl()
 {
 	char* token = strtok(NULL, " ");
 	if (token == NULL) {
-		UART_RESPONSE("Invalid URL\n");
+		UART_MSG("Invalid URL\n");
 	}
 	strncpy(module_settings.server_url, token, sizeof(module_settings.server_url));
 	settings_save();
@@ -197,7 +197,7 @@ void _cmd_action_setport()
 {
 	char* token = strtok(NULL, " ");
 	if (token == NULL) {
-		UART_RESPONSE("Invalid port\n");
+		UART_MSG("Invalid port\n");
 	}
 	strncpy(module_settings.server_port, token, sizeof(module_settings.server_port));
 	settings_save();
@@ -207,7 +207,7 @@ void _cmd_action_setlitersmin()
 {
 	char* token = strtok(NULL, " ");
 	if (token == NULL) {
-		UART_RESPONSE(MSG_INVALID_LITERS);
+		UART_MSG(MSG_INVALID_LITERS);
 	}
 	module_settings.tank_liters_min = atoi(token);
 	settings_save();
@@ -217,7 +217,7 @@ void _cmd_action_setlitersmax()
 {
 	char* token = strtok(NULL, " ");
 	if (token == NULL) {
-		UART_RESPONSE(MSG_INVALID_LITERS);
+		UART_MSG(MSG_INVALID_LITERS);
 	}
 	module_settings.tank_liters_max = atoi(token);
 	settings_save();
@@ -239,7 +239,7 @@ void _cmd_action_settarget()
 {
 	char* token = strtok(NULL, " ");
 	if (token == NULL) {
-		UART_RESPONSE(MSG_INVALID_LITERS);
+		UART_MSG(MSG_INVALID_LITERS);
 	}
 	module_settings.milliliters_per_day = atoi(token);
 	settings_save();
@@ -249,7 +249,7 @@ void _cmd_action_setpumpspeed()
 {
 	char* token = strtok(NULL, " ");
 	if (token == NULL) {
-		UART_RESPONSE(MSG_INVALID_LITERS);
+		UART_MSG(MSG_INVALID_LITERS);
 	}
 	module_settings.pump_speed = (uint32_t)atoi(token);
 	settings_save();
@@ -259,7 +259,7 @@ void _cmd_action_setlogid()
 {
 	char* token = strtok(NULL, " ");
 	if (token == NULL) {
-		UART_RESPONSE("Invalid log ID\n");
+		UART_MSG("Invalid log ID\n");
 	}
 	module_settings.server_log_id = (uint32_t)atoi(token);
 	settings_save();

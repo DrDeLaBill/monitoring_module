@@ -108,7 +108,7 @@ record_status_t record_save() {
 	tmpbuf.header.version = RECORD_SD_PAYLOAD_VERSION;
 
 	WORD crc = 0;
-	uint32_t tmp = sizeof(tmpbuf.bits);
+//	uint32_t tmp = sizeof(tmpbuf.bits);
 	for(uint16_t i = 0; i < sizeof(tmpbuf.bits); i++)
 		DIO_SPI_CardCRC16(&crc, tmpbuf.bits[i]);
 	tmpbuf.crc = crc;
@@ -168,7 +168,7 @@ do_readline:
 	tmpbuf.header.version = RECORD_SD_PAYLOAD_VERSION;
 
 	WORD crc = 0;
-	uint32_t tmp = sizeof(tmpbuf.bits);
+//	uint32_t tmp = sizeof(tmpbuf.bits);
 	for(uint16_t i = 0; i < sizeof(tmpbuf.bits); i++)
 		DIO_SPI_CardCRC16(&crc, tmpbuf.bits[i]);
 	tmpbuf.crc = crc;

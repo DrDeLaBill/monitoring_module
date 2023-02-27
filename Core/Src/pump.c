@@ -15,6 +15,7 @@
 #include "liquid_sensor.h"
 #include "ds1307_for_stm32_hal.h"
 #include "sim_module.h"
+#include "command_manager.h"
 
 
 #define CYCLES_PER_HOUR    4
@@ -208,12 +209,10 @@ void _stop_pump()
 
 void pump_show_work()
 {
-	LOG_DEBUG(
-		PUMP_TAG,
-		"\n"
+	UART_MSG(
+		"Pump work time:\n"
 		"start %u-%02u-%02uT%02u:%02u:%02u\n"
 		"stop  %u-%02u-%02uT%02u:%02u:%02u\n"
-		"\n"
 		"now   %u-%02u-%02uT%02u:%02u:%02u\n",
 		startTime.year,
 		startTime.month,

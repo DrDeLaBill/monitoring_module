@@ -14,7 +14,7 @@
 #define UART_RESPONSE_SIZE 40
 
 
-#define UART_RESPONSE(format, ...) { \
+#define UART_MSG(format, ...) { \
 	printf(format __VA_OPT__(,) __VA_ARGS__); \
 }
 

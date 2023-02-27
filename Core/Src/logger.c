@@ -209,8 +209,8 @@ void _show_measurements()
 		"\r\nID: %lu\r\n"
 		"Time: %s\r\n"
 		"Level: %d.%d\r\n"
-		"Press 1: %d.%d\r\n"
-		"Press 2: %d.%d\r\n",
+		"Press 1: %d.%02d\r\n"
+		"Press 2: %d.%02d\r\n",
 		log_record.id,
 		log_record.time,
 		FLOAT_AS_STRINGS(log_record.level),
@@ -273,7 +273,7 @@ void _parse_response()
 	}
 	uint32_t new_cf_id = atoi(var_ptr + strlen(CF_ID_FIELD));
 	if (new_cf_id == module_settings.cf_id) {
-		goto do_success;
+		goto do_exit;
 	}
 	module_settings.cf_id = new_cf_id;
 
