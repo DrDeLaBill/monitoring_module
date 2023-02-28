@@ -51,18 +51,9 @@ DateTime stopTime = {};
 
 void pump_init()
 {
-	HAL_GPIO_WritePin(PUMP_GPIO_Port, PUMP_Pin, RESET);
-	current_state = RESET;
-//	HAL_GPIO_WritePin(PUMP_GPIO_Port, PUMP_Pin, SET);
+	current_state = SET;
+	_stop_pump();
 	_set_current_time(&startTime);
-	if (module_settings.milliliters_per_day == 0) {
-		LOG_DEBUG(PUMP_TAG, "No setting: milliliters_per_day\r\n");
-		return;
-	}
-	if (module_settings.pump_speed == 0) {
-		LOG_DEBUG(PUMP_TAG, "No setting: pump_speed\r\n");
-		return;
-	}
 	_calculate_work_time();
 }
 
@@ -79,23 +70,29 @@ void pump_proccess()
 		return;
 	}
 	if (_if_time_to_stop_pump()) {
-		_calculate_pause_time();
 		_stop_pump();
-		pump_show_work();
-	}
-	if (_if_pump_work_time_too_short()) {
-		return;
 	}
 	if (_if_time_to_start_pump()) {
-		_calculate_work_time();
 		_start_pump();
-		_write_work_time_to_log();
-		pump_show_work();
 	}
+}
+
+void pump_update_speed(uint32_t speed)
+{
+	module_settings.pump_speed = speed;
+	pump_init();
 }
 
 void _calculate_work_time()
 {
+	if (module_settings.milliliters_per_day == 0) {
+		LOG_DEBUG(PUMP_TAG, "No setting: milliliters_per_day\r\n");
+		return;
+	}
+	if (module_settings.pump_speed == 0) {
+		LOG_DEBUG(PUMP_TAG, "No setting: pump_speed\r\n");
+		return;
+	}
 	uint8_t needed_time = module_settings.milliliters_per_day * MINUTES_PER_HOUR / HOURS_PER_DAY / module_settings.pump_speed / CYCLES_PER_HOUR;
 	if (needed_time > (MINUTES_PER_HOUR / CYCLES_PER_HOUR)) {
 		needed_time = MINUTES_PER_HOUR / CYCLES_PER_HOUR;
@@ -189,22 +186,30 @@ bool _if_time_to_stop_pump()
 
 void _start_pump()
 {
+	_calculate_work_time();
+	if (_if_pump_work_time_too_short()) {
+		return;
+	}
 	if (current_state == SET) {
 		return;
 	}
 	current_state = SET;
 	LOG_DEBUG(PUMP_TAG,	"PUMP ON\r\n");
 	HAL_GPIO_WritePin(PUMP_GPIO_Port, PUMP_Pin, current_state);
+	_write_work_time_to_log();
+	pump_show_work();
 }
 
 void _stop_pump()
 {
+	_calculate_pause_time();
 	if (current_state == RESET) {
 		return;
 	}
 	current_state = RESET;
 	LOG_DEBUG(PUMP_TAG, "PUMP OFF\r\n");
 	HAL_GPIO_WritePin(PUMP_GPIO_Port, PUMP_Pin, current_state);
+	pump_show_work();
 }
 
 void pump_show_work()

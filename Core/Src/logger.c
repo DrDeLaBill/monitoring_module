@@ -20,6 +20,7 @@
 #include "settings.h"
 #include "ds1307_for_stm32_hal.h"
 #include "pressure_sensor.h"
+#include "pump.h"
 
 
 void _general_record_save(record_sd_payload_t* payload);
@@ -32,6 +33,10 @@ void _timer_start();
 
 
 const char* LOG_TAG         = "LOG";
+
+const char* T_DASH_FIELD    = "-";
+const char* T_TIME_FIELD    = "t";
+const char* T_COLON_FIELD   = ":";
 
 const char* TIME_FIELD      = "t=";
 const char* CF_ID_FIELD     = "cf_id=";
@@ -125,7 +130,6 @@ void update_log_sleep(uint32_t time)
 {
 	module_settings.sleep_time = time;
 	log_timer.delay = time;
-	settings_save();
 }
 
 void clear_log()
@@ -231,37 +235,38 @@ void _parse_response()
 	uint16_t tmp = atoi(var_ptr);
 	DS1307_SetYear(tmp);
 
-	var_ptr = strnstr(var_ptr, "-", strlen(var_ptr));
+	var_ptr = strnstr(var_ptr, T_DASH_FIELD, strlen(var_ptr));
 	if (!var_ptr) {
 		goto do_error;
 	}
-	DS1307_SetMonth((uint8_t)atoi(var_ptr + 1));
+	DS1307_SetMonth((uint8_t)atoi(var_ptr + strlen(T_DASH_FIELD)));
 
-	var_ptr = strnstr(var_ptr, "-", strlen(var_ptr));
+	var_ptr = strnstr(var_ptr, T_DASH_FIELD, strlen(var_ptr));
 	if (!var_ptr) {
 		goto do_error;
 	}
-	DS1307_SetDate(atoi(var_ptr + 1));
+	DS1307_SetDate(atoi(var_ptr + strlen(T_DASH_FIELD)));
 
-	var_ptr = strnstr(var_ptr, "t", strlen(var_ptr));
+	var_ptr = strnstr(var_ptr, T_TIME_FIELD, strlen(var_ptr));
 	if (!var_ptr) {
 		goto do_error;
 	}
-	DS1307_SetHour(atoi(var_ptr + 1));
+	DS1307_SetHour(atoi(var_ptr + strlen(T_TIME_FIELD)));
 
-	var_ptr = strnstr(var_ptr, ":", strlen(var_ptr));
+	var_ptr = strnstr(var_ptr, T_COLON_FIELD, strlen(var_ptr));
 	if (!var_ptr) {
 		goto do_error;
 	}
-	DS1307_SetMinute(atoi(var_ptr + 1));
+	DS1307_SetMinute(atoi(var_ptr + strlen(T_COLON_FIELD)));
 
-	var_ptr = strnstr(var_ptr, ":", strlen(var_ptr));
+	var_ptr = strnstr(var_ptr, T_COLON_FIELD, strlen(var_ptr));
 	if (!var_ptr) {
 		goto do_error;
 	}
-	DS1307_SetSecond(atoi(var_ptr + 1));
+	DS1307_SetSecond(atoi(var_ptr + strlen(T_COLON_FIELD)));
 
 	module_settings.server_log_id = log_record.id;
+	module_settings.pump_work_seconds = 0;
 	LOG_DEBUG(LOG_TAG, " response recieve success - time updated, server log id updated\n");
 
 
@@ -305,12 +310,12 @@ void _parse_response()
 
 	var_ptr = strnstr(cnfg_ptr, CF_SLEEP_FIELD, strlen(cnfg_ptr));
 	if (var_ptr) {
-		module_settings.sleep_time = atoi(var_ptr + strlen(CF_SLEEP_FIELD)) * MILLIS_IN_SECOND;
+		update_log_sleep(atoi(var_ptr + strlen(CF_SLEEP_FIELD)) * MILLIS_IN_SECOND);
 	}
 
 	var_ptr = strnstr(cnfg_ptr, CF_SPEED_FIELD, strlen(cnfg_ptr));
 	if (var_ptr) {
-		module_settings.pump_speed = atoi(var_ptr + strlen(CF_SPEED_FIELD));
+		pump_update_speed(atoi(var_ptr + strlen(CF_SPEED_FIELD)));
 	}
 
 	var_ptr = strnstr(cnfg_ptr, CF_LOGID_FIELD, strlen(cnfg_ptr));

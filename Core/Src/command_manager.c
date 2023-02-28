@@ -25,6 +25,7 @@ bool _validate_command();
 void _execute_command();
 void _clear_command();
 void _clear_command();
+char* _get_value();
 
 void _cmd_action_status();
 void _cmd_action_time();
@@ -64,13 +65,13 @@ const char* MSG_INVALID_LITERS = "Invalid liters value\n";
 
 char command_buffer[CHAR_COMMAND_SIZE] = {};
 
-cmd_state command_states[] = {
+const cmd_state command_states[] = {
 	{&CMD_STATUS, &_cmd_action_status},
 	{&CMD_DEFAULT, &_cmd_action_default},
 	{&CMD_CLEARLOG, &_cmd_action_clearlog},
 	{&CMD_SETID, &_cmd_action_setid},
 	{&CMD_SETSLEEP, &_cmd_action_setsleep},
-	{&CMD_SETURL, &_cmd_action_setsleep},
+	{&CMD_SETURL, &_cmd_action_seturl},
 	{&CMD_SETPORT, &_cmd_action_setport},
 	{&CMD_SETLITERSMIN, &_cmd_action_setlitersmin},
 	{&CMD_SETLITERSMAX, &_cmd_action_setlitersmax},
@@ -114,7 +115,8 @@ bool _validate_command()
 		return false;
 	}
 
-	if (command_buffer[strlen(command_buffer)-1] == '\n') {
+	char symbol = command_buffer[strlen(command_buffer)-1];
+	if (symbol == '\n' || symbol == '\r') {
 		command_buffer[strlen(command_buffer)-1] = 0;
 		return true;
 	}
@@ -124,10 +126,11 @@ bool _validate_command()
 
 void _execute_command()
 {
+	char* command = strtok(command_buffer, " ");
 	for (uint8_t i = 0; i < sizeof(command_states) / sizeof(cmd_state); i++) {
 		if (!strncmp(
 				*command_states[i].cmd_name,
-				strtok(command_buffer, " "),
+				command,
 				strlen(*command_states[i].cmd_name
 		))) {
 			command_states[i].cmd_action();
@@ -147,6 +150,11 @@ void _clear_command()
 	memset(command_buffer, 0, sizeof(command_buffer));
 }
 
+char* _get_value()
+{
+	return strtok(NULL, " ");
+}
+
 void _cmd_action_status()
 {
 	UART_MSG(SPRINTF_SETTINGS_FORMAT);
@@ -156,7 +164,7 @@ void _cmd_action_status()
 void _cmd_action_default()
 {
 	settings_reset();
-	show_settings();
+	UART_MSG(SPRINTF_SETTINGS_FORMAT);
 }
 
 void _cmd_action_clearlog()
@@ -166,60 +174,67 @@ void _cmd_action_clearlog()
 
 void _cmd_action_setid()
 {
-	char* token = strtok(NULL, " ");
-	if (token == NULL) {
+	char* value = _get_value();
+	if (value == NULL) {
 		UART_MSG("Invalid id\n");
+		return;
 	}
-	module_settings.id = (uint32_t)atoi(token);
+	module_settings.id = (uint32_t)atoi(value);
 	settings_save();
 }
 
 void _cmd_action_setsleep()
 {
-	char* token = strtok(NULL, " ");
-	if (token == NULL) {
+	char* value = _get_value();
+	if (value == NULL) {
 		UART_MSG("Invalid time\n");
+		return;
 	}
-	update_log_sleep( atoi(token) * MILLIS_IN_SECOND);
+	update_log_sleep( atoi(value) * MILLIS_IN_SECOND);
+	settings_save();
 }
 
 void _cmd_action_seturl()
 {
-	char* token = strtok(NULL, " ");
-	if (token == NULL) {
+	char* value = _get_value();
+	if (value == NULL) {
 		UART_MSG("Invalid URL\n");
+		return;
 	}
-	strncpy(module_settings.server_url, token, sizeof(module_settings.server_url));
+	strncpy(module_settings.server_url, value, sizeof(module_settings.server_url));
 	settings_save();
 }
 
 void _cmd_action_setport()
 {
-	char* token = strtok(NULL, " ");
-	if (token == NULL) {
+	char* value = _get_value();
+	if (value == NULL) {
 		UART_MSG("Invalid port\n");
+		return;
 	}
-	strncpy(module_settings.server_port, token, sizeof(module_settings.server_port));
+	strncpy(module_settings.server_port, value, sizeof(module_settings.server_port));
 	settings_save();
 }
 
 void _cmd_action_setlitersmin()
 {
-	char* token = strtok(NULL, " ");
-	if (token == NULL) {
+	char* value = _get_value();
+	if (value == NULL) {
 		UART_MSG(MSG_INVALID_LITERS);
+		return;
 	}
-	module_settings.tank_liters_min = atoi(token);
+	module_settings.tank_liters_min = atoi(value);
 	settings_save();
 }
 
 void _cmd_action_setlitersmax()
 {
-	char* token = strtok(NULL, " ");
-	if (token == NULL) {
+	char* value = _get_value();
+	if (value == NULL) {
 		UART_MSG(MSG_INVALID_LITERS);
+		return;
 	}
-	module_settings.tank_liters_max = atoi(token);
+	module_settings.tank_liters_max = atoi(value);
 	settings_save();
 }
 
@@ -237,30 +252,33 @@ void _cmd_action_saveadcmax()
 
 void _cmd_action_settarget()
 {
-	char* token = strtok(NULL, " ");
-	if (token == NULL) {
+	char* value = _get_value();
+	if (value == NULL) {
 		UART_MSG(MSG_INVALID_LITERS);
+		return;
 	}
-	module_settings.milliliters_per_day = atoi(token);
+	module_settings.milliliters_per_day = atoi(value);
 	settings_save();
 }
 
 void _cmd_action_setpumpspeed()
 {
-	char* token = strtok(NULL, " ");
-	if (token == NULL) {
+	char* value = _get_value();
+	if (value == NULL) {
 		UART_MSG(MSG_INVALID_LITERS);
+		return;
 	}
-	module_settings.pump_speed = (uint32_t)atoi(token);
+	pump_update_speed((uint32_t)atoi(value));
 	settings_save();
 }
 
 void _cmd_action_setlogid()
 {
-	char* token = strtok(NULL, " ");
-	if (token == NULL) {
+	char* value = _get_value();
+	if (value == NULL) {
 		UART_MSG("Invalid log ID\n");
+		return;
 	}
-	module_settings.server_log_id = (uint32_t)atoi(token);
+	module_settings.server_log_id = (uint32_t)atoi(value);
 	settings_save();
 }

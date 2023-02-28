@@ -13,5 +13,6 @@
 void pump_init();
 void pump_proccess();
 void pump_show_work();
+void pump_update_speed(uint32_t speed);
 
 #endif /* INC_PUMP_H_ */
