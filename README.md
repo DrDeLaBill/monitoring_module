@@ -5,7 +5,6 @@
 ### UART COMMANDS
 
 - status - get current settings
-- time - get module time
 - setid (uint id) - set new module id
 - setsleep (uint time) - set log frequency (in seconds)
 - seturl (string url) - set server url

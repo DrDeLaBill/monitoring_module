@@ -23,6 +23,9 @@
 #include "pump.h"
 
 
+#define UPDATE_SETTINGS_TIME 60000
+
+
 void _general_record_save(record_sd_payload_t* payload);
 void _general_record_load(const record_sd_payload_t* payload);
 void _send_http_log();
@@ -30,6 +33,9 @@ void _make_measurements();
 void _show_measurements();
 void _parse_response();
 void _timer_start();
+record_status_t _load_current_log();
+void _start_error_timer();
+void _start_settings_timer();
 
 
 const char* LOG_TAG         = "LOG";
@@ -62,6 +68,8 @@ record_tag_t* record_cbs[] = {
 	NULL
 };
 dio_timer_t log_timer;
+dio_timer_t error_read_timer;
+dio_timer_t settings_timer;
 
 
 void _general_record_save(record_sd_payload_t* payload)
@@ -89,6 +97,8 @@ void _general_record_load(const record_sd_payload_t* payload)
 void logger_manager_begin()
 {
 	update_log_timer();
+	_start_error_timer();
+	_start_settings_timer();
 }
 
 void logger_proccess()
@@ -152,7 +162,7 @@ void _send_http_log()
 		"t=%d-%02d-%02dT%02d:%02d:%02d\n",
 		module_settings.id,
 		log_record.fw_id,
-		log_record.cf_id,
+		module_settings.cf_id,
 		DS1307_GetYear(),
 		DS1307_GetMonth(),
 		DS1307_GetDate(),
@@ -162,7 +172,12 @@ void _send_http_log()
 	);
 
 	record_status_t record_res = next_record_load();
-	// TODO: При сбое сд карты раз в 15 минут слать лог не из неё
+
+	if (record_res == RECORD_ERROR) {
+		record_res = _load_current_log();
+		log_record.id = module_settings.server_log_id;
+	}
+
 	if (record_res == RECORD_OK) {
 		snprintf(
 			data + strlen(data),
@@ -183,7 +198,36 @@ void _send_http_log()
 		);
 	}
 
+	if (record_res == RECORD_ERROR) {
+		return;
+	}
+
+	if (record_res == RECORD_NO_LOG && Util_TimerPending(&settings_timer)) {
+		return;
+	}
+
 	send_http_post(data);
+	_start_settings_timer();
+	_start_error_timer();
+}
+
+record_status_t _load_current_log()
+{
+	if (Util_TimerPending(&error_read_timer)) {
+		return RECORD_NO_LOG;
+	}
+	_make_measurements();
+	return RECORD_OK;
+}
+
+void _start_error_timer()
+{
+	Util_TimerStart(&error_read_timer, module_settings.sleep_time);
+}
+
+void _start_settings_timer()
+{
+	Util_TimerStart(&settings_timer, UPDATE_SETTINGS_TIME);
 }
 
 void _make_measurements()
@@ -266,8 +310,10 @@ void _parse_response()
 	}
 	DS1307_SetSecond(atoi(var_ptr + strlen(T_COLON_FIELD)));
 
+	if (module_settings.server_log_id < log_record.id) {
+		module_settings.pump_work_seconds = 0;
+	}
 	module_settings.server_log_id = log_record.id;
-	module_settings.pump_work_seconds = 0;
 	LOG_DEBUG(LOG_TAG, " response recieve success - time updated, server log id updated\n");
 
 
@@ -275,7 +321,7 @@ void _parse_response()
 	var_ptr = get_response();
 	var_ptr = strnstr(var_ptr, CF_ID_FIELD, strlen(var_ptr));
 	if (!var_ptr) {
-		goto do_error;
+		goto do_success;
 	}
 	uint32_t new_cf_id = atoi(var_ptr + strlen(CF_ID_FIELD));
 	if (new_cf_id == module_settings.cf_id) {
