@@ -162,6 +162,7 @@ void _send_http_log()
 	);
 
 	record_status_t record_res = next_record_load();
+	// TODO: При сбое сд карты раз в 15 минут слать лог не из неё
 	if (record_res == RECORD_OK) {
 		snprintf(
 			data + strlen(data),

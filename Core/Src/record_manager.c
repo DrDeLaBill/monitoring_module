@@ -51,7 +51,7 @@ do_readline:
 		LOG_DEBUG(RECORD_TAG, "read_file(%s) error=%i\n", filename, res);
 	}
 	if (br == 0) {
-		return RECORD_ERROR;
+		return RECORD_NO_LOG;
 	}
 	if (!tmpbuf.v1.payload_record.id) {
 		ptr += sizeof(tmpbuf);

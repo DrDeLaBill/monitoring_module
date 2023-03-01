@@ -88,6 +88,9 @@ void cmd_proccess_input(const char input_chr)
 	if (strlen(command_buffer) >= CHAR_COMMAND_SIZE) {
 		_clear_command();
 	}
+	if (input_chr == '\r') {
+		return;
+	}
 	command_buffer[strlen(command_buffer)] = input_chr;
 }
 
@@ -116,7 +119,7 @@ bool _validate_command()
 	}
 
 	char symbol = command_buffer[strlen(command_buffer)-1];
-	if (symbol == '\n' || symbol == '\r') {
+	if (symbol == '\n') {
 		command_buffer[strlen(command_buffer)-1] = 0;
 		return true;
 	}

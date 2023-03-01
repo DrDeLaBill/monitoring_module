@@ -14,7 +14,8 @@
 
 typedef enum _record_status_t {
 	RECORD_OK = 0,
-	RECORD_ERROR
+	RECORD_ERROR,
+	RECORD_NO_LOG
 } record_status_t;
 
 
