@@ -40,21 +40,23 @@ void _stop_pump();
 uint8_t _days_in_month(uint8_t year, uint8_t month);
 bool _is_leap_year(uint8_t year);
 void _write_work_time_to_log();
+void _pump_power_off();
+void _pump_power_on();
 
 
 const char* PUMP_TAG = "\r\nPUMP";
 
-uint8_t current_state = RESET;
+uint8_t current_state;
 DateTime startTime = {};
 DateTime stopTime = {};
 
 
 void pump_init()
 {
-	current_state = SET;
-	_stop_pump();
-	_set_current_time(&startTime);
-	_calculate_work_time();
+	current_state = RESET;
+//	_stop_pump();
+//	_set_current_time(&startTime);
+//	_calculate_work_time();
 }
 
 void pump_proccess()
@@ -81,6 +83,32 @@ void pump_update_speed(uint32_t speed)
 {
 	module_settings.pump_speed = speed;
 	pump_init();
+}
+
+void pump_update_power(uint8_t enable_state)
+{
+	if (module_settings.module_enabled == enable_state) {
+		return;
+	}
+	if (enable_state) {
+		_pump_power_on();
+	} else {
+		_pump_power_off();
+	}
+}
+
+void _pump_power_off()
+{
+	HAL_GPIO_WritePin(STATE_LED_GPIO_Port, STATE_LED_Pin, RESET);
+	module_settings.module_enabled = false;
+	_stop_pump();
+}
+
+void _pump_power_on()
+{
+	HAL_GPIO_WritePin(STATE_LED_GPIO_Port, STATE_LED_Pin, SET);
+	module_settings.module_enabled = true;
+	_start_pump();
 }
 
 void _calculate_work_time()

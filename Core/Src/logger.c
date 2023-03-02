@@ -70,6 +70,7 @@ record_tag_t* record_cbs[] = {
 dio_timer_t log_timer;
 dio_timer_t error_read_timer;
 dio_timer_t settings_timer;
+uint32_t sended_log_id;
 
 
 void _general_record_save(record_sd_payload_t* payload)
@@ -99,6 +100,7 @@ void logger_manager_begin()
 	update_log_timer();
 	_start_error_timer();
 	_start_settings_timer();
+	sended_log_id = 0;
 }
 
 void logger_proccess()
@@ -209,6 +211,7 @@ void _send_http_log()
 	send_http_post(data);
 	_start_settings_timer();
 	_start_error_timer();
+	sended_log_id = log_record.id;
 }
 
 record_status_t _load_current_log()
@@ -310,10 +313,10 @@ void _parse_response()
 	}
 	DS1307_SetSecond(atoi(var_ptr + strlen(T_COLON_FIELD)));
 
-	if (module_settings.server_log_id < log_record.id) {
+	if (module_settings.server_log_id < sended_log_id) {
 		module_settings.pump_work_seconds = 0;
 	}
-	module_settings.server_log_id = log_record.id;
+	module_settings.server_log_id = sended_log_id;
 	LOG_DEBUG(LOG_TAG, " response recieve success - time updated, server log id updated\n");
 
 
@@ -337,7 +340,7 @@ void _parse_response()
 
 	var_ptr = strnstr(cnfg_ptr, CF_PWR_FIELD, strlen(cnfg_ptr));
 	if (var_ptr) {
-		module_settings.module_enabled = atoi(var_ptr + strlen(CF_PWR_FIELD));
+		pump_update_power(atoi(var_ptr + strlen(CF_PWR_FIELD)));
 	}
 
 	var_ptr = strnstr(cnfg_ptr, CF_LTRMIN_FIELD, strlen(cnfg_ptr));
