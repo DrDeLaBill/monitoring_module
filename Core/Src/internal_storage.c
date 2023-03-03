@@ -116,11 +116,11 @@ do_umount:
 FRESULT intstor_append_file(const char* filename, const void* buf, UINT size, UINT* bw)
 {
 	FRESULT res = instor_find_file(filename);
-	if(res != FR_OK) {
-		LOG_DEBUG(STOR_MODULE_TAG, "find_file() error=%i\n", res);
-		return res;
+	UINT file_size = 0;
+	if(res == FR_OK) {
+		file_size = f_size(&DIOSPIFile);
 	}
-	return instor_change_file(filename, buf, size, bw, f_size(&DIOSPIFile));
+	return instor_change_file(filename, buf, size, bw, file_size);
 }
 
 

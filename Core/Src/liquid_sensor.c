@@ -15,7 +15,7 @@
 #include "utils.h"
 
 
-#define LIQUID_ERROR -1.0
+#define LIQUID_ERROR         -1
 #define MILLILITERS_IN_LITER 1000
 
 
@@ -40,21 +40,21 @@ uint16_t get_liquid_adc() {
 	return liquid_ADC_value;
 }
 
-float get_liquid_liters()
+int32_t get_liquid_liters()
 {
 	uint16_t liquid_ADC_value = get_liquid_adc();
-	if (liquid_ADC_value > MAX_ADC_VALUE) {
+	if (liquid_ADC_value >= MAX_ADC_VALUE) {
 		LOG_DEBUG(LIQUID_TAG, "%s\r\n", error);
 		return LIQUID_ERROR;
 	}
 	uint16_t liquid_ADC_range = abs(module_settings.tank_ADC_min - module_settings.tank_ADC_max);
-	float liquid_liters_range = abs(module_settings.tank_liters_max - module_settings.tank_liters_min);
+	uint16_t liquid_liters_range = abs(module_settings.tank_liters_max - module_settings.tank_liters_min);
 	if (liquid_ADC_range == 0) {
 		LOG_DEBUG(LIQUID_TAG, "ERROR MIN-MAX\r\n");
 		return LIQUID_ERROR;
 	}
-	float liquid_in_liters = 1.0 * (liquid_ADC_range - liquid_ADC_value) * liquid_liters_range / liquid_ADC_range + module_settings.tank_liters_min;
-	if (liquid_in_liters < 0.0) {
+	uint16_t liquid_in_liters = (liquid_ADC_range - liquid_ADC_value) * liquid_liters_range / liquid_ADC_range + module_settings.tank_liters_min;
+	if (liquid_in_liters == 0) {
 		LOG_DEBUG(LIQUID_TAG, error);
 		return LIQUID_ERROR;
 	}
