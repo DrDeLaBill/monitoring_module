@@ -5,7 +5,7 @@
 #include <stdbool.h>
 
 
-#define RESPONSE_SIZE 400
+#define RESPONSE_SIZE 430
 #define END_OF_STRING 0x1a
 
 
