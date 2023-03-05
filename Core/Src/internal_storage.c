@@ -40,7 +40,7 @@ FRESULT intstor_read_line(const char* filename, void* buf, UINT size, UINT* br, 
 	if(res != FR_OK) {
 		LOG_DEBUG(STOR_MODULE_TAG, " f_open() error=%i\r\n", res);
 		out = res;
-		goto do_unmount;
+		goto do_close;
 	}
 
 	res = f_lseek(&DIOSPIFile, ptr);
@@ -89,7 +89,7 @@ FRESULT intstor_write_file(const char* filename, const void* buf, UINT size, UIN
 	if(res != FR_OK) {
 		LOG_DEBUG(STOR_MODULE_TAG, "f_open() error=%i\n", res);
 		out = res;
-		goto do_unmount;
+		goto do_close;
 	}
 
 	res = f_write(&DIOSPIFile, (uint8_t*)buf, size, bw);
@@ -148,7 +148,7 @@ FRESULT instor_change_file(const char* filename, const void* buf, UINT size, UIN
 	if(res != FR_OK) {
 		LOG_DEBUG(STOR_MODULE_TAG, "f_open() error=%i\n", res);
 		out = res;
-		goto do_unmount;
+		goto do_close;
 	}
 
 	res = f_lseek(&DIOSPIFile, ptr);
