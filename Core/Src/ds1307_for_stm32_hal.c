@@ -25,17 +25,6 @@ const char* DS_TAG = "DS13";
 void DS1307_Init() {
 	DS1307_SetClockHalt(0);
   	DS1307_SetTimeZone(+0, 00);
-	uint16_t ds_year = DS1307_GetYear();
-	if (ds_year < YEAR_MIN || ds_year > YEAR_MAX) {
-		LOG_DEBUG(DS_TAG, " set default time\r\n");
-		DS1307_SetYear(2000);
-		DS1307_SetMonth(1);
-		DS1307_SetDate(1);
-		DS1307_SetHour(0);
-		DS1307_SetMinute(0);
-		DS1307_SetSecond(0);
-		settings_save();
-	}
 }
 
 /**

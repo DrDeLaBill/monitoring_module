@@ -173,7 +173,11 @@ void _send_http_log()
 		DS1307_GetSecond()
 	);
 
-	record_status_t record_res = next_record_load();
+	record_status_t record_res = RECORD_ERROR;
+
+	if (record_file_exists() == RECORD_OK) {
+		record_res = next_record_load();
+	}
 
 	if (record_res == RECORD_ERROR) {
 		record_res = _load_current_log();
@@ -187,13 +191,13 @@ void _send_http_log()
 			"d="
 				"id=%lu;"
 				"t=%s;"
-				"level=%d.%d;"
+				"level=%d;"
 				"press_1=%d.%02d;"
 				"press_2=%d.%02d;"
 				"pump=%lu\n",
 			log_record.id,
 			log_record.time,
-			FLOAT_AS_STRINGS(log_record.level),
+			log_record.level,
 			FLOAT_AS_STRINGS(log_record.press_1),
 			FLOAT_AS_STRINGS(log_record.press_2),
 			module_settings.pump_work_seconds
@@ -219,6 +223,7 @@ record_status_t _load_current_log()
 	if (Util_TimerPending(&error_read_timer)) {
 		return RECORD_NO_LOG;
 	}
+	LOG_DEBUG(LOG_TAG, " load current log\n");
 	_make_measurements();
 	return RECORD_OK;
 }
@@ -315,16 +320,17 @@ void _parse_response()
 
 	if (module_settings.server_log_id < sended_log_id) {
 		module_settings.pump_work_seconds = 0;
+		module_settings.server_log_id = sended_log_id;
+		settings_save();
 	}
-	module_settings.server_log_id = sended_log_id;
-	LOG_DEBUG(LOG_TAG, " response recieve success - time updated, server log id updated\n");
+	LOG_DEBUG(LOG_TAG, " time updated, server log id updated\n");
 
 
 	// Parse configuration:
 	var_ptr = get_response();
 	var_ptr = strnstr(var_ptr, CF_ID_FIELD, strlen(var_ptr));
 	if (!var_ptr) {
-		goto do_success;
+		goto do_exit;
 	}
 	uint32_t new_cf_id = atoi(var_ptr + strlen(CF_ID_FIELD));
 	if (new_cf_id == module_settings.cf_id) {

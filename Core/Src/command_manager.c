@@ -137,6 +137,7 @@ void _execute_command()
 	goto do_error;
 
 do_success:
+	module_settings.cf_id = 1;
 	settings_save();
 	goto do_end;
 

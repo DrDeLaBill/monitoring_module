@@ -53,8 +53,8 @@ int32_t get_liquid_liters()
 		LOG_DEBUG(LIQUID_TAG, "ERROR MIN-MAX\r\n");
 		return LIQUID_ERROR;
 	}
-	uint16_t liquid_in_liters = (liquid_ADC_range - liquid_ADC_value) * liquid_liters_range / liquid_ADC_range + module_settings.tank_liters_min;
-	if (liquid_in_liters == 0) {
+	int32_t liquid_in_liters = (liquid_ADC_range - liquid_ADC_value) * liquid_liters_range / liquid_ADC_range + module_settings.tank_liters_min;
+	if (liquid_in_liters <= 0) {
 		LOG_DEBUG(LIQUID_TAG, error);
 		return LIQUID_ERROR;
 	}

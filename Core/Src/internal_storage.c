@@ -31,27 +31,28 @@ FRESULT intstor_read_line(const char* filename, void* buf, UINT size, UINT* br, 
 
 	res = f_mount(&DIOSPIFatFS, DIOSPIPath, 1);
 	if(res != FR_OK) {
-		LOG_DEBUG(STOR_MODULE_TAG, "f_mount() error=%i\n", res);
-		return res;
+		LOG_DEBUG(STOR_MODULE_TAG, " f_mount() error=%i\n", res);
+		out = res;
+		goto do_unmount;
 	}
 
-	res = f_open(&DIOSPIFile, filename, FA_OPEN_EXISTING|FA_READ);
+	res = f_open(&DIOSPIFile, filename, FA_OPEN_EXISTING | FA_READ);
 	if(res != FR_OK) {
-		LOG_DEBUG(STOR_MODULE_TAG, "f_open() error=%i\r\n", res);
+		LOG_DEBUG(STOR_MODULE_TAG, " f_open() error=%i\r\n", res);
 		out = res;
-		goto do_umount;
+		goto do_unmount;
 	}
 
 	res = f_lseek(&DIOSPIFile, ptr);
 	if(res != FR_OK) {
-		LOG_DEBUG(STOR_MODULE_TAG, "f_lseek() error=%i\n", res);
+		LOG_DEBUG(STOR_MODULE_TAG, " f_lseek() error=%i\n", res);
 		out = res;
 		goto do_close;
 	}
 
 	res = f_read(&DIOSPIFile, (uint8_t*)buf, size, br);
 	if(res != FR_OK) {
-		LOG_DEBUG(STOR_MODULE_TAG, "f_read() error=%i\n", res);
+		LOG_DEBUG(STOR_MODULE_TAG, " f_read() error=%i\n", res);
 		out = res;
 		goto do_close;
 	}
@@ -59,13 +60,13 @@ FRESULT intstor_read_line(const char* filename, void* buf, UINT size, UINT* br, 
 do_close:
 	res = f_close(&DIOSPIFile);
 	if(res != FR_OK) {
-		LOG_DEBUG(STOR_MODULE_TAG, "f_close() error=%i\n", res);
+		LOG_DEBUG(STOR_MODULE_TAG, " f_close() error=%i\n", res);
 	}
 
-do_umount:
+do_unmount:
 	res = f_mount(NULL, DIOSPIPath, 0);
 	if(res != FR_OK) {
-		LOG_DEBUG(STOR_MODULE_TAG, "f_mount(umount) error=%i\n", res);
+		LOG_DEBUG(STOR_MODULE_TAG, " f_mount(unmount) error=%i\n", res);
 	}
 
 	return out;
@@ -80,14 +81,15 @@ FRESULT intstor_write_file(const char* filename, const void* buf, UINT size, UIN
 	res = f_mount(&DIOSPIFatFS, DIOSPIPath, 1);
 	if(res != FR_OK) {
 		LOG_DEBUG(STOR_MODULE_TAG, "f_mount() error=%i\n", res);
-		return res;
+		out = res;
+		goto do_unmount;
 	}
 
 	res = f_open(&DIOSPIFile, filename, FA_CREATE_ALWAYS | FA_WRITE);
 	if(res != FR_OK) {
 		LOG_DEBUG(STOR_MODULE_TAG, "f_open() error=%i\n", res);
 		out = res;
-		goto do_umount;
+		goto do_unmount;
 	}
 
 	res = f_write(&DIOSPIFile, (uint8_t*)buf, size, bw);
@@ -103,10 +105,11 @@ do_close:
 		LOG_DEBUG(STOR_MODULE_TAG, "f_close() error=%i\n", res);
 	}
 
-do_umount:
+do_unmount:
 	res = f_mount(NULL, DIOSPIPath, 0);
 	if(res != FR_OK) {
-		LOG_DEBUG(STOR_MODULE_TAG, "f_mount(umount) error=%i\n", res);
+		out = res;
+		LOG_DEBUG(STOR_MODULE_TAG, "f_mount(unmount) error=%i\n", res);
 	}
 
 	return out;
@@ -118,7 +121,7 @@ FRESULT intstor_append_file(const char* filename, const void* buf, UINT size, UI
 	FRESULT res = instor_find_file(filename);
 	UINT file_size = 0;
 	if(res == FR_OK) {
-		file_size = f_size(&DIOSPIFile);
+		file_size = DIOSPIFileInfo.fsize;
 	}
 	return instor_change_file(filename, buf, size, bw, file_size);
 }
@@ -134,7 +137,8 @@ FRESULT instor_change_file(const char* filename, const void* buf, UINT size, UIN
 	res = f_mount(&DIOSPIFatFS, DIOSPIPath, 1);
 	if(res != FR_OK) {
 		LOG_DEBUG(STOR_MODULE_TAG, "f_mount() error=%i\n", res);
-		return res;
+		out = res;
+		goto do_unmount;
 	}
 
 	res = f_open(&DIOSPIFile, filename, FA_OPEN_ALWAYS | FA_WRITE);
@@ -144,14 +148,14 @@ FRESULT instor_change_file(const char* filename, const void* buf, UINT size, UIN
 	if(res != FR_OK) {
 		LOG_DEBUG(STOR_MODULE_TAG, "f_open() error=%i\n", res);
 		out = res;
-		goto do_umount;
+		goto do_unmount;
 	}
 
 	res = f_lseek(&DIOSPIFile, ptr);
 	if (res != FR_OK) {
 		LOG_DEBUG(STOR_MODULE_TAG, "f_lseek() error=%i\n", res);
 		out = res;
-		goto do_umount;
+		goto do_unmount;
 	}
 
 	res = f_write(&DIOSPIFile, (uint8_t*)buf, size, bw);
@@ -167,10 +171,10 @@ do_close:
 		LOG_DEBUG(STOR_MODULE_TAG, "f_close() error=%i\n", res);
 	}
 
-do_umount:
+do_unmount:
 	res = f_mount(NULL, DIOSPIPath, 0);
 	if(res != FR_OK) {
-		LOG_DEBUG(STOR_MODULE_TAG, "f_mount(umount) error=%i\n", res);
+		LOG_DEBUG(STOR_MODULE_TAG, "f_mount(unmount) error=%i\n", res);
 	}
 
 	return out;
@@ -185,20 +189,21 @@ FRESULT instor_remove_file(const char* filename)
 	res = f_mount(&DIOSPIFatFS, DIOSPIPath, 1);
 	if(res != FR_OK) {
 		LOG_DEBUG(STOR_MODULE_TAG, "f_mount() error=%i\n", res);
-		return res;
+		out = res;
+		goto do_unmount;
 	}
 
 	res = f_unlink(filename);
 	if(res != FR_OK) {
-		LOG_DEBUG(STOR_MODULE_TAG, "f_unlink(umount) error=%i\n", res);
+		LOG_DEBUG(STOR_MODULE_TAG, "f_unlink(unmount) error=%i\n", res);
 		out = res;
-		goto do_umount;
+		goto do_unmount;
 	}
 
-do_umount:
+do_unmount:
 	res = f_mount(NULL, DIOSPIPath, 0);
 	if(res != FR_OK) {
-		LOG_DEBUG(STOR_MODULE_TAG, "f_mount(umount) error=%i\n", res);
+		LOG_DEBUG(STOR_MODULE_TAG, "f_mount(unmount) error=%i\n", res);
 	}
 
 	return out;
@@ -213,21 +218,22 @@ FRESULT instor_find_file(const char* pattern)
 
 	res = f_mount(&DIOSPIFatFS, DIOSPIPath, 1);
 	if(res != FR_OK) {
-		LOG_DEBUG(STOR_MODULE_TAG, "f_mount() error=%i\n", res);
-		return res;
+		LOG_DEBUG(STOR_MODULE_TAG, " f_mount() error=%i\n", res);
+		out = res;
+		goto do_unmount;
 	}
 
 	res = f_findfirst(&dr, &DIOSPIFileInfo, DIOSPIPath, pattern);
-	if(res != FR_OK) {
-		LOG_DEBUG(STOR_MODULE_TAG, "f_findfirst(umount) error=%i\n", res);
+	if (res != FR_OK) {
+		LOG_DEBUG(STOR_MODULE_TAG, " f_findfirst() error=%i\n", res);
 		out = res;
-		goto do_umount;
+		goto do_unmount;
 	}
 
-do_umount:
+do_unmount:
 	res = f_mount(NULL, DIOSPIPath, 0);
 	if(res != FR_OK) {
-		LOG_DEBUG(STOR_MODULE_TAG, "f_mount(umount) error=%i\n", res);
+		LOG_DEBUG(STOR_MODULE_TAG, " f_mount(unmount) error=%i\n", res);
 	}
 
 	return out;
@@ -240,22 +246,23 @@ FRESULT instor_get_free_clust(DWORD *fre_clust)
 
 	res = f_mount(&DIOSPIFatFS, DIOSPIPath, 1);
 	if(res != FR_OK) {
-		LOG_DEBUG(STOR_MODULE_TAG, "f_mount() error=%i\n", res);
-		return res;
+		LOG_DEBUG(STOR_MODULE_TAG, " f_mount() error=%i\n", res);
+		out = res;
+		goto do_unmount;
 	}
 
 	FATFS *dio_spi_fatfs_ptr = &DIOSPIFatFS;
 	res = f_getfree((TCHAR*)DIOSPIPath, fre_clust, &dio_spi_fatfs_ptr);
 	if(res != FR_OK) {
-		LOG_DEBUG(STOR_MODULE_TAG, "f_getfree(umount) error=%i\n", res);
+		LOG_DEBUG(STOR_MODULE_TAG, " f_getfree() error=%i\n", res);
 		out = res;
-		goto do_umount;
+		goto do_unmount;
 	}
 
-do_umount:
+do_unmount:
 	res = f_mount(NULL, DIOSPIPath, 0);
 	if(res != FR_OK) {
-		LOG_DEBUG(STOR_MODULE_TAG, "f_mount(umount) error=%i\n", res);
+		LOG_DEBUG(STOR_MODULE_TAG, " f_mount(unmount) error=%i\n", res);
 	}
 
 	return out;

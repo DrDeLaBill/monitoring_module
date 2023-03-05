@@ -20,6 +20,7 @@ typedef enum _record_status_t {
 
 
 #define RECORD_SD_PAYLOAD_MAGIC ((uint32_t)(0xBADAC0DE))
+#define RECORD_SD_PAYLOAD_MAGIC_ERROR ((uint32_t)(0xFFFFFFFF))
 #define RECORD_SD_PAYLOAD_VERSION (1)
 
 
@@ -32,7 +33,7 @@ typedef struct _log_record {
 	char time[CHAR_PARAM_SIZE]; // Record time
 	uint32_t fw_id;             // Firmware version
 	uint32_t cf_id;             // Configuration version
-	float level;                // Liquid level
+	int32_t level;                // Liquid level
 	float press_1;              // First sensor pressure
 	float press_2;              // Second sensor pressure
 } LogRecord;
@@ -64,6 +65,7 @@ extern uint8_t record_load_ok;
 
 void record_manager_begin();
 record_status_t next_record_load();
+record_status_t record_file_exists();
 record_status_t record_save();
 record_status_t record_change(uint32_t old_id);
 record_status_t record_remove(uint32_t id);
