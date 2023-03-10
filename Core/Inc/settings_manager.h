@@ -29,6 +29,14 @@ typedef struct _module_settings {
 	uint32_t id;
 	char server_url[CHAR_SETIINGS_SIZE];
 	char server_port[CHAR_SETIINGS_SIZE];
+	// Configuration version
+	uint32_t cf_id;
+	// Enable pump
+	uint8_t pump_enabled;
+	// Measure delay in milliseconds
+	uint32_t sleep_time;
+	// Current server log ID
+	uint32_t server_log_id;
 	// Liters ADC value when liquid tank can be considered full
 	uint16_t tank_ADC_min;
 	// Liters ADC value when liquid tank can be considered empty
@@ -41,16 +49,14 @@ typedef struct _module_settings {
 	uint32_t milliliters_per_day;
 	// Pump speed: milliliters per hour
 	uint32_t pump_speed;
-	// External clock state
-	uint8_t module_enabled;
-	// Measure delay in milliseconds
-	uint32_t sleep_time;
-	// Current server log ID
-	uint32_t server_log_id;
-	// Current pump work hours
-	uint32_t pump_work_seconds;
-	// Configuration version
-	uint32_t cf_id;
+	// Current pump work sec
+	uint32_t pump_work_sec;
+	// Current day pump downtime sec
+	uint32_t pump_downtime_sec;
+	// Pump work sec for current day
+	uint32_t pump_work_day_sec;
+	// Current log day
+	uint8_t pump_log_date;
 } ModuleSettings;
 
 

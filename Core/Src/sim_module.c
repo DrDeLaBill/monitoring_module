@@ -41,6 +41,8 @@ void _do_error(uint8_t attempts);
 void _cmd_AT_state();
 void _cmd_ATE0_state();
 void _cmd_CPIN_state();
+void _cmd_CTZU_state();
+void _cmd_CCLK_state();
 void _cmd_CGDCONT_state();
 void _cmd_CGSOCKCONT_state();
 void _cmd_CSOCKSETPN_state();
@@ -313,6 +315,38 @@ void _cmd_CPIN_state()
 {
 	if (sim_state.state == READY) {
 		_execute_state("AT+CPIN?", CNFG_WAIT);
+	}
+	if (sim_state.state == WAIT) {
+		_check_response(SUCCESS_CMD_RESP);
+	}
+	if (sim_state.state == SIM_SUCCESS) {
+		_set_active_state(&_cmd_CTZU_state);
+	}
+	if (sim_state.state == SIM_ERROR) {
+		_do_error(MAX_ERRORS);
+	}
+}
+
+void _cmd_CTZU_state()
+{
+	if (sim_state.state == READY) {
+		_execute_state("AT+CTZU=1", CNFG_WAIT);
+	}
+	if (sim_state.state == WAIT) {
+		_check_response(SUCCESS_CMD_RESP);
+	}
+	if (sim_state.state == SIM_SUCCESS) {
+		_set_active_state(&_cmd_CCLK_state);
+	}
+	if (sim_state.state == SIM_ERROR) {
+		_do_error(MAX_ERRORS);
+	}
+}
+
+void _cmd_CCLK_state()
+{
+	if (sim_state.state == READY) {
+		_execute_state("AT+CCLK?", CNFG_WAIT);
 	}
 	if (sim_state.state == WAIT) {
 		_check_response(SUCCESS_CMD_RESP);

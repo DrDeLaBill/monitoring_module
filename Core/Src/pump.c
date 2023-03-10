@@ -8,314 +8,267 @@
 #include "pump.h"
 
 #include <stdlib.h>
+#include <stdbool.h>
 
 #include "settings.h"
-#include "defines.h"
-#include "utils.h"
+#include "command_manager.h"
 #include "liquid_sensor.h"
 #include "ds1307_for_stm32_hal.h"
-#include "sim_module.h"
-#include "command_manager.h"
+#include "utils.h"
 
 
 #define CYCLES_PER_HOUR    4
 #define MONTHS_PER_YEAR    12
 #define HOURS_PER_DAY      24
 #define SECONDS_PER_MINUTE 60
-#define MIN_PUMP_WORK_TIME SECONDS_PER_MINUTE
+#define MIN_PUMP_WORK_TIME 30000
 #define MINUTES_PER_HOUR   60
 #define LOG_SIZE           140
+#define PUMP_WORK_PERIOD   900000
 
+
+void _set_action(void (*action) (void));
+
+void _work_state_action();
+void _off_state_action();
 
 void _calculate_work_time();
-void _calculate_pause_time();
-void _set_current_time(DateTime *datetime);
-void _filterTime(DateTime *targetTime);
-uint32_t _daytime_to_int(DateTime *datetime);
-bool _if_time_to_start_pump();
-bool _if_time_to_stop_pump();
-bool _if_pump_work_time_too_short();
 void _start_pump();
 void _stop_pump();
-uint8_t _days_in_month(uint8_t year, uint8_t month);
-bool _is_leap_year(uint8_t year);
+void _watch_pump_work();
+void _watch_pump_off();
 void _write_work_time_to_log();
-void _pump_power_off();
-void _pump_power_on();
+uint32_t _get_day_sec_left();
+
+
+PumpState pump_state;
 
 
 const char* PUMP_TAG = "\r\nPUMP";
 
-uint8_t current_state;
-DateTime startTime = {};
-DateTime stopTime = {};
-
 
 void pump_init()
 {
-	current_state = RESET;
-//	_stop_pump();
-//	_set_current_time(&startTime);
-//	_calculate_work_time();
+	_set_action(_work_state_action);
+	pump_update_power(module_settings.pump_enabled);
+	if (module_settings.milliliters_per_day == 0) {
+		UART_MSG("No setting: milliliters_per_day\n");
+	}
+	if (module_settings.pump_speed == 0) {
+		UART_MSG("No setting: pump_speed\n");
+	}
+	if (is_liquid_tank_empty()) {
+		UART_MSG("Error liquid tank\n");
+	}
 }
 
 void pump_proccess()
 {
-	if (module_settings.module_enabled == 0) {
-		_stop_pump();
-		return;
-	}
-	if (module_settings.milliliters_per_day == 0) {
-		return;
-	}
-	if (module_settings.pump_speed == 0) {
-		return;
-	}
-	if (_if_time_to_stop_pump()) {
-		_stop_pump();
-	}
-	if (_if_time_to_start_pump()) {
-		_start_pump();
-	}
+	pump_state.state_action();
 }
 
 void pump_update_speed(uint32_t speed)
 {
 	module_settings.pump_speed = speed;
-	pump_init();
-}
-
-void pump_update_power(uint8_t enable_state)
-{
-	if (module_settings.module_enabled == enable_state) {
+	settings_save();
+	if (pump_state.state_action != _work_state_action) {
 		return;
 	}
-	if (enable_state) {
-		_pump_power_on();
+	_calculate_work_time();
+	pump_state.work_timer.delay = pump_state.needed_work_time;
+}
+
+void pump_update_power(bool enabled)
+{
+	module_settings.pump_enabled = enabled;
+	HAL_GPIO_WritePin(STATE_LED_GPIO_Port, STATE_LED_Pin, (enabled ? SET : RESET));
+}
+
+void pump_show_work()
+{
+	uint32_t time_period = 0;
+	if (pump_state.state == PUMP_WORK) {
+		UART_MSG("Pump work from %lu to %lu\n", pump_state.start_time, pump_state.start_time + pump_state.needed_work_time);
+		time_period = pump_state.needed_work_time;
 	} else {
-		_pump_power_off();
+		time_period = pump_state.start_time - HAL_GetTick();
+		UART_MSG("Pump will start at %lu\n", pump_state.start_time);
+	}
+	UART_MSG("Wait %lu min %lu sec\n", time_period / SECONDS_PER_MINUTE / MILLIS_IN_SECOND, (time_period / MILLIS_IN_SECOND) % SECONDS_PER_MINUTE);
+	UART_MSG("Now: %lu\n", HAL_GetTick());
+}
+
+void clear_pump_log()
+{
+	module_settings.pump_downtime_sec = 0;
+	module_settings.pump_work_sec = 0;
+	module_settings.pump_work_day_sec = 0;
+	settings_save();
+}
+
+void _set_action(void (*action) (void))
+{
+	pump_state.state_action = action;
+	pump_state.state = PUMP_WAIT;
+}
+
+void _work_state_action()
+{
+	if (pump_state.state == PUMP_WAIT) {
+		_calculate_work_time();
+		_start_pump();
+	}
+	if (pump_state.state == PUMP_WORK) {
+		_watch_pump_work();
+	}
+	if (pump_state.state == PUMP_OFF) {
+		_set_action(_off_state_action);
 	}
 }
 
-void _pump_power_off()
+void _off_state_action()
 {
-	HAL_GPIO_WritePin(STATE_LED_GPIO_Port, STATE_LED_Pin, RESET);
-	module_settings.module_enabled = false;
-	_stop_pump();
-}
-
-void _pump_power_on()
-{
-	HAL_GPIO_WritePin(STATE_LED_GPIO_Port, STATE_LED_Pin, SET);
-	module_settings.module_enabled = true;
-	_start_pump();
+	if (pump_state.state == PUMP_WAIT) {
+		_stop_pump();
+	}
+	if (pump_state.state == PUMP_OFF) {
+		_watch_pump_off();
+	}
 }
 
 void _calculate_work_time()
 {
+	pump_state.needed_work_time = 0;
 	if (module_settings.milliliters_per_day == 0) {
-		LOG_DEBUG(PUMP_TAG, "No setting: milliliters_per_day\r\n");
 		return;
 	}
 	if (module_settings.pump_speed == 0) {
-		LOG_DEBUG(PUMP_TAG, "No setting: pump_speed\r\n");
 		return;
 	}
-	uint8_t needed_time = module_settings.milliliters_per_day * MINUTES_PER_HOUR / HOURS_PER_DAY / module_settings.pump_speed / CYCLES_PER_HOUR;
-	if (needed_time > (MINUTES_PER_HOUR / CYCLES_PER_HOUR)) {
-		needed_time = MINUTES_PER_HOUR / CYCLES_PER_HOUR;
+	if (is_liquid_tank_empty()) {
+		return;
 	}
-	_set_current_time(&stopTime);
-	_set_current_time(&startTime);
-	stopTime.minute += needed_time;
-	_filterTime(&stopTime);
-}
-
-void _calculate_pause_time()
-{
-	startTime.minute += MINUTES_PER_HOUR / CYCLES_PER_HOUR;
-	_filterTime(&startTime);
-}
-
-void _set_current_time(DateTime *datetime)
-{
-	datetime->year = DS1307_GetYear();
-	datetime->month = DS1307_GetMonth();
-	datetime->date = DS1307_GetDate();
-	datetime->hour = DS1307_GetHour();
-	datetime->minute = DS1307_GetMinute();
-	datetime->second = DS1307_GetSecond();
-}
-
-void _filterTime(DateTime *targetTime)
-{
-	if (targetTime->second >= SECONDS_PER_MINUTE) {
-		targetTime->minute += 1;
-		targetTime->second -= SECONDS_PER_MINUTE;
+	volatile uint16_t used_day_liquid = module_settings.pump_work_day_sec * module_settings.pump_speed / MILLIS_IN_SECOND;
+	if (module_settings.milliliters_per_day <= used_day_liquid) {
+		UART_MSG("Target litres already used\n");
+		return;
 	}
-	if (targetTime->minute >= MINUTES_PER_HOUR) {
-		targetTime->hour += 1;
-		targetTime->minute -= MINUTES_PER_HOUR;
+	volatile uint32_t time_left = _get_day_sec_left();
+	pump_state.needed_work_time = (module_settings.milliliters_per_day - used_day_liquid);
+	pump_state.needed_work_time *= (MINUTES_PER_HOUR * SECONDS_PER_MINUTE);
+	pump_state.needed_work_time /= (module_settings.pump_speed);
+	pump_state.needed_work_time /= (time_left / (PUMP_WORK_PERIOD / MILLIS_IN_SECOND));
+	pump_state.needed_work_time *= MILLIS_IN_SECOND;
+	if (pump_state.needed_work_time > PUMP_WORK_PERIOD) {
+		pump_state.needed_work_time = PUMP_WORK_PERIOD;
 	}
-	if (targetTime->hour >= HOURS_PER_DAY) {
-		targetTime->date += 1;
-		targetTime->hour -= HOURS_PER_DAY;
-	}
-	if (targetTime->date > _days_in_month(targetTime->year, targetTime->month)) {
-		targetTime->month += 1;
-		targetTime->date = 1;
-	}
-	if (targetTime->month > MONTHS_PER_YEAR) {
-		targetTime->year += 1;
-		targetTime->month = 1;
-	}
-}
-
-bool _if_pump_work_time_too_short()
-{
-	long long start_time = _daytime_to_int(&startTime),
-			  stop_time = _daytime_to_int(&stopTime);
-	return abs(start_time - stop_time) < MIN_PUMP_WORK_TIME;
-}
-
-uint32_t _daytime_to_int(DateTime *datetime)
-{
-	return datetime->second +
-		   datetime->minute * SECONDS_PER_MINUTE +
-		   datetime->hour * SECONDS_PER_MINUTE * MINUTES_PER_HOUR +
-		   datetime->date * SECONDS_PER_MINUTE * MINUTES_PER_HOUR * HOURS_PER_DAY;
-}
-
-bool _if_time_to_start_pump()
-{
-	if (current_state == SET) {
-		return false;
-	}
-	return DS1307_GetYear()    >= startTime.year &&
-		   DS1307_GetMonth()   >= startTime.month &&
-		   DS1307_GetDate()    >= startTime.date &&
-		   DS1307_GetHour()    >= startTime.hour &&
-		   DS1307_GetMinute()  >= startTime.minute &&
-		   DS1307_GetSecond()  >= startTime.second;
-}
-
-bool _if_time_to_stop_pump()
-{
-	if (current_state == RESET) {
-		return false;
-	}
-	return DS1307_GetYear()    >= stopTime.year &&
-		   DS1307_GetMonth()   >= stopTime.month &&
-		   DS1307_GetDate()    >= stopTime.date &&
-		   DS1307_GetHour()    >= stopTime.hour &&
-		   DS1307_GetMinute()  >= stopTime.minute &&
-		   DS1307_GetSecond()  >= stopTime.second;
 }
 
 void _start_pump()
 {
-	_calculate_work_time();
-	if (_if_pump_work_time_too_short()) {
+	if (pump_state.state == PUMP_WORK) {
+		LOG_DEBUG(PUMP_TAG, " pump already work\n");
 		return;
 	}
-	if (current_state == SET) {
+	if (pump_state.needed_work_time < MIN_PUMP_WORK_TIME) {
 		return;
 	}
-	current_state = SET;
-	LOG_DEBUG(PUMP_TAG,	"PUMP ON\r\n");
-	HAL_GPIO_WritePin(PUMP_GPIO_Port, PUMP_Pin, current_state);
-	_write_work_time_to_log();
+	pump_state.start_time = HAL_GetTick();
+	Util_TimerStart(&pump_state.work_timer, pump_state.needed_work_time);
+	if (module_settings.pump_enabled) {
+		LOG_DEBUG(PUMP_TAG,	" PUMP ON (%ld ms)\n", pump_state.needed_work_time);
+		pump_state.state = PUMP_WORK;
+		HAL_GPIO_WritePin(PUMP_GPIO_Port, PUMP_Pin, SET);
+	} else {
+		LOG_DEBUG(PUMP_TAG, " pump disabled\n");
+		pump_state.state = PUMP_OFF;
+	}
 	pump_show_work();
 }
 
 void _stop_pump()
 {
-	_calculate_pause_time();
-	if (current_state == RESET) {
+	if (pump_state.state == PUMP_OFF) {
+		LOG_DEBUG(PUMP_TAG, " pump already off\n");
 		return;
 	}
-	current_state = RESET;
-	LOG_DEBUG(PUMP_TAG, "PUMP OFF\r\n");
-	HAL_GPIO_WritePin(PUMP_GPIO_Port, PUMP_Pin, current_state);
+	LOG_DEBUG(PUMP_TAG,	" PUMP OFF (%lu ms)\n", HAL_GetTick() - pump_state.start_time - pump_state.needed_work_time * MILLIS_IN_SECOND);
+	pump_state.state = PUMP_OFF;
+	HAL_GPIO_WritePin(PUMP_GPIO_Port, PUMP_Pin, RESET);
+	_write_work_time_to_log();
 	pump_show_work();
-}
-
-void pump_show_work()
-{
-	UART_MSG(
-		"Pump work time:\n"
-		"start %u-%02u-%02uT%02u:%02u:%02u\n"
-		"stop  %u-%02u-%02uT%02u:%02u:%02u\n"
-		"now   %u-%02u-%02uT%02u:%02u:%02u\n",
-		startTime.year,
-		startTime.month,
-		startTime.date,
-		startTime.hour,
-		startTime.minute,
-		startTime.second,
-		stopTime.year,
-		stopTime.month,
-		stopTime.date,
-		stopTime.hour,
-		stopTime.minute,
-		stopTime.second,
-		DS1307_GetYear(),
-		DS1307_GetMonth(),
-		DS1307_GetDate(),
-		DS1307_GetHour(),
-		DS1307_GetMinute(),
-		DS1307_GetSecond()
-	);
 }
 
 void _write_work_time_to_log()
 {
-	uint32_t start_time = _daytime_to_int(&startTime),
-			 stop_time  = _daytime_to_int(&stopTime);
-	module_settings.pump_work_seconds += abs(stop_time - start_time);
+	if (!pump_state.needed_work_time) {
+		return;
+	}
+	uint8_t cur_date = DS1307_GetDate();
+	if (module_settings.pump_log_date != cur_date) {
+		LOG_DEBUG(PUMP_TAG, " update day counter %d -> %d\n", module_settings.pump_log_date, cur_date);
+		module_settings.pump_work_day_sec = 0;
+		module_settings.pump_log_date = cur_date;
+	}
+	uint32_t time = pump_state.needed_work_time / MILLIS_IN_SECOND;
+	if (module_settings.pump_enabled) {
+		LOG_DEBUG(PUMP_TAG, " work time added (%ld ms)\n", time);
+		module_settings.pump_work_day_sec += time;
+		module_settings.pump_work_sec += time;
+	} else {
+		LOG_DEBUG(PUMP_TAG, " downtime added (%ld ms)\n", time);
+		module_settings.pump_downtime_sec += time;
+	}
 	settings_save();
 }
 
-uint8_t _days_in_month(uint8_t year, uint8_t month)
+void _watch_pump_work()
 {
-	enum MonthIndex
-	{
-	    Jan = 1, Feb = 2, Mar = 3, Apr = 4,  May = 5,  Jun = 6,
-	    Jul = 7, Aug = 8, Sep = 9, Oct = 10, Nov = 11, Dec = 12
-	};
-	uint8_t number_of_days;
-    switch (month) {
-		case Jan:
-		case Mar:
-		case May:
-		case Jul:
-		case Aug:
-		case Oct:
-		case Dec:
-			number_of_days = 31;
-			break;
-		case Apr:
-		case Jun:
-		case Sep:
-		case Nov:
-			number_of_days = 30;
-			break;
-		case Feb:
-			number_of_days = 28;
-			if (_is_leap_year(year)) {
-				number_of_days = 29;
-			}
-			break;
-		default:
-			number_of_days = 0;
-			break;
-    }
-    return number_of_days;
+	if (Util_TimerPending(&pump_state.work_timer)) {
+		return;
+	}
+	pump_state.start_time += PUMP_WORK_PERIOD;
+	if (pump_state.start_time < HAL_GetTick()) {
+		_set_action(_work_state_action);
+	} else {
+		_set_action(_off_state_action);
+	}
 }
 
-bool _is_leap_year(uint8_t year)
+void _watch_pump_off()
 {
-    return year % 4 == 0;
+	if (pump_state.start_time > HAL_GetTick()) {
+		return;
+	}
+	_set_action(_work_state_action);
+}
+
+uint32_t _get_day_sec_left()
+{
+	return (SECONDS_PER_MINUTE - DS1307_GetSecond()) +
+		   (MINUTES_PER_HOUR - DS1307_GetMinute()) * SECONDS_PER_MINUTE +
+		   (HOURS_PER_DAY - DS1307_GetHour()) * SECONDS_PER_MINUTE * MINUTES_PER_HOUR;
 }
 
 
+void _remove_overage_time(uint16_t old_time)
+{
+	uint16_t remove_time = old_time - pump_state.needed_work_time;
+	if (module_settings.pump_work_sec > remove_time) {
+		module_settings.pump_work_sec -= remove_time;
+	} else {
+		module_settings.pump_work_sec = 0;
+	}
+	if (module_settings.pump_work_day_sec > remove_time) {
+		module_settings.pump_work_day_sec -= remove_time;
+	} else {
+		module_settings.pump_work_day_sec = 0;
+	}
+}
+
+void _add_extra_time(uint16_t old_time)
+{
+	uint16_t add_time = pump_state.needed_work_time - old_time;
+	module_settings.pump_work_sec += add_time;
+	module_settings.pump_work_day_sec += add_time;
+}

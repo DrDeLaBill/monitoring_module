@@ -148,7 +148,7 @@ void clear_log()
 {
 	remove_old_records();
 	module_settings.server_log_id = 0;
-	module_settings.pump_work_seconds = 0;
+	module_settings.pump_work_sec = 0;
 	settings_save();
 }
 
@@ -173,11 +173,7 @@ void _send_http_log()
 		DS1307_GetSecond()
 	);
 
-	record_status_t record_res = RECORD_ERROR;
-
-	if (record_file_exists() == RECORD_OK) {
-		record_res = next_record_load();
-	}
+	record_status_t record_res = next_record_load();
 
 	if (record_res == RECORD_ERROR) {
 		record_res = _load_current_log();
@@ -191,16 +187,18 @@ void _send_http_log()
 			"d="
 				"id=%lu;"
 				"t=%s;"
-				"level=%d;"
+				"level=%ld;"
 				"press_1=%d.%02d;"
 				"press_2=%d.%02d;"
-				"pump=%lu\n",
+				"pumpw=%lu\n"
+				"pumpd=%lu\n",
 			log_record.id,
 			log_record.time,
 			log_record.level,
 			FLOAT_AS_STRINGS(log_record.press_1),
 			FLOAT_AS_STRINGS(log_record.press_2),
-			module_settings.pump_work_seconds
+			module_settings.pump_work_sec,
+			module_settings.pump_downtime_sec
 		);
 	}
 
@@ -292,39 +290,46 @@ void _parse_response()
 	if (!var_ptr) {
 		goto do_error;
 	}
-	DS1307_SetMonth((uint8_t)atoi(var_ptr + strlen(T_DASH_FIELD)));
+	var_ptr += strlen(T_DASH_FIELD);
+	DS1307_SetMonth((uint8_t)atoi(var_ptr));
 
 	var_ptr = strnstr(var_ptr, T_DASH_FIELD, strlen(var_ptr));
 	if (!var_ptr) {
 		goto do_error;
 	}
-	DS1307_SetDate(atoi(var_ptr + strlen(T_DASH_FIELD)));
+	var_ptr += strlen(T_DASH_FIELD);
+	DS1307_SetDate(atoi(var_ptr));
 
 	var_ptr = strnstr(var_ptr, T_TIME_FIELD, strlen(var_ptr));
 	if (!var_ptr) {
 		goto do_error;
 	}
-	DS1307_SetHour(atoi(var_ptr + strlen(T_TIME_FIELD)));
+	var_ptr += strlen(T_TIME_FIELD);
+	DS1307_SetHour(atoi(var_ptr));
 
 	var_ptr = strnstr(var_ptr, T_COLON_FIELD, strlen(var_ptr));
 	if (!var_ptr) {
 		goto do_error;
 	}
-	DS1307_SetMinute(atoi(var_ptr + strlen(T_COLON_FIELD)));
+	var_ptr += strlen(T_COLON_FIELD);
+	DS1307_SetMinute(atoi(var_ptr));
 
 	var_ptr = strnstr(var_ptr, T_COLON_FIELD, strlen(var_ptr));
 	if (!var_ptr) {
 		goto do_error;
 	}
-	DS1307_SetSecond(atoi(var_ptr + strlen(T_COLON_FIELD)));
+	var_ptr += strlen(T_COLON_FIELD);
+	DS1307_SetSecond(atoi(var_ptr));
+
+	LOG_DEBUG(LOG_TAG, " time updated\n");
 
 	if (module_settings.server_log_id < sended_log_id) {
-		module_settings.pump_work_seconds = 0;
+		module_settings.pump_work_sec = 0;
+		module_settings.pump_downtime_sec = 0;
 		module_settings.server_log_id = sended_log_id;
 		settings_save();
+		LOG_DEBUG(LOG_TAG, " server log id updated\n");
 	}
-	LOG_DEBUG(LOG_TAG, " time updated, server log id updated\n");
-
 
 	// Parse configuration:
 	var_ptr = get_response();

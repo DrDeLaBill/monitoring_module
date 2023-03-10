@@ -28,6 +28,7 @@
 								"Sleep time: %lu sec\n" \
 								"Server log ID: %lu\n" \
 								"Pump work: %lu sec\n" \
+								"Pump work day: %lu sec\n" \
 								"Config ver: %lu\n" \
 								"Power %s\n\n", \
 								DS1307_GetYear(), \
@@ -47,9 +48,10 @@
 								module_settings.pump_speed, \
 								module_settings.sleep_time / MILLIS_IN_SECOND, \
 								module_settings.server_log_id, \
-								module_settings.pump_work_seconds, \
+								module_settings.pump_work_sec, \
+								module_settings.pump_work_day_sec, \
 								module_settings.cf_id, \
-								module_settings.module_enabled ? "ON" : "OFF"
+								module_settings.pump_enabled ? "ON" : "OFF"
 
 
 extern settings_tag_t general_settings_load;

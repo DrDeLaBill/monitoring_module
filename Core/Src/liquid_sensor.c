@@ -24,7 +24,7 @@ float _get_liquid_in_liters();
 
 
 const char* LIQUID_TAG = "LQID";
-const char* error = "SENSOR ERROR";
+const char* error = " SENSOR ERROR\n";
 
 
 void liquid_sensor_begin()
@@ -50,7 +50,7 @@ int32_t get_liquid_liters()
 	uint16_t liquid_ADC_range = abs(module_settings.tank_ADC_min - module_settings.tank_ADC_max);
 	uint16_t liquid_liters_range = abs(module_settings.tank_liters_max - module_settings.tank_liters_min);
 	if (liquid_ADC_range == 0) {
-		LOG_DEBUG(LIQUID_TAG, "ERROR MIN-MAX\r\n");
+		LOG_DEBUG(LIQUID_TAG, "ERROR MIN-MAX\n");
 		return LIQUID_ERROR;
 	}
 	int32_t liquid_in_liters = (liquid_ADC_range - liquid_ADC_value) * liquid_liters_range / liquid_ADC_range + module_settings.tank_liters_min;
@@ -59,4 +59,9 @@ int32_t get_liquid_liters()
 		return LIQUID_ERROR;
 	}
 	return liquid_in_liters;
+}
+
+bool is_liquid_tank_empty()
+{
+	return get_liquid_adc() > module_settings.tank_liters_max;
 }

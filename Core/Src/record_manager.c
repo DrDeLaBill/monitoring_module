@@ -30,9 +30,14 @@ const char* RECORD_FILENAME = "log.bin";
 
 
 uint8_t record_load_ok;
+bool new_record_available = 1;
 
 
 record_status_t next_record_load() {
+	if (!new_record_available) {
+		return RECORD_NO_LOG;
+	}
+
 	record_sd_payload_t tmpbuf;
 	memset(&tmpbuf, 0, sizeof(tmpbuf));
 
@@ -52,6 +57,7 @@ do_readline:
 		LOG_DEBUG(RECORD_TAG, " read_file(%s) error=%i\n", filename, res);
 	}
 	if (br == 0) {
+		new_record_available = false;
 		return RECORD_NO_LOG;
 	}
 	if (!tmpbuf.v1.payload_record.id) {
@@ -92,6 +98,8 @@ do_readline:
 
 
 record_status_t record_save() {
+	new_record_available = true;
+
 	if (_get_free_space() < CLUSTERS_MIN) {
 		remove_old_records();
 	}
@@ -134,6 +142,8 @@ record_status_t record_save() {
 
 record_status_t record_change(uint32_t old_id)
 {
+	new_record_available = true;
+
 	record_sd_payload_t tmpbuf;
 	memset(&tmpbuf, 0, sizeof(tmpbuf));
 

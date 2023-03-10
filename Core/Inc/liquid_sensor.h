@@ -19,5 +19,6 @@
 void liquid_sensor_begin();
 uint16_t get_liquid_adc();
 int32_t get_liquid_liters();
+bool is_liquid_tank_empty();
 
 #endif /* INC_LIQUID_SENSOR_H_ */

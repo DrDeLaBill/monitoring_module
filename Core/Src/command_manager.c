@@ -97,6 +97,9 @@ void _execute_command()
 	} else if (strncmp("clearlog", command, CHAR_COMMAND_SIZE) == 0) {
 		clear_log();
 		goto do_end;
+	} else if (strncmp("clearpump", command, CHAR_COMMAND_SIZE) == 0) {
+		clear_pump_log();
+		goto do_end;
 	}
 
 
