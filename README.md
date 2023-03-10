@@ -35,8 +35,14 @@ id=123
 fw_id=1
 cf_id=1
 t=2000-01-01T00:00:12
-d=id=5;level=0.0;press_1=0.61;press_2=0.0;pump=9750060
+d=id=5;level=0.0;press_1=0.61;press_2=0.0;pumpw=100;pumpd=100
 ```
+- level - liquid level (milliliters)
+- press_1 - first pressure sensor value (mA)
+- press_2 - second pressure sensor value (mA)
+- pumpw - pump work time (sec)
+- pumpd - pump downtime (sec)
+
 
 Needed response from server:
 
