@@ -11,7 +11,7 @@
 #include "record_manager.h"
 
 
-#define LOG_SIZE 350
+#define LOG_SIZE 370
 
 
 extern record_tag_t general_record_load;

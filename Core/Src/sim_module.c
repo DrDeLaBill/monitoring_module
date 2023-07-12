@@ -81,7 +81,7 @@ const char* LINE_BREAK        = "\r\n";
 const char* DOUBLE_LINE_BREAK = "\r\n\r\n";
 
 char sim_response[RESPONSE_SIZE] = {};
-
+uint16_t response_counter = 0;
 
 void sim_module_begin() {
 	memset(&sim_state, 0, sizeof(sim_state));
@@ -104,9 +104,8 @@ void sim_module_proccess()
 
 void sim_proccess_input(const char input_chr)
 {
-	uint16_t it = strlen(sim_response);
-	sim_response[it] = tolower(input_chr);
-	if (it >= sizeof(sim_response) - 1) {
+	sim_response[response_counter++] = tolower(input_chr);
+	if (response_counter >= sizeof(sim_response) - 1) {
 		_clear_response();
 	}
 }
@@ -120,8 +119,8 @@ void send_http_post(const char* data)
 	snprintf(
 		request,
 		sizeof(request),
-		"POST /api/v1/send HTTP/1.1\r\n"
-		"Host: %s:%s\r\n"
+		"POST /api/log/ep HTTP/1.1\r\n"
+		"Host: %s\r\n"
 		"User-Agent: monitor\r\n"
 		"Connection: close\r\n"
 		"Accept-Charset: utf-8, us-ascii\r\n"
@@ -131,7 +130,6 @@ void send_http_post(const char* data)
 		"%s"
 		"%c",
 		module_settings.server_url,
-		module_settings.server_port,
 		strlen(data),
 		data,
 		END_OF_STRING
@@ -258,6 +256,7 @@ void _do_error(uint8_t attempts)
 void _clear_response()
 {
 	memset(sim_response, 0, sizeof(sim_response));
+	response_counter = 0;
 }
 
 void _reset_module()

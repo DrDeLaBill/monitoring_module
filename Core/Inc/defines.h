@@ -16,7 +16,7 @@
 #define MILLIS_IN_SECOND   1000
 #define DEFAULT_UART_DELAY 100
 #define DEFAULT_UART_SIZE  100
-#define CHAR_SETIINGS_SIZE 20
+#define CHAR_SETIINGS_SIZE 30
 #define CHAR_PARAM_SIZE    30
 
 #define proxy_log(level, fmt, ...) _proxy_log(level, fmt"\n", ##__VA_ARGS__)
