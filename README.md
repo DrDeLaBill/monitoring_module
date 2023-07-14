@@ -23,8 +23,8 @@
 
 Module send POST request to server like:
 ```
-POST /api/v1/send HTTP/1.1
-Host: (IP/URL):(port)
+POST /api/log/ep HTTP/1.1
+Host: (IP/URL)
 User-Agent: module
 Connection: close
 Accept-Charset: utf-8, us-ascii

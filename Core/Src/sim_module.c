@@ -26,17 +26,18 @@
 #define CNFG_WAIT        10000
 #define HTTP_ACT_WAIT    15000
 #define RESTART_WAIT     5000
-#define HTTP_ACT_SIZE    60
+#define HTTP_ACT_SIZE    90
 
 
 void _set_active_state(void (*cmd_state) (void));
 void _execute_state(const char* cmd, uint16_t delay);
 void _send_AT_command(const char* cmd);
 void _check_response(const char* needed_resp);
-void _check_http_response();
+void _check_response_headers();
 void _check_response_timer();
 void _validate_response(const char* needed_resp);
 void _do_error(uint8_t attempts);
+bool _if_network_wait();
 
 void _cmd_AT_state();
 void _cmd_ATE0_state();
@@ -51,6 +52,12 @@ void _cmd_CHTTPACT_state();
 void _cmd_send_state();
 void _cmd_CHTTPSSTOP_state();
 
+void _check_200_ok_itr();
+void _check_content_length_itr();
+void _check_double_break_itr();
+void _wait_data_itr();
+void _wait_itr();
+
 void _clear_response();
 void _reset_module();
 void _start_module();
@@ -64,6 +71,7 @@ enum {
 
 struct _sim_state {
 	void (*active_cmd_state) (void);
+	void (*check_http_header_itr) (void);
 	dio_timer_t start_timer;
 	dio_timer_t delay_timer;
 	dio_timer_t restart_timer;
@@ -75,6 +83,7 @@ const char* SIM_TAG = "SIM";
 
 const char* SUCCESS_CMD_RESP  = "ok";
 const char* SUCCESS_HTTP_ACT  = "+chttpact: request";
+const char* HTTP_ACT_COUNT    = "+chttpact: ";
 const char* SUCCESS_HTTP_RQST = "content-length: ";
 const char* SUCCESS_HTTP_RESP = "200 ok";
 const char* LINE_BREAK        = "\r\n";
@@ -82,6 +91,7 @@ const char* DOUBLE_LINE_BREAK = "\r\n\r\n";
 
 char sim_response[RESPONSE_SIZE] = {};
 uint16_t response_counter = 0;
+uint16_t response_data_count = 0;
 
 void sim_module_begin() {
 	memset(&sim_state, 0, sizeof(sim_state));
@@ -105,6 +115,9 @@ void sim_module_proccess()
 void sim_proccess_input(const char input_chr)
 {
 	sim_response[response_counter++] = tolower(input_chr);
+	if (_if_network_wait()) {
+		sim_state.check_http_header_itr();
+	}
 	if (response_counter >= sizeof(sim_response) - 1) {
 		_clear_response();
 	}
@@ -147,6 +160,11 @@ bool if_network_ready()
 	return sim_state.active_cmd_state == &_cmd_send_state && sim_state.state == READY;
 }
 
+bool _if_network_wait()
+{
+	return sim_state.active_cmd_state == &_cmd_send_state && sim_state.state == WAIT;
+}
+
 char* get_response()
 {
 	_set_active_state(&_cmd_CHTTPSSTOP_state);
@@ -181,39 +199,59 @@ void _check_response(const char* needed_resp)
 	_validate_response(needed_resp);
 }
 
-void _check_http_response()
-{
-	_check_response_timer();
-
-	char *ptr = strnstr(sim_response, SUCCESS_HTTP_RQST, strlen(sim_response));
+void _check_200_ok_itr() {
+	char* ptr = strnstr(sim_response, SUCCESS_HTTP_RESP, response_counter);
 	if (!ptr) {
 		return;
 	}
+	memset(sim_response, 0, response_counter);
+	sim_state.check_http_header_itr = &_check_content_length_itr;
+	response_counter = 0;
+}
 
+void _check_content_length_itr() {
+	char* ptr = strnstr(sim_response, SUCCESS_HTTP_RQST, response_counter);
+	if (!ptr) {
+		return;
+	}
 	ptr += strlen(SUCCESS_HTTP_RQST);
 
-	if (!strlen(ptr)) {
+	if (!strnstr(ptr, LINE_BREAK, strlen(ptr))) {
 		return;
 	}
+	response_data_count = atoi(ptr);
 
-	uint16_t size = atoi(ptr);
-	ptr = strnstr(ptr, DOUBLE_LINE_BREAK, strlen(ptr));
+	memset(sim_response, 0, response_counter);
+	sim_state.check_http_header_itr = &_check_double_break_itr;
+	response_counter = 0;
+}
+
+void _check_double_break_itr() {
+	char* ptr = strnstr(sim_response, DOUBLE_LINE_BREAK, response_counter);
 	if (!ptr) {
 		return;
 	}
-	ptr += strlen(DOUBLE_LINE_BREAK);
-
-	if (strlen(ptr) < size) {
-		return;
-	}
-
-	_validate_response(SUCCESS_HTTP_RESP);
+	memset(sim_response, 0, ptr - sim_response);
+	strncpy(sim_response, ptr, strlen(ptr));
+	memset(ptr, 0, strlen(ptr));
+	response_counter = strlen(ptr);
+	sim_state.check_http_header_itr = &_wait_data_itr;
 }
+
+void _wait_data_itr() {
+	if (response_counter >= response_data_count) {
+		sim_state.state = SIM_SUCCESS;
+		LOG_DEBUG(SIM_TAG, " HTTP response -\n%s\n", sim_response);
+		sim_state.check_http_header_itr = &_wait_itr;
+	}
+}
+
+void _wait_itr() {}
 
 void _check_response_timer()
 {
 	if (!Util_TimerPending(&sim_state.delay_timer)) {
-		LOG_DEBUG(SIM_TAG, " error - %s\r\n", sim_response);
+		LOG_DEBUG(SIM_TAG, " error - %s\n", strlen(sim_response) ? sim_response : "empty answer");
 		sim_state.state = SIM_ERROR;
 		sim_state.error_count++;
 	}
@@ -222,7 +260,7 @@ void _check_response_timer()
 void _validate_response(const char* needed_resp)
 {
 	if (strnstr(sim_response, needed_resp, sizeof(sim_response))) {
-		LOG_DEBUG(SIM_TAG, " success - %s\r\n", sim_response);
+		LOG_DEBUG(SIM_TAG, " success - %s\n", sim_response);
 		sim_state.state = SIM_SUCCESS;
 		sim_state.error_count = 0;
 	}
@@ -238,7 +276,7 @@ void _do_error(uint8_t attempts)
 	}
 
 	if (sim_state.error_count < attempts) {
-		LOG_DEBUG(SIM_TAG, " retry command, attempt number %d\r\n", sim_state.error_count + 1);
+		LOG_DEBUG(SIM_TAG, " retry command, attempt number %d\n", sim_state.error_count + 1);
 		sim_state.state = READY;
 		_clear_response();
 		_start_module();
@@ -246,7 +284,7 @@ void _do_error(uint8_t attempts)
 	}
 
 	if (sim_state.error_count >= attempts) {
-		LOG_DEBUG(SIM_TAG, " too many errors\r\n");
+		LOG_DEBUG(SIM_TAG, " too many errors\n");
 		_reset_module();
 		Util_TimerStart(&sim_state.restart_timer, RESTART_WAIT);
 		return;
@@ -256,7 +294,9 @@ void _do_error(uint8_t attempts)
 void _clear_response()
 {
 	memset(sim_response, 0, sizeof(sim_response));
+	sim_state.check_http_header_itr = &_check_200_ok_itr;
 	response_counter = 0;
+	response_data_count = 0;
 }
 
 void _reset_module()
@@ -264,7 +304,7 @@ void _reset_module()
 	if (Util_TimerPending(&sim_state.restart_timer)) {
 		return;
 	}
-	LOG_DEBUG(SIM_TAG, " sim module RESTART\r\n");
+	LOG_DEBUG(SIM_TAG, " sim module RESTART\n");
 	HAL_GPIO_WritePin(SIM_MODULE_RESET_PORT, SIM_MODULE_RESET_PIN, GPIO_PIN_RESET);
 }
 
@@ -444,10 +484,9 @@ void _cmd_send_state()
 {
 	if (sim_state.state == READY) {
 		Util_TimerStart(&sim_state.delay_timer, HTTP_ACT_WAIT);
-		_set_active_state(&_cmd_send_state);
 	}
 	if (sim_state.state == WAIT) {
-		_check_http_response();
+		_check_response_timer();
 	}
 	if (sim_state.state == SIM_ERROR) {
 		_set_active_state(&_cmd_CHTTPSSTOP_state);

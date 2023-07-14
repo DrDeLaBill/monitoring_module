@@ -54,7 +54,7 @@ const char* CF_LTRMAX_FIELD = "ltrmax=";
 const char* CF_TRGT_FIELD   = "trgt=";
 const char* CF_SLEEP_FIELD  = "sleep=";
 const char* CF_SPEED_FIELD  = "speed=";
-const char* CF_LOGID_FIELD  = "logid=";
+const char* CF_LOGID_FIELD  = "d_hwm=";
 const char* CF_CLEAR_FIELD  = "clr=";
 
 
@@ -343,6 +343,11 @@ void _parse_response()
 	}
 	module_settings.cf_id = new_cf_id;
 
+	var_ptr = strnstr(var_ptr, CF_LOGID_FIELD, strlen(var_ptr));
+	if (var_ptr) {
+		module_settings.server_log_id = atoi(var_ptr + strlen(CF_LOGID_FIELD));
+	}
+
 	char *cnfg_ptr = strnstr(var_ptr, CF_DATA_FIELD, strlen(var_ptr));
 	if (!var_ptr) {
 		goto do_error;
@@ -377,11 +382,6 @@ void _parse_response()
 	var_ptr = strnstr(cnfg_ptr, CF_SPEED_FIELD, strlen(cnfg_ptr));
 	if (var_ptr) {
 		pump_update_speed(atoi(var_ptr + strlen(CF_SPEED_FIELD)));
-	}
-
-	var_ptr = strnstr(cnfg_ptr, CF_LOGID_FIELD, strlen(cnfg_ptr));
-	if (var_ptr) {
-		module_settings.server_log_id = atoi(var_ptr + strlen(CF_LOGID_FIELD));
 	}
 
 	var_ptr = strnstr(cnfg_ptr, CF_MOD_ID_FIELD, strlen(cnfg_ptr));
