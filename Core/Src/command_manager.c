@@ -86,7 +86,7 @@ void _execute_command()
 
 	if (strncmp("status", command, CHAR_COMMAND_SIZE) == 0) {
 		goto do_end;
-	} else if (strncmp("saveadcmmin", command, CHAR_COMMAND_SIZE) == 0) {
+	} else if (strncmp("saveadcmin", command, CHAR_COMMAND_SIZE) == 0) {
 		module_settings.tank_ADC_min = get_liquid_adc();
 		goto do_success;
 	} else if (strncmp("saveadcmax", command, CHAR_COMMAND_SIZE) == 0) {
@@ -140,7 +140,7 @@ void _execute_command()
 	goto do_error;
 
 do_success:
-	module_settings.cf_id = 1;
+//	module_settings.cf_id = 1;
 	settings_save();
 	goto do_end;
 

@@ -63,5 +63,5 @@ int32_t get_liquid_liters()
 
 bool is_liquid_tank_empty()
 {
-	return get_liquid_adc() > module_settings.tank_liters_max;
+	return get_liquid_adc() > module_settings.tank_ADC_min;
 }
