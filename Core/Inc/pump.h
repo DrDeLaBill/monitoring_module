@@ -34,6 +34,7 @@ typedef struct _pump_state {
 void pump_init();
 void pump_proccess();
 void pump_update_speed(uint32_t speed);
+void pump_update_work();
 void pump_update_power(bool enabled);
 void pump_show_work();
 void clear_pump_log();

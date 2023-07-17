@@ -71,6 +71,10 @@ void pump_update_speed(uint32_t speed)
 {
 	module_settings.pump_speed = speed;
 	settings_save();
+	pump_update_work();
+}
+
+void pump_update_work() {
 	if (pump_state.state_action != _work_state_action) {
 		return;
 	}
@@ -150,15 +154,21 @@ void _calculate_work_time()
 	}
 	volatile uint16_t used_day_liquid = module_settings.pump_work_day_sec * module_settings.pump_speed / MILLIS_IN_SECOND;
 	if (module_settings.milliliters_per_day <= used_day_liquid) {
-		UART_MSG("Target litres already used\n");
 		return;
 	}
-	volatile uint32_t time_left = _get_day_sec_left();
-	pump_state.needed_work_time = (module_settings.milliliters_per_day - used_day_liquid);
-	pump_state.needed_work_time *= (MINUTES_PER_HOUR * SECONDS_PER_MINUTE);
-	pump_state.needed_work_time /= (module_settings.pump_speed);
-	pump_state.needed_work_time /= (time_left / (PUMP_WORK_PERIOD / MILLIS_IN_SECOND));
-	pump_state.needed_work_time *= MILLIS_IN_SECOND;
+	uint32_t time_left = _get_day_sec_left();
+	uint32_t needed_ml = module_settings.milliliters_per_day - used_day_liquid;
+	uint32_t max_pump_ml_to_end_of_day = module_settings.pump_speed * (time_left / (MINUTES_PER_HOUR * SECONDS_PER_MINUTE));
+
+	if (needed_ml > max_pump_ml_to_end_of_day) {
+		pump_state.needed_work_time = PUMP_WORK_PERIOD;
+		return;
+	}
+
+	uint32_t periods_count = (time_left * MILLIS_IN_SECOND) / PUMP_WORK_PERIOD;
+	uint32_t needed_ml_per_period = needed_ml / periods_count;
+	pump_state.needed_work_time = (needed_ml_per_period * MILLIS_IN_SECOND / (module_settings.pump_speed / 4)) * MILLIS_IN_SECOND;
+
 	if (pump_state.needed_work_time > PUMP_WORK_PERIOD) {
 		pump_state.needed_work_time = PUMP_WORK_PERIOD;
 	}

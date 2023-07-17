@@ -21,6 +21,13 @@ uint8_t Util_TimerPending(dio_timer_t* tm) {
 	return (HAL_GetTick() - tm->start) < tm->delay;
 }
 
+int Convert_Range(int val, int rngl1, int rngh1, int rngl2, int rngh2) {
+	int range1 = __abs(rngh1 - rngl1);
+	int range2 = __abs(rngh2 - rngl2);
+	int delta  = __abs(rngh1 - val);
+	return rngl2 + ((delta * range2) / range1);
+}
+
 
 #ifdef DEBUG
 void Debug_HexDump(const char* tag, const uint8_t* buf, uint16_t len) {

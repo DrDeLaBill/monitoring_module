@@ -263,14 +263,14 @@ void _show_measurements()
 		LOG_TAG,
 		"\r\nID: %lu\r\n"
 		"Time: %s\r\n"
-		"Level: %d.%d\r\n"
-		"Press 1: %d.%02d\r\n"
-		"Press 2: %d.%02d\r\n",
+		"Level: %d.%d l\r\n"
+		"Press 1: %d.%02d MPa\r\n"
+		"Press 2: %d.%02d MPa\r\n",
 		log_record.id,
 		log_record.time,
 		FLOAT_AS_STRINGS(log_record.level),
-		FLOAT_AS_STRINGS(log_record.press_1),
-		FLOAT_AS_STRINGS(log_record.press_2)
+		FLOAT_AS_STRINGS((log_record.press_1 > 4 ? log_record.press_1 - 4 : 0)),
+		FLOAT_AS_STRINGS((log_record.press_2 > 4 ? log_record.press_2 - 4 : 0))
 	);
 }
 

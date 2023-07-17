@@ -128,6 +128,7 @@ void _execute_command()
 		goto do_success;
 	} else if (strncmp("settarget", command, CHAR_COMMAND_SIZE) == 0) {
 		module_settings.milliliters_per_day = atoi(value);
+		pump_update_work();
 		goto do_success;
 	} else if (strncmp("setpumpspeed", command, CHAR_COMMAND_SIZE) == 0) {
 		pump_update_speed((uint32_t)atoi(value));

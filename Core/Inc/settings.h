@@ -40,8 +40,8 @@
 								module_settings.id, \
 								module_settings.server_url, \
 								module_settings.server_port, \
-								module_settings.tank_ADC_max, \
 								module_settings.tank_ADC_min, \
+								module_settings.tank_ADC_max, \
 								module_settings.tank_liters_min, \
 								module_settings.tank_liters_max, \
 								module_settings.milliliters_per_day, \

@@ -43,6 +43,7 @@ uint8_t Util_TimerPending(dio_timer_t* tm);
 
 void Debug_HexDump(const char* tag, const uint8_t* buf, uint16_t len);
 
+int convert_range(int val, int rngl1, int rngh1, int rngl2, int rngh2);
 
 #ifdef DEBUG
 #define LOG_DEBUG(MODULE_TAG, format, ...) { \
