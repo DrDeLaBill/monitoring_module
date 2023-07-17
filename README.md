@@ -44,7 +44,7 @@ d=id=5;level=0.0;press_1=0.61;press_2=0.0;pumpw=100;pumpd=100
 - pumpd - pump downtime (sec)
 
 
-Needed response from server:
+Expected response from server:
 
 ```
 HTTP/1.1 200 OK
