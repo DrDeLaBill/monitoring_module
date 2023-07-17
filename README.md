@@ -54,9 +54,9 @@ referrer-policy: same-origin
 cross-origin-opener-policy: same-origin
 
 t=2023-01-19t12:56:09.386436
-d_hwm=473830
+d_hwm=0
 cf_id=33077616
-cf=id=123;ltrmin=100;ltrmax=1;trgt=4000;sleep=900;speed=1000;logid=1;clr=0
+cf=id=123;ltrmin=10;ltrmax=375;trgt=10000;sleep=900;speed=1600;clr=0;pwr=1;logid=1
 ```
 
 - t - current time
@@ -70,3 +70,4 @@ cf=id=123;ltrmin=100;ltrmax=1;trgt=4000;sleep=900;speed=1000;logid=1;clr=0
     - speed - pump speed (in milliliters per hour)
     - logid - last log id in server DB
     - clr - remove old log
+    - pwr - permission to turn on the pump
