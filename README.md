@@ -1,7 +1,5 @@
 # MONITORING MODULE
 
----
-
 ### UART COMMANDS
 
 - status - get current settings
@@ -13,7 +11,7 @@
 - setlitersmax (uint liters) - set tank max level (in milliliters)
 - saveadcmin - save current liquid sensor value as min value
 - saveadcmax - save current liquid sensor value as max value
-- settarget (uint liters) - set target liguid capacity per day (in milliliters)
+- settarget (uint liters) - set target liquid capacity per day (in milliliters)
 - setpumpspeed (uint liters) - pump speed (in milliliters per hour)
 - setlogid (uint id) - set last log id in server DB
 - default - set default settings
