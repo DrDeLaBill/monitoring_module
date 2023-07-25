@@ -61,6 +61,7 @@ cf=id=123;ltrmin=10;ltrmax=375;trgt=10000;sleep=900;speed=1600;clr=0;pwr=1;logid
 
 - t - current time
 - cf_id - current configuration, updates if module settings changes
+- d_hwm - last log id on server
 - cf - new config array
     - id - new module id
     - ltrmin - tank min level (in milliliters)
@@ -68,6 +69,5 @@ cf=id=123;ltrmin=10;ltrmax=375;trgt=10000;sleep=900;speed=1600;clr=0;pwr=1;logid
     - trgt - target liguid capacity per day (in milliliters)
     - sleep - log frequency (in seconds)
     - speed - pump speed (in milliliters per hour)
-    - logid - last log id in server DB
     - clr - remove old log
     - pwr - permission to turn on the pump
