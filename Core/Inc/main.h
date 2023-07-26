@@ -57,43 +57,41 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define STATE_LED_Pin GPIO_PIN_15
-#define STATE_LED_GPIO_Port GPIOC
-#define PUMP_Pin GPIO_PIN_0
-#define PUMP_GPIO_Port GPIOA
-#define LIQUID_Pin GPIO_PIN_1
-#define LIQUID_GPIO_Port GPIOA
-#define SPI1_SD_NSS_Pin GPIO_PIN_4
-#define SPI1_SD_NSS_GPIO_Port GPIOA
-#define SIM_RESET_Pin GPIO_PIN_11
+#define LIQUID_LEVEL_Pin GPIO_PIN_0
+#define LIQUID_LEVEL_GPIO_Port GPIOA
+#define LIQUID_PRESS1_Pin GPIO_PIN_1
+#define LIQUID_PRESS1_GPIO_Port GPIOA
+#define RS485_TX_Pin GPIO_PIN_2
+#define RS485_TX_GPIO_Port GPIOA
+#define RS485_RX_Pin GPIO_PIN_3
+#define RS485_RX_GPIO_Port GPIOA
+#define PUMP_Pin GPIO_PIN_11
+#define PUMP_GPIO_Port GPIOB
+#define SIM_RESET_Pin GPIO_PIN_8
 #define SIM_RESET_GPIO_Port GPIOA
+#define RED_LED_Pin GPIO_PIN_15
+#define RED_LED_GPIO_Port GPIOA
 /* USER CODE BEGIN Private defines */
 
 //Settings
 #define SETTINGS_UART huart2;
-//SD card
-extern SPI_HandleTypeDef hspi1;
-#define SD_HSPI hspi1
-#define SD_CS_GPIO_Port SPI1_SD_NSS_GPIO_Port
-#define SD_CS_Pin SPI1_SD_NSS_Pin
-// Shunt
-extern I2C_HandleTypeDef hi2c1;
-#define INA3221_I2C hi2c1
 // UART command manager
 extern UART_HandleTypeDef huart2;
-#define COMMAND_UART huart2
+#define COMMAND_UART      huart2
 // Liquid sensor
 extern ADC_HandleTypeDef hadc1;
-#define LIQUID_ADC hadc1
+#define MEASURE_ADC      hadc1
 // SIM module
 extern UART_HandleTypeDef huart1;
-#define SIM_MODULE_UART huart1
+#define SIM_MODULE_UART   huart1
 #define SIM_MODULE_RESET_PORT SIM_RESET_GPIO_Port
 #define SIM_MODULE_RESET_PIN SIM_RESET_Pin
-// Clock
-extern I2C_HandleTypeDef hi2c1;
-#define CLOCK_I2C hi2c1
 
+extern I2C_HandleTypeDef hi2c1;
+// Clock
+#define CLOCK_I2C        hi2c1
+// EEPROM
+#define EEPROM_I2C       hi2c1
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

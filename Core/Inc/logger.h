@@ -1,8 +1,8 @@
 /*
- * record.h
+ * logger.h
  *
  *  Created on: 19 дек. 2022 г.
- *      Author: georgy
+ *      Author: DrDeLaBill
  */
 
 #ifndef INC_LOGGER_H_
@@ -12,10 +12,6 @@
 
 
 #define LOG_SIZE 370
-
-
-extern record_tag_t general_record_load;
-extern LogRecord log_record;
 
 
 void logger_manager_begin();

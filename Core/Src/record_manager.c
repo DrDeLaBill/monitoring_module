@@ -1,20 +1,13 @@
-/*
- * data_logger.c
- *
- *  Created on: Dec 15, 2022
- *      Author: RCPark
- */
-
-
 #include "record_manager.h"
 
-#include <fatfs.h>
 #include <string.h>
+#include <stdbool.h>
+
 #include "stm32f1xx_hal.h"
 
-#include "internal_storage.h"
 #include "sim_module.h"
-#include "settings.h"
+#include "storage_data_manager.h"
+#include "settings_manager.h"
 #include "logger.h"
 #include "utils.h"
 
@@ -25,12 +18,11 @@
 uint32_t _get_free_space();
 
 
-const char* RECORD_TAG = "RCRD";
-const char* RECORD_FILENAME = "log.bin";
+const char* RECORD_TAG = "RCRD";;
 
 
-uint8_t record_load_ok;
-bool new_record_available = 1;
+bool new_record_available = true;
+log_record_t cur_log_record;
 
 
 record_status_t next_record_load() {
@@ -38,60 +30,71 @@ record_status_t next_record_load() {
 		return RECORD_NO_LOG;
 	}
 
-	record_sd_payload_t tmpbuf;
-	memset(&tmpbuf, 0, sizeof(tmpbuf));
-
-	record_load_ok = 1;
-
-	UINT br = 0;
-	UINT ptr = 0;
-	char filename[64] = {};
-	snprintf(filename, sizeof(filename), "%s" "%s", DIOSPIPath, RECORD_FILENAME);
-
-	FRESULT res;
-do_readline:
-	br = 0;
-	res = intstor_read_line(filename, &tmpbuf, sizeof(tmpbuf), &br, ptr);
-	if(res != FR_OK) {
-		record_load_ok = 0;
-		LOG_DEBUG(RECORD_TAG, " read_file(%s) error=%i\n", filename, res);
+	uint32_t first_addr = 0;
+	uint32_t prev_addr = 0;
+	storage_status_t status = storage_get_first_available_addr(&first_addr);
+	if (status != STORAGE_OK) {
+		LOG_DEBUG(RECORD_TAG,  " next reccord load: error get prev address - status:=%d, address:=%lu\n", status, prev_addr);
+		return RECORD_ERROR;
 	}
-	if (br == 0) {
-		new_record_available = false;
-		return RECORD_NO_LOG;
-	}
-	if (!tmpbuf.v1.payload_record.id) {
-		ptr += sizeof(tmpbuf);
-		goto do_readline;
-	}
-	if (tmpbuf.v1.payload_record.id <= module_settings.server_log_id) {
-		ptr += sizeof(tmpbuf);
-		goto do_readline;
+	prev_addr = first_addr;
+
+
+	uint32_t last_id = 0;
+	uint32_t next_addr = 0;
+	uint32_t needed_addr = 0;
+	log_record_t buff;
+	memset((uint8_t*)&buff, 0 ,sizeof(buff));
+	while (status != STORAGE_EOM) {
+		status = storage_get_next_available_addr(prev_addr, &next_addr);
+		if (status == STORAGE_EOM) {
+			continue;
+		}
+		if (status != STORAGE_OK) {
+			LOG_DEBUG(RECORD_TAG,  " next reccord load: error get next address - status:=%d, prev-address:=%lu, next-address:=%lu\n", status, prev_addr, next_addr);
+			return RECORD_ERROR;
+		}
+
+		status = storage_load(next_addr, (uint8_t*)&buff, sizeof(buff));
+		if (status == STORAGE_ERROR_ADDR) {
+			prev_addr = needed_addr;
+			continue;
+		}
+		if (status != STORAGE_OK) {
+			LOG_DEBUG(RECORD_TAG, " read record error=%i, address=%lu\n", status, next_addr);
+			return RECORD_ERROR;
+		}
+
+		if (buff.id <= module_settings.server_log_id) {
+			prev_addr = next_addr;
+			continue;
+		}
+
+		if (!last_id) {
+			last_id = buff.id;
+			needed_addr = next_addr;
+		}
+
+		if (__abs_dif(module_settings.server_log_id, last_id) > __abs_dif(module_settings.server_log_id, buff.id)) {
+			last_id = buff.id;
+			needed_addr = next_addr;
+		}
+
+		prev_addr = next_addr;
 	}
 
-	if(tmpbuf.header.magic != RECORD_SD_PAYLOAD_MAGIC) {
-		record_load_ok = 0;
-		LOG_DEBUG(RECORD_TAG, " bad record magic %08lX!=%08lX\n", tmpbuf.header.magic, RECORD_SD_PAYLOAD_MAGIC);
-	}
-
-	if(tmpbuf.header.version != RECORD_SD_PAYLOAD_VERSION) {
-		record_load_ok = 0;
-		LOG_DEBUG(RECORD_TAG, " bad record version %i!=%i\n", tmpbuf.header.version, RECORD_SD_PAYLOAD_VERSION);
-	}
-
-	if(!record_load_ok) {
-		LOG_DEBUG(RECORD_TAG, " record not loaded\r\n");
+	if (status != STORAGE_OK) {
+		LOG_DEBUG(RECORD_TAG,  " next reccord load: not found - status=%d, address=%lu, log_id=%lu\n", status, needed_addr, last_id);
 		return RECORD_ERROR;
 	}
 
-	LOG_DEBUG(RECORD_TAG, " loading record\n");
-	record_tag_t** pos = record_cbs;
-	while((*pos)) {
-		if((*pos)->load_cb) (*pos)->load_cb(&tmpbuf);
-		pos++;
+	status = storage_load(needed_addr, (uint8_t*)&buff, sizeof(buff));
+	if (status != STORAGE_OK) {
+		LOG_DEBUG(RECORD_TAG, " next reccord load:  error=%i\n", status);
+		return RECORD_ERROR;
 	}
 
-	if(!record_load_ok) return RECORD_ERROR;
+	memcpy((uint8_t*)&cur_log_record, (uint8_t*)&buff, sizeof(cur_log_record));
 
 	return RECORD_OK;
 }
@@ -100,210 +103,103 @@ do_readline:
 record_status_t record_save() {
 	new_record_available = true;
 
-	if (_get_free_space() < CLUSTERS_MIN) {
-		remove_old_records();
+	uint32_t first_addr = 0;
+	storage_status_t status = storage_get_first_available_addr(&first_addr);
+	if (status != STORAGE_OK) {
+		LOG_DEBUG(RECORD_TAG, " reccord save: get first addr - error=%i\n", status);
+		return status;
 	}
 
-	record_sd_payload_t tmpbuf;
-	memset(&tmpbuf, 0, sizeof(tmpbuf));
+	uint32_t next_addr = 0;
+	log_record_t buff;
+	memset((uint8_t*)&buff, 0 ,sizeof(buff));
+	uint32_t min_id = 0;
+	uint32_t min_id_addr = 0;
+	while (status != STORAGE_EOM) {
+		status = storage_get_next_available_addr(first_addr, &next_addr);
+		if (status == STORAGE_EOM) {
+			break;
+		}
+		if (status != STORAGE_OK) {
+			LOG_DEBUG(RECORD_TAG, " reccord save: get next addr - error=%i, prev_addr=%lu, next_addr=%lu\n", status, first_addr, next_addr);
+			return status;
+		}
 
-	record_tag_t** pos = record_cbs;
-	while((*pos)) {
-		if((*pos)->save_cb) (*pos)->save_cb(&tmpbuf);
-		pos++;
+		status = storage_load(next_addr, (uint8_t*)&buff, sizeof(buff));
+		if (status != STORAGE_OK) {
+			break;
+		}
+
+		if (!min_id) {
+			min_id = buff.id;
+			min_id_addr = next_addr;
+		}
+		first_addr = next_addr;
 	}
 
-	tmpbuf.header.magic = RECORD_SD_PAYLOAD_MAGIC;
-	tmpbuf.header.version = RECORD_SD_PAYLOAD_VERSION;
+	if (status == STORAGE_EOM) {
+		next_addr = min_id_addr;
+	}
 
-	WORD crc = 0;
-	uint32_t tmp = sizeof(tmpbuf.bits);
-	for(uint16_t i = 0; i < sizeof(tmpbuf.bits); i++)
-		DIO_SPI_CardCRC16(&crc, tmpbuf.bits[i]);
-	tmpbuf.crc = crc;
+	if (!next_addr) {
+		LOG_DEBUG(RECORD_TAG, " reccord save: storage load - error=%i, prev_addr=%lu, next_addr=%lu\n", status, first_addr, next_addr);
+		return STORAGE_ERROR;
+	}
 
-	LOG_DEBUG(RECORD_TAG, " saving record\n");
-	Debug_HexDump(RECORD_TAG, (uint8_t*)&tmpbuf, sizeof(tmpbuf));
+	status = storage_save(next_addr, (uint8_t*)&cur_log_record, sizeof(cur_log_record));
+	if (status != STORAGE_OK) {
+		LOG_DEBUG(RECORD_TAG, " reccord save: storage save - error=%i, prev_addr=%lu, next_addr=%lu\n", status, first_addr, next_addr);
+		return status;
+	}
 
-	char filename[64];
-	snprintf(filename, sizeof(filename), "%s" "%s", DIOSPIPath, RECORD_FILENAME);
+	return STORAGE_OK;
+}
 
-	UINT br;
-	FRESULT res = intstor_append_file(filename, &tmpbuf, sizeof(tmpbuf), &br);
-	if(res != FR_OK) {
-		record_load_ok = 0;
-		LOG_DEBUG(RECORD_TAG, " record NOT saved\n");
+record_status_t get_new_id(uint32_t* new_id)
+{
+	uint32_t prev_addr = 0;
+	storage_status_t status = storage_get_first_available_addr(&prev_addr);
+	if (status != STORAGE_OK) {
+		LOG_DEBUG(RECORD_TAG,  " get new id: error get prev address - status:=%d, address:=%lu\n", status, prev_addr);
 		return RECORD_ERROR;
 	}
 
-	LOG_DEBUG(RECORD_TAG, " record saved\n");
-	return RECORD_OK;
-}
+	uint32_t max_id = 0;
+	uint32_t next_addr = 0;
+	log_record_t buff;
+	memset((uint8_t*)&buff, 0 ,sizeof(buff));
+	while (status != STORAGE_EOM) {
+		status = storage_get_next_available_addr(prev_addr, &next_addr);
+		if (status == STORAGE_EOM) {
+			continue;
+		}
+		if (status != STORAGE_OK) {
+			LOG_DEBUG(RECORD_TAG,  " get new id: error get next address - status:=%d, prev-address:=%lu, next-address:=%lu\n", status, prev_addr, next_addr);
+			return RECORD_ERROR;
+		}
 
-record_status_t record_change(uint32_t old_id)
-{
-	new_record_available = true;
+		status = storage_load(next_addr, (uint8_t*)&buff, sizeof(buff));
+		if (status == STORAGE_ERROR_ADDR) {
+			prev_addr = next_addr;
+			continue;
+		}
+		if (status == STORAGE_ERROR_BITS) {
+			prev_addr = next_addr;
+			continue;
+		}
+		if (status != STORAGE_OK) {
+			LOG_DEBUG(RECORD_TAG, " get new id: read record error=%i, address=%lu\n", status, next_addr);
+			return RECORD_ERROR;
+		}
 
-	record_sd_payload_t tmpbuf;
-	memset(&tmpbuf, 0, sizeof(tmpbuf));
+		if (max_id < buff.id) {
+			max_id = buff.id;
+		}
 
-	// Find line
-	record_load_ok = 1;
-
-	UINT br = 0;
-	UINT ptr = 0;
-	char filename[64] = {};
-	snprintf(filename, sizeof(filename), "%s" "%s", DIOSPIPath, RECORD_FILENAME);
-
-	FRESULT res;
-do_readline:
-	res = intstor_read_line(filename, &tmpbuf, sizeof(tmpbuf), &br, ptr);
-	if (br == 0) {
-		LOG_DEBUG(RECORD_TAG, " record not found\r\n");
-		goto do_fail;
-	}
-	if (tmpbuf.v1.payload_record.id != old_id) {
-		ptr += sizeof(tmpbuf);
-		goto do_readline;
-	}
-
-	// Change line
-	memset(&tmpbuf, 0, sizeof(tmpbuf));
-	record_tag_t** pos = record_cbs;
-	while((*pos)) {
-		if((*pos)->save_cb) (*pos)->save_cb(&tmpbuf);
-		pos++;
+		prev_addr = next_addr;
 	}
 
-	tmpbuf.header.magic = RECORD_SD_PAYLOAD_MAGIC;
-	tmpbuf.header.version = RECORD_SD_PAYLOAD_VERSION;
-
-	WORD crc = 0;
-	uint32_t tmp = sizeof(tmpbuf.bits);
-	for(uint16_t i = 0; i < sizeof(tmpbuf.bits); i++)
-		DIO_SPI_CardCRC16(&crc, tmpbuf.bits[i]);
-	tmpbuf.crc = crc;
-
-	res = instor_change_file(filename, &tmpbuf, sizeof(tmpbuf), &br, ptr);
-	if(res != FR_OK) {
-		record_load_ok = 0;
-		LOG_DEBUG(RECORD_TAG, " record NOT saved\n");
-		goto do_fail;
-
-	} else {
-		LOG_DEBUG(RECORD_TAG, " record changed\n");
-		goto do_success;
-	}
-
-do_success:
+	*new_id = max_id + 1;
 
 	return RECORD_OK;
-
-do_fail:
-
-	return RECORD_ERROR;
-}
-
-uint32_t get_new_id()
-{
-	LOG_DEBUG(RECORD_TAG, " get new log id\n");
-	record_sd_payload_t tmpbuf;
-	memset(&tmpbuf, 0, sizeof(tmpbuf));
-
-	record_load_ok = 1;
-
-	FRESULT res = instor_find_file(RECORD_FILENAME);
-	if (res != FR_OK) {
-		record_load_ok = 0;
-		LOG_DEBUG(RECORD_TAG, " find_file(%s) error=%i\n", RECORD_FILENAME, res);
-		goto do_first_id;
-	}
-
-	UINT br = 0;
-	UINT ptr = DIOSPIFileInfo.fsize - sizeof(record_sd_payload_t);
-	char filename[64] = {};
-	snprintf(filename, sizeof(filename), "%s" "%s", DIOSPIPath, RECORD_FILENAME);
-
-	res = intstor_read_line(filename, &tmpbuf, sizeof(tmpbuf), &br, ptr);
-	if(res != FR_OK) {
-		record_load_ok = 0;
-		LOG_DEBUG(RECORD_TAG, " read_file(%s) error=%i\n", filename, res);
-	}
-	if (br == 0) {
-		goto do_first_id;
-	}
-	if (!tmpbuf.v1.payload_record.id) {
-		goto do_first_id;
-	}
-
-	if(tmpbuf.header.magic != RECORD_SD_PAYLOAD_MAGIC) {
-		record_load_ok = 0;
-		LOG_DEBUG(RECORD_TAG, " bad record magic %08lX!=%08lX\n", tmpbuf.header.magic, RECORD_SD_PAYLOAD_MAGIC);
-	}
-
-	if(tmpbuf.header.version != RECORD_SD_PAYLOAD_VERSION) {
-		record_load_ok = 0;
-		LOG_DEBUG(RECORD_TAG, " bad record version %i!=%i\n", tmpbuf.header.version, RECORD_SD_PAYLOAD_VERSION);
-	}
-
-	if(!record_load_ok) {
-		LOG_DEBUG(RECORD_TAG, " record not loaded\r\n");
-		goto do_first_id;
-	}
-
-	if(!record_load_ok) {
-		goto do_first_id;
-	}
-
-	uint32_t new_id = tmpbuf.v1.payload_record.id + 1;
-	if (new_id == 0) {
-		goto do_first_id;
-	}
-
-	LOG_DEBUG(RECORD_TAG, " next record id - %lu\r\n", new_id);
-
-	return new_id;
-
-do_first_id:
-
-	LOG_DEBUG(RECORD_TAG, " set first record id - %d\r\n", FIRST_ID);
-	return FIRST_ID;
-}
-
-record_status_t remove_old_records()
-{
-	char filename[64] = {};
-	snprintf(filename, sizeof(filename), "%s" "%s", DIOSPIPath, RECORD_FILENAME);
-	if (instor_remove_file(RECORD_FILENAME) == FR_OK) {
-		LOG_DEBUG(RECORD_TAG, " file %s removed\r\n", filename);
-		return RECORD_OK;
-	}
-	LOG_DEBUG(RECORD_TAG, " file %s not removed\r\n", filename);
-	return RECORD_ERROR;
-}
-
-record_status_t record_file_exists()
-{
-	FRESULT res = instor_find_file(RECORD_FILENAME);
-	if (res == FR_NO_FILE) {
-		return RECORD_NO_LOG;
-	}
-	if (res != FR_OK) {
-		return RECORD_ERROR;
-	}
-	return RECORD_OK;
-}
-
-uint32_t _get_free_space()
-{
-	DWORD fre_clust = 0;
-	FRESULT res = FR_OK;
-
-	res = instor_get_free_clust(&fre_clust);
-	if (res != FR_OK) {
-		LOG_DEBUG(RECORD_TAG, " unable to get free space\r\n");
-		return 0xFFFFFFFF;
-	}
-
-	return fre_clust;
 }

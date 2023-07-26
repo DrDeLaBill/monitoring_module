@@ -2,7 +2,7 @@
  * record.c
  *
  *  Created on: 19 дек. 2022 г.
- *      Author: georgy
+ *      Author: DrDeLaBill
  */
 
 #include "logger.h"
@@ -17,7 +17,6 @@
 #include "record_manager.h"
 #include "settings_manager.h"
 #include "sim_module.h"
-#include "settings.h"
 #include "ds1307_for_stm32_hal.h"
 #include "pressure_sensor.h"
 #include "pump.h"
@@ -26,8 +25,6 @@
 #define UPDATE_SETTINGS_TIME 60000
 
 
-void _general_record_save(record_sd_payload_t* payload);
-void _general_record_load(const record_sd_payload_t* payload);
 void _send_http_log();
 void _make_measurements();
 void _show_measurements();
@@ -58,42 +55,11 @@ const char* CF_LOGID_FIELD  = "d_hwm=";
 const char* CF_CLEAR_FIELD  = "clr=";
 
 
-LogRecord log_record;
-record_tag_t general_record_load = {
-	.save_cb = &_general_record_save,
-	.load_cb = &_general_record_load
-};
-record_tag_t* record_cbs[] = {
-	&general_record_load,
-	NULL
-};
 dio_timer_t log_timer;
 dio_timer_t error_read_timer;
 dio_timer_t settings_timer;
 uint32_t sended_log_id;
 
-
-void _general_record_save(record_sd_payload_t* payload)
-{
-	payload->v1.payload_record.id      = log_record.id;
-	payload->v1.payload_record.cf_id   = log_record.cf_id;
-	payload->v1.payload_record.fw_id   = log_record.fw_id;
-	payload->v1.payload_record.level   = log_record.level;
-	payload->v1.payload_record.press_1 = log_record.press_1;
-	payload->v1.payload_record.press_2 = log_record.press_2;
-	strncpy(payload->v1.payload_record.time, log_record.time, sizeof(log_record.time));
-}
-
-void _general_record_load(const record_sd_payload_t* payload)
-{
-	log_record.id      = payload->v1.payload_record.id;
-	log_record.cf_id   = payload->v1.payload_record.cf_id;
-	log_record.fw_id   = payload->v1.payload_record.fw_id;
-	log_record.level   = payload->v1.payload_record.level;
-	log_record.press_1 = payload->v1.payload_record.press_1;
-	log_record.press_2 = payload->v1.payload_record.press_2;
-	strncpy(log_record.time, payload->v1.payload_record.time, sizeof(log_record.time));
-}
 
 void logger_manager_begin()
 {
@@ -117,7 +83,7 @@ void logger_proccess()
 		log_timer.delay = module_settings.sleep_time;
 	}
 
-	if (Util_TimerPending(&log_timer)) {
+	if (util_is_timer_wait(&log_timer)) {
 		return;
 	}
 
@@ -135,7 +101,7 @@ void logger_proccess()
 
 void update_log_timer()
 {
-	Util_TimerStart(&log_timer, module_settings.sleep_time);
+	util_timer_start(&log_timer, module_settings.sleep_time);
 }
 
 void update_log_sleep(uint32_t time)
@@ -146,7 +112,6 @@ void update_log_sleep(uint32_t time)
 
 void clear_log()
 {
-	remove_old_records();
 	module_settings.server_log_id = 0;
 	module_settings.pump_work_sec = 0;
 	settings_save();
@@ -163,7 +128,7 @@ void _send_http_log()
 		"cf_id=%lu\n"
 		"t=%d-%02d-%02dT%02d:%02d:%02d\n",
 		module_settings.id,
-		log_record.fw_id,
+		cur_log_record.fw_id,
 		module_settings.cf_id,
 		DS1307_GetYear(),
 		DS1307_GetMonth(),
@@ -177,7 +142,7 @@ void _send_http_log()
 
 	if (record_res == RECORD_ERROR) {
 		record_res = _load_current_log();
-		log_record.id = module_settings.server_log_id;
+		cur_log_record.id = module_settings.server_log_id;
 	}
 
 	if (record_res == RECORD_OK) {
@@ -188,15 +153,15 @@ void _send_http_log()
 				"id=%lu;"
 				"t=%s;"
 				"level=%ld;"
-				"press_1=%d.%02d;"
-				"press_2=%d.%02d;"
+				"press_1=%lu.%02lu;"
+//				"press_2=%lu.%02lu;"
 				"pumpw=%lu\n"
 				"pumpd=%lu\n",
-			log_record.id,
-			log_record.time,
-			log_record.level,
-			FLOAT_AS_STRINGS(log_record.press_1),
-			FLOAT_AS_STRINGS(log_record.press_2),
+			cur_log_record.id,
+			cur_log_record.time,
+			cur_log_record.level,
+			cur_log_record.press_1 / 100, cur_log_record.press_1 % 100,
+//			cur_log_record.press_2 / 100, cur_log_record.press_2 % 100,
 			module_settings.pump_work_sec,
 			module_settings.pump_downtime_sec
 		);
@@ -206,19 +171,19 @@ void _send_http_log()
 		return;
 	}
 
-	if (record_res == RECORD_NO_LOG && Util_TimerPending(&settings_timer)) {
+	if (record_res == RECORD_NO_LOG && util_is_timer_wait(&settings_timer)) {
 		return;
 	}
 
 	send_http_post(data);
 	_start_settings_timer();
 	_start_error_timer();
-	sended_log_id = log_record.id;
+	sended_log_id = cur_log_record.id;
 }
 
 record_status_t _load_current_log()
 {
-	if (Util_TimerPending(&error_read_timer)) {
+	if (util_is_timer_wait(&error_read_timer)) {
 		return RECORD_NO_LOG;
 	}
 	LOG_DEBUG(LOG_TAG, " load current log\n");
@@ -228,33 +193,29 @@ record_status_t _load_current_log()
 
 void _start_error_timer()
 {
-	Util_TimerStart(&error_read_timer, module_settings.sleep_time);
+	util_timer_start(&error_read_timer, module_settings.sleep_time);
 }
 
 void _start_settings_timer()
 {
-	Util_TimerStart(&settings_timer, UPDATE_SETTINGS_TIME);
+	util_timer_start(&settings_timer, UPDATE_SETTINGS_TIME);
 }
 
 void _make_measurements()
 {
-	log_record.fw_id   = FW_VERSION;
-	log_record.cf_id   = module_settings.cf_id;
-	log_record.id      = get_new_id();
-	log_record.level   = get_liquid_liters();
-	log_record.press_1 = get_first_press();
-	log_record.press_2 = get_second_press();
-	snprintf(
-		log_record.time,
-		sizeof(log_record.time),
-		"%d-%02d-%02dT%02d:%02d:%02d",
-		DS1307_GetYear(),
-		DS1307_GetMonth(),
-		DS1307_GetDate(),
-		DS1307_GetHour(),
-		DS1307_GetMinute(),
-		DS1307_GetSecond()
-	);
+	cur_log_record.fw_id   = FW_VERSION;
+	cur_log_record.cf_id   = module_settings.cf_id;
+	get_new_id(&cur_log_record.id);
+	cur_log_record.level   = get_liquid_liters();
+	cur_log_record.press_1 = get_first_press();
+//	cur_log_record.press_2 = get_second_press();
+
+	cur_log_record.time[0] = DS1307_GetYear() % 100;
+	cur_log_record.time[1] = DS1307_GetMonth();
+	cur_log_record.time[2] = DS1307_GetDate();
+	cur_log_record.time[3] = DS1307_GetHour();
+	cur_log_record.time[4] = DS1307_GetMinute();
+	cur_log_record.time[5] = DS1307_GetSecond();
 }
 
 void _show_measurements()
@@ -262,64 +223,68 @@ void _show_measurements()
 	LOG_DEBUG(
 		LOG_TAG,
 		"\r\nID: %lu\r\n"
-		"Time: %s\r\n"
+		"Time: %u-%02u-%02uT%02u:%02u:%02u\r\n"
 		"Level: %d.%d l\r\n"
 		"Press 1: %d.%02d MPa\r\n"
 		"Press 2: %d.%02d MPa\r\n",
-		log_record.id,
-		log_record.time,
-		FLOAT_AS_STRINGS(log_record.level),
-		FLOAT_AS_STRINGS((log_record.press_1 > 4 ? log_record.press_1 - 4 : 0)),
-		FLOAT_AS_STRINGS((log_record.press_2 > 4 ? log_record.press_2 - 4 : 0))
+		cur_log_record.id,
+		cur_log_record.time[0], cur_log_record.time[1], cur_log_record.time[2], cur_log_record.time[3], cur_log_record.time[4], cur_log_record.time[5],
+		cur_log_record.level,
+		cur_log_record.press_1 / 100, cur_log_record.press_1 % 100
+//		cur_log_record.press_2 / 100, cur_log_record.press_2 % 100
 	);
 }
 
 void _parse_response()
 {
-	char *var_ptr = get_response();
-	// Parse time
-	var_ptr = strnstr(var_ptr, TIME_FIELD, strlen(var_ptr));
+	char* var_ptr = get_response();
+	char* data_ptr = var_ptr;
 	if (!var_ptr) {
 		goto do_error;
 	}
-	var_ptr += strlen(TIME_FIELD);
-	uint16_t tmp = atoi(var_ptr);
+	// Parse time
+	data_ptr = strnstr(var_ptr, TIME_FIELD, strlen(var_ptr));
+	if (!data_ptr) {
+		goto do_error;
+	}
+	data_ptr += strlen(TIME_FIELD);
+	uint16_t tmp = atoi(data_ptr);
 	DS1307_SetYear(tmp);
 
-	var_ptr = strnstr(var_ptr, T_DASH_FIELD, strlen(var_ptr));
-	if (!var_ptr) {
+	data_ptr = strnstr(data_ptr, T_DASH_FIELD, strlen(var_ptr));
+	if (!data_ptr) {
 		goto do_error;
 	}
-	var_ptr += strlen(T_DASH_FIELD);
-	DS1307_SetMonth((uint8_t)atoi(var_ptr));
+	data_ptr += strlen(T_DASH_FIELD);
+	DS1307_SetMonth((uint8_t)atoi(data_ptr));
 
-	var_ptr = strnstr(var_ptr, T_DASH_FIELD, strlen(var_ptr));
-	if (!var_ptr) {
+	data_ptr = strnstr(data_ptr, T_DASH_FIELD, strlen(var_ptr));
+	if (!data_ptr) {
 		goto do_error;
 	}
-	var_ptr += strlen(T_DASH_FIELD);
-	DS1307_SetDate(atoi(var_ptr));
+	data_ptr += strlen(T_DASH_FIELD);
+	DS1307_SetDate(atoi(data_ptr));
 
-	var_ptr = strnstr(var_ptr, T_TIME_FIELD, strlen(var_ptr));
-	if (!var_ptr) {
+	data_ptr = strnstr(data_ptr, T_TIME_FIELD, strlen(var_ptr));
+	if (!data_ptr) {
 		goto do_error;
 	}
-	var_ptr += strlen(T_TIME_FIELD);
-	DS1307_SetHour(atoi(var_ptr));
+	data_ptr += strlen(T_TIME_FIELD);
+	DS1307_SetHour(atoi(data_ptr));
 
-	var_ptr = strnstr(var_ptr, T_COLON_FIELD, strlen(var_ptr));
-	if (!var_ptr) {
+	data_ptr = strnstr(data_ptr, T_COLON_FIELD, strlen(var_ptr));
+	if (!data_ptr) {
 		goto do_error;
 	}
-	var_ptr += strlen(T_COLON_FIELD);
-	DS1307_SetMinute(atoi(var_ptr));
+	data_ptr += strlen(T_COLON_FIELD);
+	DS1307_SetMinute(atoi(data_ptr));
 
-	var_ptr = strnstr(var_ptr, T_COLON_FIELD, strlen(var_ptr));
-	if (!var_ptr) {
+	data_ptr = strnstr(data_ptr, T_COLON_FIELD, strlen(var_ptr));
+	if (!data_ptr) {
 		goto do_error;
 	}
-	var_ptr += strlen(T_COLON_FIELD);
-	DS1307_SetSecond(atoi(var_ptr));
+	data_ptr += strlen(T_COLON_FIELD);
+	DS1307_SetSecond(atoi(data_ptr));
 
 	LOG_DEBUG(LOG_TAG, " time updated\n");
 
@@ -332,65 +297,67 @@ void _parse_response()
 	}
 
 	// Parse configuration:
-	var_ptr = get_response();
-	var_ptr = strnstr(var_ptr, CF_ID_FIELD, strlen(var_ptr));
-	if (!var_ptr) {
+	data_ptr = var_ptr;
+	data_ptr = strnstr(data_ptr, CF_ID_FIELD, strlen(data_ptr));
+	if (!data_ptr) {
 		goto do_exit;
 	}
-	uint32_t new_cf_id = atoi(var_ptr + strlen(CF_ID_FIELD));
+	uint32_t new_cf_id = atoi(data_ptr + strlen(CF_ID_FIELD));
 	if (new_cf_id == module_settings.cf_id) {
 		goto do_exit;
 	}
 	module_settings.cf_id = new_cf_id;
 
-	var_ptr = strnstr(var_ptr, CF_LOGID_FIELD, strlen(var_ptr));
-	if (var_ptr) {
-		module_settings.server_log_id = atoi(var_ptr + strlen(CF_LOGID_FIELD));
+	data_ptr = var_ptr;
+	data_ptr = strnstr(data_ptr, CF_LOGID_FIELD, strlen(data_ptr));
+	if (data_ptr) {
+		module_settings.server_log_id = atoi(data_ptr + strlen(CF_LOGID_FIELD));
 	}
 
-	char *cnfg_ptr = strnstr(var_ptr, CF_DATA_FIELD, strlen(var_ptr));
+	data_ptr = strnstr(var_ptr, CF_DATA_FIELD, strlen(var_ptr));
 	if (!var_ptr) {
 		goto do_error;
 	}
-	cnfg_ptr += strlen(CF_DATA_FIELD);
+	data_ptr += strlen(CF_DATA_FIELD);
 
-	var_ptr = strnstr(cnfg_ptr, CF_PWR_FIELD, strlen(cnfg_ptr));
-	if (var_ptr) {
-		pump_update_power(atoi(var_ptr + strlen(CF_PWR_FIELD)));
+	var_ptr = data_ptr;
+	data_ptr = strnstr(var_ptr, CF_PWR_FIELD, strlen(var_ptr));
+	if (data_ptr) {
+		pump_update_power(atoi(data_ptr + strlen(CF_PWR_FIELD)));
 	}
 
-	var_ptr = strnstr(cnfg_ptr, CF_LTRMIN_FIELD, strlen(cnfg_ptr));
-	if (var_ptr) {
-		module_settings.tank_liters_min = atoi(var_ptr + strlen(CF_LTRMIN_FIELD));
+	data_ptr = strnstr(var_ptr, CF_LTRMIN_FIELD, strlen(var_ptr));
+	if (data_ptr) {
+		module_settings.tank_liters_min = atoi(data_ptr + strlen(CF_LTRMIN_FIELD));
 	}
 
-	var_ptr = strnstr(cnfg_ptr, CF_LTRMAX_FIELD, strlen(cnfg_ptr));
-	if (var_ptr) {
-		module_settings.tank_liters_max = atoi(var_ptr + strlen(CF_LTRMAX_FIELD));
+	data_ptr = strnstr(var_ptr, CF_LTRMAX_FIELD, strlen(var_ptr));
+	if (data_ptr) {
+		module_settings.tank_liters_max = atoi(data_ptr + strlen(CF_LTRMAX_FIELD));
 	}
 
-	var_ptr = strnstr(cnfg_ptr, CF_TRGT_FIELD, strlen(cnfg_ptr));
-	if (var_ptr) {
-		module_settings.milliliters_per_day = atoi(var_ptr + strlen(CF_TRGT_FIELD));
+	data_ptr = strnstr(var_ptr, CF_TRGT_FIELD, strlen(var_ptr));
+	if (data_ptr) {
+		module_settings.milliliters_per_day = atoi(data_ptr + strlen(CF_TRGT_FIELD));
 	}
 
-	var_ptr = strnstr(cnfg_ptr, CF_SLEEP_FIELD, strlen(cnfg_ptr));
-	if (var_ptr) {
-		update_log_sleep(atoi(var_ptr + strlen(CF_SLEEP_FIELD)) * MILLIS_IN_SECOND);
+	data_ptr = strnstr(var_ptr, CF_SLEEP_FIELD, strlen(var_ptr));
+	if (data_ptr) {
+		update_log_sleep(atoi(data_ptr + strlen(CF_SLEEP_FIELD)) * MILLIS_IN_SECOND);
 	}
 
-	var_ptr = strnstr(cnfg_ptr, CF_SPEED_FIELD, strlen(cnfg_ptr));
-	if (var_ptr) {
-		pump_update_speed(atoi(var_ptr + strlen(CF_SPEED_FIELD)));
+	data_ptr = strnstr(var_ptr, CF_SPEED_FIELD, strlen(var_ptr));
+	if (data_ptr) {
+		pump_update_speed(atoi(data_ptr + strlen(CF_SPEED_FIELD)));
 	}
 
-	var_ptr = strnstr(cnfg_ptr, CF_MOD_ID_FIELD, strlen(cnfg_ptr));
-	if (var_ptr) {
-		module_settings.id = atoi(var_ptr + strlen(CF_MOD_ID_FIELD));
+	data_ptr = strnstr(var_ptr, CF_MOD_ID_FIELD, strlen(var_ptr));
+	if (data_ptr) {
+		module_settings.id = atoi(data_ptr + strlen(CF_MOD_ID_FIELD));
 	}
 
-	var_ptr = strnstr(cnfg_ptr, CF_CLEAR_FIELD, strlen(cnfg_ptr));
-	if (var_ptr && atoi(var_ptr + strlen(CF_CLEAR_FIELD)) == 1) {
+	data_ptr = strnstr(var_ptr, CF_CLEAR_FIELD, strlen(var_ptr));
+	if (data_ptr && atoi(data_ptr + strlen(CF_CLEAR_FIELD)) == 1) {
 		clear_log();
 	}
 

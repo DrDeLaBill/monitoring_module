@@ -12,11 +12,11 @@
 #include <strings.h>
 #include <ctype.h>
 
-#include "settings.h"
+#include "settings_manager.h"
 #include "utils.h"
-#include "ina3221_sensor.h"
 #include "liquid_sensor.h"
 #include "logger.h"
+#include "main.h"
 
 
 #define LINE_BREAK_COUNT 2
@@ -95,7 +95,7 @@ uint16_t response_data_count = 0;
 
 void sim_module_begin() {
 	memset(&sim_state, 0, sizeof(sim_state));
-	Util_TimerStart(&sim_state.start_timer, CNFG_WAIT);
+	util_timer_start(&sim_state.start_timer, CNFG_WAIT);
 	_set_active_state(&_cmd_AT_state);
 	_start_module();
 	_clear_response();
@@ -103,7 +103,7 @@ void sim_module_begin() {
 
 void sim_module_proccess()
 {
-	if (Util_TimerPending(&sim_state.start_timer)) {
+	if (util_is_timer_wait(&sim_state.start_timer)) {
 		return;
 	}
 
@@ -182,7 +182,7 @@ void _execute_state(const char* cmd, uint16_t delay)
 	_clear_response();
 	_send_AT_command(cmd);
 	sim_state.state = WAIT;
-	Util_TimerStart(&sim_state.delay_timer, delay);
+	util_timer_start(&sim_state.delay_timer, delay);
 }
 
 void _send_AT_command(const char* cmd)
@@ -250,7 +250,7 @@ void _wait_itr() {}
 
 void _check_response_timer()
 {
-	if (!Util_TimerPending(&sim_state.delay_timer)) {
+	if (!util_is_timer_wait(&sim_state.delay_timer)) {
 		LOG_DEBUG(SIM_TAG, " error - %s\n", strlen(sim_response) ? sim_response : "empty answer");
 		sim_state.state = SIM_ERROR;
 		sim_state.error_count++;
@@ -268,10 +268,10 @@ void _validate_response(const char* needed_resp)
 
 void _do_error(uint8_t attempts)
 {
-	if (Util_TimerPending(&sim_state.restart_timer)) {
+	if (util_is_timer_wait(&sim_state.restart_timer)) {
 		_set_active_state(&_cmd_AT_state);
 		sim_state.state = SIM_ERROR;
-		Util_TimerStart(&sim_state.start_timer, RESTART_WAIT);
+		util_timer_start(&sim_state.start_timer, RESTART_WAIT);
 		return;
 	}
 
@@ -286,7 +286,7 @@ void _do_error(uint8_t attempts)
 	if (sim_state.error_count >= attempts) {
 		LOG_DEBUG(SIM_TAG, " too many errors\n");
 		_reset_module();
-		Util_TimerStart(&sim_state.restart_timer, RESTART_WAIT);
+		util_timer_start(&sim_state.restart_timer, RESTART_WAIT);
 		return;
 	}
 }
@@ -301,7 +301,7 @@ void _clear_response()
 
 void _reset_module()
 {
-	if (Util_TimerPending(&sim_state.restart_timer)) {
+	if (util_is_timer_wait(&sim_state.restart_timer)) {
 		return;
 	}
 	LOG_DEBUG(SIM_TAG, " sim module RESTART\n");
@@ -310,10 +310,10 @@ void _reset_module()
 
 void _start_module()
 {
-	if (Util_TimerPending(&sim_state.restart_timer)) {
+	if (util_is_timer_wait(&sim_state.restart_timer)) {
 		return;
 	}
-	Util_TimerStart(&sim_state.start_timer, CNFG_WAIT);
+	util_timer_start(&sim_state.start_timer, CNFG_WAIT);
 	HAL_GPIO_WritePin(SIM_MODULE_RESET_PORT, SIM_MODULE_RESET_PIN, GPIO_PIN_SET);
 }
 
@@ -483,7 +483,7 @@ void _cmd_CHTTPACT_state()
 void _cmd_send_state()
 {
 	if (sim_state.state == READY) {
-		Util_TimerStart(&sim_state.delay_timer, HTTP_ACT_WAIT);
+		util_timer_start(&sim_state.delay_timer, HTTP_ACT_WAIT);
 	}
 	if (sim_state.state == WAIT) {
 		_check_response_timer();

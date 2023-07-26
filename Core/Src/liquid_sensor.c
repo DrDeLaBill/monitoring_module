@@ -11,12 +11,14 @@
 #include <stdlib.h>
 
 #include "defines.h"
-#include "settings.h"
 #include "utils.h"
+#include "main.h"
+#include "settings_manager.h"
 
 
 #define LIQUID_ERROR         -1
 #define MILLILITERS_IN_LITER 1000
+#define LIQUID_ADC_CHANNEL   0
 
 
 uint16_t _get_liquid_adc_value();
@@ -30,16 +32,19 @@ const uint16_t adc_ranges[] = {2370, 2318, 2203, 2045, 1832, 1541, 1068, 175, 59
 const uint16_t val_ranges[] = {10,   45,   90,   150,  200,  250,  300,  350, 375};
 
 
-void liquid_sensor_begin()
-{
-	HAL_ADCEx_Calibration_Start(&LIQUID_ADC);
-}
-
 uint16_t get_liquid_adc() {
-	HAL_ADC_Start(&LIQUID_ADC);
-	HAL_ADC_PollForConversion(&LIQUID_ADC, READ_TIMEOUT);
-	uint16_t liquid_ADC_value = HAL_ADC_GetValue(&LIQUID_ADC);
-	HAL_ADC_Stop(&LIQUID_ADC);
+	ADC_ChannelConfTypeDef conf = {
+		.Channel = LIQUID_ADC_CHANNEL,
+		.Rank = 1,
+		.SamplingTime = ADC_SAMPLETIME_28CYCLES_5,
+	};
+	if (HAL_ADC_ConfigChannel(&MEASURE_ADC, &conf) != HAL_OK) {
+		return 0;
+	}
+	HAL_ADC_Start(&MEASURE_ADC);
+	HAL_ADC_PollForConversion(&MEASURE_ADC, ADC_READ_TIMEOUT);
+	uint16_t liquid_ADC_value = HAL_ADC_GetValue(&MEASURE_ADC);
+	HAL_ADC_Stop(&MEASURE_ADC);
 	return liquid_ADC_value;
 }
 

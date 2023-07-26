@@ -2,7 +2,7 @@
  * pump.h
  *
  *  Created on: Oct 19, 2022
- *      Author: georgy
+ *      Author: DrDeLaBill
  */
 
 #ifndef INC_PUMP_H_

@@ -3,7 +3,6 @@
 #include "ds1307_for_stm32_hal.h"
 
 #include "main.h"
-#include "settings.h"
 #include "utils.h"
 
 #ifdef __cplusplus

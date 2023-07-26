@@ -8,15 +8,20 @@
 
 #include "pressure_sensor.h"
 
-#include "ina3221_sensor.h"
+#include <string.h>
+
+#include "main.h"
 #include "utils.h"
+#include "defines.h"
 
 
-#define CURRENT_MIN      4.0
-#define CURRENT_MAX      20.0
-#define CHANNELS_COUNT   2
-#define FIRST_SHUNT_NUM  0
-#define SECOND_SHUNT_NUM 1
+#define CURRENT_MIN           400
+#define CURRENT_MAX           2000
+#define CHANNELS_COUNT        1
+#define FIRST_SHUNT_NUM       0
+#define SECOND_SHUNT_NUM      1
+#define SHUNT_ERROR_VAL       -1
+#define PRESSURE_ADC_CHANNEL1 1
 
 
 channel_measurement measurement_buf[CHANNELS_COUNT] = {};
@@ -25,25 +30,21 @@ const char* PRESS_TAG = "PRES:";
 
 
 void _do_channel_measurements(uint8_t channel_num);
+uint16_t _pressure_get_adc_value();
+uint32_t _pressure_get_absolute_value();
 
 
 void pressure_sensor_begin()
 {
-	INA3221_begin();
-	measurement_buf[0].shunt_buf_min = CURRENT_MAX;
-	measurement_buf[0].shunt_buf_max = 0.0;
-	measurement_buf[0].state = TO_MIN;
-	measurement_buf[1].shunt_buf_min = CURRENT_MAX;
-	measurement_buf[1].shunt_buf_max = 0.0;
-	measurement_buf[1].state = TO_MIN;
+	memset((uint8_t*)&measurement_buf, 0, sizeof(measurement_buf));
 }
 
-float get_first_press()
+uint32_t get_first_press()
 {
 	return measurement_buf[0].shunt_val_max;
 }
 
-float get_second_press()
+uint32_t get_second_press()
 {
 	return measurement_buf[1].shunt_val_max;
 }
@@ -51,8 +52,6 @@ float get_second_press()
 void pressure_sensor_proccess()
 {
 	_do_channel_measurements(FIRST_SHUNT_NUM);
-	_do_channel_measurements(SECOND_SHUNT_NUM);
-//	LOG_DEBUG(PRESS_TAG, " time: %lu 1 - %d.%d, 2 - %d.%d\n", HAL_GetTick(), FLOAT_AS_STRINGS(measurement_buf[0].shunt_buf), FLOAT_AS_STRINGS(measurement_buf[1].shunt_buf));
 }
 
 void _do_channel_measurements(uint8_t channel_num)
@@ -62,12 +61,12 @@ void _do_channel_measurements(uint8_t channel_num)
 	}
 
 	channel_measurement *channel_ms = &measurement_buf[channel_num];
-	float cur_level = INA3221_getCurrent_mA(channel_num + 1);
+	uint32_t cur_level = _pressure_get_absolute_value();
 
 	if (cur_level <= 0.0) {
 		channel_ms->shunt_buf_max = 0.0;
 		channel_ms->shunt_buf_min = CURRENT_MAX;
-		channel_ms->shunt_val_max = INA3221_ERROR;
+		channel_ms->shunt_val_max = SHUNT_ERROR_VAL;
 		channel_ms->state = TO_MIN;
 		return;
 	}
@@ -94,3 +93,26 @@ void _do_channel_measurements(uint8_t channel_num)
 		channel_ms->shunt_val_max = channel_ms->shunt_buf_max;
 	}
 }
+
+uint16_t _pressure_get_adc_value()
+{
+	ADC_ChannelConfTypeDef conf = {
+		.Channel = PRESSURE_ADC_CHANNEL1,
+		.Rank = 1,
+		.SamplingTime = ADC_SAMPLETIME_28CYCLES_5,
+	};
+	if (HAL_ADC_ConfigChannel(&MEASURE_ADC, &conf) != HAL_OK) {
+		return 0;
+	}
+	HAL_ADC_Start(&MEASURE_ADC);
+	HAL_ADC_PollForConversion(&MEASURE_ADC, ADC_READ_TIMEOUT);
+	uint16_t pressure_ADC_value = HAL_ADC_GetValue(&MEASURE_ADC);
+	HAL_ADC_Stop(&MEASURE_ADC);
+	return pressure_ADC_value;
+}
+
+uint32_t _pressure_get_absolute_value()
+{
+	return util_convert_range(_pressure_get_adc_value(), 0, MAX_ADC_VALUE, CURRENT_MIN, CURRENT_MAX);
+}
+

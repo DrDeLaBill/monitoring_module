@@ -12,7 +12,6 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "settings.h"
 #include "logger.h"
 #include "settings_manager.h"
 #include "record_manager.h"
@@ -29,7 +28,7 @@ void _show_status();
 void _show_error();
 
 
-const char *COMMAND_TAG = "CMND";
+const char *COMMAND_TAG = "UART";
 char command_buffer[CHAR_COMMAND_SIZE] = {};
 
 
@@ -162,10 +161,50 @@ void _clear_command()
 
 void _show_status()
 {
-	UART_MSG(SPRINTF_SETTINGS_FORMAT);
+	LOG_MESSAGE(
+		COMMAND_TAG,
+		"\n###################SETTINGS###################\n"
+		"Time:             %u-%02u-%02uT%02u:%02u:%02u\n"
+		"Device ID:        %lu\n"
+		"Server URL:       %s:%s\n"
+		"ADC level MIN:    %u\n"
+		"ADC level MAX:    %u\n"
+		"Liquid level MIN: %lu l\n"
+		"Liquid level MAX: %lu l\n"
+		"Target:           %lu ml/dn"
+		"Pump speed:       %lu ml/h\n"
+		"Sleep time:       %lu sec\n"
+		"Server log ID:    %lu\n"
+		"Pump work:        %lu sec\n"
+		"Pump work day:    %lu sec\n"
+		"Config ver:       %lu\n"
+		"Pump              %s\n"
+		"###################SETTINGS###################\n",
+		DS1307_GetYear(),
+		DS1307_GetMonth(),
+		DS1307_GetDate(),
+		DS1307_GetHour(),
+		DS1307_GetMinute(),
+		DS1307_GetSecond(),
+		module_settings.id,
+		module_settings.server_url,
+		module_settings.server_port,
+		module_settings.tank_ADC_min,
+		module_settings.tank_ADC_max,
+		module_settings.tank_liters_min,
+		module_settings.tank_liters_max,
+		module_settings.milliliters_per_day,
+		module_settings.pump_speed,
+		module_settings.sleep_time / MILLIS_IN_SECOND,
+		module_settings.server_log_id,
+		module_settings.pump_work_sec,
+		module_settings.pump_work_day_sec,
+		module_settings.cf_id,
+		module_settings.pump_enabled ? "ON" : "OFF"
+	);
 }
 
 void _show_error()
 {
-	UART_MSG("Invalid UART command\n");
+	LOG_MESSAGE(COMMAND_TAG, " invalid UART command\n");
 }

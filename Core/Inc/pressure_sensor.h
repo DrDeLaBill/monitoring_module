@@ -2,7 +2,7 @@
  * pressure_sensor.h
  *
  *  Created on: Jan 30, 2023
- *      Author: georg
+ *      Author: DrDeLaBill
  */
 
 #ifndef INC_PRESSURE_SENSOR_H_
@@ -17,17 +17,18 @@ enum {
 	TO_MIN
 };
 
+
 typedef struct _channel_measurement {
-	float shunt_buf_min;
-	float shunt_buf_max;
-	float shunt_val_max;
+	uint32_t shunt_buf_min;
+	uint32_t shunt_buf_max;
+	uint32_t shunt_val_max;
 	uint8_t state;
 } channel_measurement;
 
 
 void pressure_sensor_begin();
-float get_first_press();
-float get_second_press();
+uint32_t get_first_press();
+uint32_t get_second_press();
 void pressure_sensor_proccess();
 
 

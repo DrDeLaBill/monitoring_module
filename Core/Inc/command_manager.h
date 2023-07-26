@@ -2,7 +2,7 @@
  * uart_command.h
  *
  *  Created on: Sep 5, 2022
- *      Author: georg
+ *      Author: DrDeLaBill
  */
 
 #ifndef INC_COMMAND_MANAGER_H_
@@ -14,12 +14,9 @@
 #define UART_RESPONSE_SIZE 40
 
 
-#define UART_MSG(format, ...) { \
-	printf(format __VA_OPT__(,) __VA_ARGS__); \
-}
-
 void command_manager_begin();
 void command_manager_proccess();
 void cmd_proccess_input(const char input_chr);
+
 
 #endif /* INC_COMMAND_MANAGER_H_ */

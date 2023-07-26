@@ -10,11 +10,11 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#include "settings.h"
 #include "command_manager.h"
 #include "liquid_sensor.h"
 #include "ds1307_for_stm32_hal.h"
 #include "utils.h"
+#include "settings_manager.h"
 
 
 #define CYCLES_PER_HOUR    4
@@ -44,7 +44,7 @@ uint32_t _get_day_sec_left();
 PumpState pump_state;
 
 
-const char* PUMP_TAG = "\r\nPUMP";
+const char* PUMP_TAG = "PUMP";
 
 
 void pump_init()
@@ -52,13 +52,13 @@ void pump_init()
 	_set_action(_work_state_action);
 	pump_update_power(module_settings.pump_enabled);
 	if (module_settings.milliliters_per_day == 0) {
-		UART_MSG("No setting: milliliters_per_day\n");
+		LOG_MESSAGE(PUMP_TAG, " No setting: milliliters_per_day\n");
 	}
 	if (module_settings.pump_speed == 0) {
-		UART_MSG("No setting: pump_speed\n");
+		LOG_MESSAGE(PUMP_TAG, " No setting: pump_speed\n");
 	}
 	if (is_liquid_tank_empty()) {
-		UART_MSG("Error liquid tank\n");
+		LOG_MESSAGE(PUMP_TAG, " Error liquid tank\n");
 	}
 }
 
@@ -85,21 +85,25 @@ void pump_update_work() {
 void pump_update_power(bool enabled)
 {
 	module_settings.pump_enabled = enabled;
-	HAL_GPIO_WritePin(STATE_LED_GPIO_Port, STATE_LED_Pin, (enabled ? SET : RESET));
+	HAL_GPIO_WritePin(RED_LED_GPIO_Port, RED_LED_Pin, (enabled ? SET : RESET));
+	if (enabled && pump_state.state == PUMP_WORK) {
+		return;
+	}
+	pump_state.state = enabled ? PUMP_WAIT : PUMP_OFF;
 }
 
 void pump_show_work()
 {
 	uint32_t time_period = 0;
 	if (pump_state.state == PUMP_WORK) {
-		UART_MSG("Pump work from %lu to %lu\n", pump_state.start_time, pump_state.start_time + pump_state.needed_work_time);
+		LOG_MESSAGE(PUMP_TAG, " Pump work from %lu to %lu\n", pump_state.start_time, pump_state.start_time + pump_state.needed_work_time);
 		time_period = pump_state.needed_work_time;
 	} else {
 		time_period = pump_state.start_time - HAL_GetTick();
-		UART_MSG("Pump will start at %lu\n", pump_state.start_time);
+		LOG_MESSAGE(PUMP_TAG, " Pump will start at %lu\n", pump_state.start_time);
 	}
-	UART_MSG("Wait %lu min %lu sec\n", time_period / SECONDS_PER_MINUTE / MILLIS_IN_SECOND, (time_period / MILLIS_IN_SECOND) % SECONDS_PER_MINUTE);
-	UART_MSG("Now: %lu\n", HAL_GetTick());
+	LOG_MESSAGE(PUMP_TAG, " Wait %lu min %lu sec\n", time_period / SECONDS_PER_MINUTE / MILLIS_IN_SECOND, (time_period / MILLIS_IN_SECOND) % SECONDS_PER_MINUTE);
+	LOG_MESSAGE(PUMP_TAG, " Now: %lu\n", HAL_GetTick());
 }
 
 void clear_pump_log()
@@ -152,7 +156,7 @@ void _calculate_work_time()
 	if (is_liquid_tank_empty()) {
 		return;
 	}
-	volatile uint16_t used_day_liquid = module_settings.pump_work_day_sec * module_settings.pump_speed / MILLIS_IN_SECOND;
+	uint16_t used_day_liquid = module_settings.pump_work_day_sec * module_settings.pump_speed / MILLIS_IN_SECOND;
 	if (module_settings.milliliters_per_day <= used_day_liquid) {
 		return;
 	}
@@ -184,7 +188,7 @@ void _start_pump()
 		return;
 	}
 	pump_state.start_time = HAL_GetTick();
-	Util_TimerStart(&pump_state.work_timer, pump_state.needed_work_time);
+	util_timer_start(&pump_state.work_timer, pump_state.needed_work_time);
 	if (module_settings.pump_enabled) {
 		LOG_DEBUG(PUMP_TAG,	" PUMP ON (%ld ms)\n", pump_state.needed_work_time);
 		pump_state.state = PUMP_WORK;
@@ -192,6 +196,7 @@ void _start_pump()
 	} else {
 		LOG_DEBUG(PUMP_TAG, " pump disabled\n");
 		pump_state.state = PUMP_OFF;
+		pump_state.start_time += PUMP_WORK_PERIOD;
 	}
 	pump_show_work();
 }
@@ -234,7 +239,7 @@ void _write_work_time_to_log()
 
 void _watch_pump_work()
 {
-	if (Util_TimerPending(&pump_state.work_timer)) {
+	if (util_is_timer_wait(&pump_state.work_timer)) {
 		return;
 	}
 	pump_state.start_time += PUMP_WORK_PERIOD;

@@ -20,32 +20,22 @@
 #include "main.h"
 #include "adc.h"
 #include "crc.h"
-#include "fatfs.h"
 #include "i2c.h"
-#include "spi.h"
+#include "iwdg.h"
 #include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "utils.h"
-
-// Settings
-#include "settings.h"
-// Shunt sensor
 #include "pressure_sensor.h"
-// UART command manager
 #include "command_manager.h"
-// SIM module
 #include "sim_module.h"
-// Clock DS1307
 #include "ds1307_for_stm32_hal.h"
-// Liquid sensor
 #include "liquid_sensor.h"
-// Logger manager
 #include "pump.h"
-// Data logger
 #include "logger.h"
+#include "settings_manager.h"
 
 /* USER CODE END Includes */
 
@@ -72,8 +62,7 @@
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
 
-// DIO SPI
-void my_delay_ms(uint32_t ms);
+int _write(int file, uint8_t *ptr, int len);
 
 /* USER CODE END PFP */
 
@@ -109,17 +98,15 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_ADC1_Init();
   MX_CRC_Init();
   MX_I2C1_Init();
-  MX_SPI1_Init();
   MX_USART1_UART_Init();
   MX_USART2_UART_Init();
-  MX_FATFS_Init();
+  MX_IWDG_Init();
+  MX_USB_PCD_Init();
+  MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
 	HAL_Delay(100);
-    // DIO SPI
-	DIO_SPI_Delay_cb = &my_delay_ms;
     // Settings initializing
 	if (settings_load() != SETTINGS_OK) {
 		settings_reset();
@@ -130,8 +117,6 @@ int main(void)
 	pressure_sensor_begin();
 	// UART command manager
 	command_manager_begin();
-	// Liquid sensor
-	liquid_sensor_begin();
 	// SIM module
 	sim_module_begin();
 	//Log manager
@@ -139,7 +124,11 @@ int main(void)
 	// Pump
 	pump_init();
 	// State LED
-	HAL_GPIO_WritePin(STATE_LED_GPIO_Port, STATE_LED_Pin, SET);
+	HAL_GPIO_WritePin(RED_LED_GPIO_Port, RED_LED_Pin, SET);
+	// Measure ADC start
+	HAL_ADCEx_Calibration_Start(&MEASURE_ADC);
+	// Start message
+	LOG_MESSAGE("GNRL", "Module start\n");
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -150,7 +139,7 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 	  // Watchdog timer update
-//	  HAL_WWDG_Refresh(&hwwdg);
+	  HAL_IWDG_Refresh(&hiwdg);
 	  // Commands from UART
 	  command_manager_proccess();
 	  // Shunt sensor
@@ -178,10 +167,11 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSI|RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
@@ -203,8 +193,9 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_ADC;
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_ADC|RCC_PERIPHCLK_USB;
   PeriphClkInit.AdcClockSelection = RCC_ADCPCLK2_DIV6;
+  PeriphClkInit.UsbClockSelection = RCC_USBCLKSOURCE_PLL_DIV1_5;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
     Error_Handler();
@@ -213,9 +204,14 @@ void SystemClock_Config(void)
 
 /* USER CODE BEGIN 4 */
 
-// DIO SPI
-void my_delay_ms(uint32_t ms) {
-	HAL_Delay(ms);
+int _write(int file, uint8_t *ptr, int len) {
+	HAL_UART_Transmit(&COMMAND_UART, (uint8_t *) ptr, len, DEFAULT_UART_DELAY);
+#ifdef DEBUG
+	for (int DataIdx = 0; DataIdx < len; DataIdx++) {
+		ITM_SendChar(*ptr++);
+	}
+#endif
+	return len;
 }
 
 /* USER CODE END 4 */
