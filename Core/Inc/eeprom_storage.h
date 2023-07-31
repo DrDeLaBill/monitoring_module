@@ -10,11 +10,13 @@
 
 
 #include <stm32f1xx_hal.h>
+#include <stdbool.h>
 
 
 #define EEPROM_I2C_ADDR   ((uint8_t)0b10100000)
 #define EEPROM_PAGE_SIZE  (256)
 #define EEPROM_PAGE_COUNT (512)
+#define EEPROM_DEBUG      (false)
 
 
 typedef enum _eeprom_status_t {

@@ -19,10 +19,10 @@
 #define CHAR_SETIINGS_SIZE    30
 #define CHAR_PARAM_SIZE       30
 #define DEFAULT_SLEEPING_TIME 900000
-#define MIN_TANK_VOLUME       2378
+#define MIN_TANK_VOLUME       3500
 #define MAX_TANK_VOLUME       16
-#define MIN_TANK_LTR          10
-#define MAX_TANK_LTR          375
+#define MIN_TANK_LTR          10000
+#define MAX_TANK_LTR          375000
 #define SETTING_VALUE_MIN     0
 #define MAX_ADC_VALUE         4095
 #define LOW_VOLTAGE           0

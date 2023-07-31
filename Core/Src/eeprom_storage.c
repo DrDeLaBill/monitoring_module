@@ -6,59 +6,95 @@
  */
 #include <eeprom_storage.h>
 
+#include <stdbool.h>
+
 #include <stm32f1xx_hal.h>
 #include <stm32f1xx_hal_i2c.h>
 
 #include "main.h"
+#include "utils.h"
 
 
 #define EEPROM_DELAY ((uint16_t)0xFFFF)
 
+const char* EEPROM_TAG = "EEPR";
+
 
 eeprom_status_t eeprom_read(uint32_t addr, uint8_t* buf, uint16_t len)
 {
-	if (addr > EEPROM_PAGE_COUNT * EEPROM_PAGE_SIZE) {
-		return EEPROM_ERROR_ADDR;
-	}
-	if (addr + len > EEPROM_PAGE_COUNT * EEPROM_PAGE_SIZE) {
-		return EEPROM_ERROR_ADDR;
-	}
+#if EEPROM_DEBUG
+    LOG_DEBUG(EEPROM_TAG, "eeprom read: begin (addr=%lu, length=%u)\n", addr, len);
+#endif
 
-	uint8_t dev_addr = EEPROM_I2C_ADDR | (((addr >> 16) & 0x01) << 1);
+    if (addr > EEPROM_PAGE_COUNT * EEPROM_PAGE_SIZE) {
+#if EEPROM_DEBUG
+        LOG_DEBUG(EEPROM_TAG, "eeprom read: error - out of max address\n");
+#endif
+        return EEPROM_ERROR_ADDR;
+    }
+    if (addr + len > EEPROM_PAGE_COUNT * EEPROM_PAGE_SIZE) {
+#if EEPROM_DEBUG
+        LOG_DEBUG(EEPROM_TAG, "eeprom read: error - out of max address or length\n");
+#endif
+        return EEPROM_ERROR_ADDR;
+    }
 
-	HAL_StatusTypeDef status = HAL_I2C_IsDeviceReady(&EEPROM_I2C, EEPROM_I2C_ADDR, 1, EEPROM_DELAY);
-	if (status != HAL_OK) {
-		return EEPROM_ERROR_BUSY;
-	}
+    uint8_t dev_addr = EEPROM_I2C_ADDR | (((addr >> 16) & 0x01) << 1);
+#if EEPROM_DEBUG
+    LOG_DEBUG(EEPROM_TAG, "eeprom read: device i2c address - 0x%02x\n", dev_addr);
+#endif
 
-	status = HAL_I2C_Mem_Read(&EEPROM_I2C, dev_addr, (uint16_t)(addr & 0xFFFF), I2C_MEMADD_SIZE_16BIT, buf, len, EEPROM_DELAY);
-	if (status != HAL_OK) {
-		return EEPROM_ERROR;
-	}
+    HAL_StatusTypeDef status = HAL_I2C_Mem_Read(&EEPROM_I2C, dev_addr, (uint16_t)(addr & 0xFFFF), I2C_MEMADD_SIZE_16BIT, buf, len, EEPROM_DELAY);
+    if (status != HAL_OK) {
+#if EEPROM_DEBUG
+        LOG_DEBUG(EEPROM_TAG, "eeprom read: i2c error=0x%02x\n", status);
+#endif
+        return EEPROM_ERROR;
+    }
 
-	return EEPROM_OK;
+#if EEPROM_DEBUG
+    LOG_DEBUG(EEPROM_TAG, "eeprom read: OK\n");
+#endif
+
+    HAL_IWDG_Refresh(&DEVICE_IWDG);
+    return EEPROM_OK;
 }
 
 eeprom_status_t eeprom_write(uint32_t addr, uint8_t* buf, uint16_t len)
 {
-	if (addr > EEPROM_PAGE_COUNT * EEPROM_PAGE_SIZE) {
-		return EEPROM_ERROR_ADDR;
-	}
-	if (addr + len > EEPROM_PAGE_COUNT * EEPROM_PAGE_SIZE) {
-		return EEPROM_ERROR_ADDR;
-	}
+#if EEPROM_DEBUG
+    LOG_DEBUG(EEPROM_TAG, "eeprom write: begin (addr=%lu, length=%u)\n", addr, len);
+#endif
 
-	uint8_t dev_addr = EEPROM_I2C_ADDR | (uint8_t)(((addr >> 16) & 0x01) << 1) | (uint8_t)1;
+    if (addr > EEPROM_PAGE_COUNT * EEPROM_PAGE_SIZE) {
+#if EEPROM_DEBUG
+        LOG_DEBUG(EEPROM_TAG, "eeprom write: error - out of max address\n");
+#endif
+        return EEPROM_ERROR_ADDR;
+    }
+    if (addr + len > EEPROM_PAGE_COUNT * EEPROM_PAGE_SIZE) {
+#if EEPROM_DEBUG
+        LOG_DEBUG(EEPROM_TAG, "eeprom write: error - out of max address or length\n");
+#endif
+        return EEPROM_ERROR_ADDR;
+    }
 
-	HAL_StatusTypeDef status = HAL_I2C_IsDeviceReady(&EEPROM_I2C, EEPROM_I2C_ADDR, 1, EEPROM_DELAY);
-	if (status != HAL_OK) {
-		return EEPROM_ERROR_BUSY;
-	}
+    uint8_t dev_addr = EEPROM_I2C_ADDR | (uint8_t)(((addr >> 16) & 0x01) << 1) | (uint8_t)1;
+#if EEPROM_DEBUG
+    LOG_DEBUG(EEPROM_TAG, "eeprom write: device i2c address - 0x%02x\n", dev_addr);
+#endif
 
-	status = HAL_I2C_Mem_Write(&EEPROM_I2C, dev_addr, (uint16_t)(addr & 0xFFFF), I2C_MEMADD_SIZE_16BIT, buf, len, EEPROM_DELAY);
-	if (status != HAL_OK) {
-		return EEPROM_ERROR;
-	}
+    HAL_StatusTypeDef status = HAL_I2C_Mem_Write(&EEPROM_I2C, dev_addr, (uint16_t)(addr & 0xFFFF), I2C_MEMADD_SIZE_16BIT, buf, len, EEPROM_DELAY);
+    if (status != HAL_OK) {
+#if EEPROM_DEBUG
+        LOG_DEBUG(EEPROM_TAG, "eeprom write: i2c error=0x%02x\n", status);
+#endif
+        return EEPROM_ERROR;
+    }
 
-	return EEPROM_OK;
+#if EEPROM_DEBUG
+    LOG_DEBUG(EEPROM_TAG, "eeprom write: OK\n");
+#endif
+
+    return EEPROM_OK;
 }

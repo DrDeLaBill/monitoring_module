@@ -13,18 +13,17 @@
 #include <stdlib.h>
 
 #include "logger.h"
+#include "storage_data_manager.h"
 #include "settings_manager.h"
 #include "record_manager.h"
 #include "liquid_sensor.h"
 #include "utils.h"
-#include "ds1307_for_stm32_hal.h"
 #include "pump.h"
 
 
 bool _validate_command();
 void _execute_command();
 void _clear_command();
-void _show_status();
 void _show_error();
 
 
@@ -84,7 +83,7 @@ void _execute_command()
 	}
 
 	if (strncmp("status", command, CHAR_COMMAND_SIZE) == 0) {
-		goto do_end;
+		goto do_show_end;
 	} else if (strncmp("saveadcmin", command, CHAR_COMMAND_SIZE) == 0) {
 		module_settings.tank_ADC_min = get_liquid_adc();
 		goto do_success;
@@ -95,11 +94,23 @@ void _execute_command()
 		settings_reset();
 	} else if (strncmp("clearlog", command, CHAR_COMMAND_SIZE) == 0) {
 		clear_log();
-		goto do_end;
+		goto do_show_end;
 	} else if (strncmp("clearpump", command, CHAR_COMMAND_SIZE) == 0) {
-		clear_pump_log();
-		goto do_end;
+		pump_clear_log();
+		goto do_show_end;
+	} else if (strncmp("pump", command, CHAR_COMMAND_SIZE) == 0) {
+		pump_show_status();
+		goto do_clear;
+	} else if (strncmp("reset", command, CHAR_COMMAND_SIZE) == 0) {
+		// TODO: очистка EEPROM
+		goto do_clear;
 	}
+#ifdef DEBUG
+	else if (strncmp("reseteepromerr", command, CHAR_COMMAND_SIZE) == 0) {
+		storage_reset_errors_list_page();
+		goto do_success;
+	}
+#endif
 
 
 	char* value = strtok(NULL, " ");
@@ -127,7 +138,7 @@ void _execute_command()
 		goto do_success;
 	} else if (strncmp("settarget", command, CHAR_COMMAND_SIZE) == 0) {
 		module_settings.milliliters_per_day = atoi(value);
-		pump_update_work();
+		pump_reset_work_state();
 		goto do_success;
 	} else if (strncmp("setpumpspeed", command, CHAR_COMMAND_SIZE) == 0) {
 		pump_update_speed((uint32_t)atoi(value));
@@ -136,21 +147,40 @@ void _execute_command()
 		module_settings.server_log_id = (uint32_t)atoi(value);
 		goto do_success;
 	}
+#ifdef DEBUG
+	else if (strncmp("setadcmin", command, CHAR_COMMAND_SIZE) == 0) {
+		module_settings.tank_ADC_min = (uint32_t)atoi(value);
+		goto do_success;
+	} else if (strncmp("setadcmax", command, CHAR_COMMAND_SIZE) == 0) {
+		module_settings.tank_ADC_max = (uint32_t)atoi(value);
+		goto do_success;
+	} else if (strncmp("setpower", command, CHAR_COMMAND_SIZE) == 0) {
+		bool enabled = (bool)atoi(value);
+		module_settings.pump_enabled = enabled;
+		pump_update_enable_state(enabled);
+		goto do_success;
+	} else if (strncmp("setconfigver", command, CHAR_COMMAND_SIZE) == 0) {
+		module_settings.cf_id = (uint32_t)atoi(value);
+		goto do_success;
+	}
+#endif
 
 	goto do_error;
 
 do_success:
 //	module_settings.cf_id = 1;
 	settings_save();
-	goto do_end;
+	goto do_show_end;
 
 do_error:
 	_show_error();
-	goto do_end;
+	goto do_show_end;
 
-do_end:
-	_show_status();
-	pump_show_work();
+do_show_end:
+	LOG_MESSAGE(COMMAND_TAG, LOG_DEBUG_SETTINGS_FORMAT);
+	goto do_clear;
+
+do_clear:
 	_clear_command();
 }
 
@@ -159,52 +189,7 @@ void _clear_command()
 	memset(command_buffer, 0, sizeof(command_buffer));
 }
 
-void _show_status()
-{
-	LOG_MESSAGE(
-		COMMAND_TAG,
-		"\n###################SETTINGS###################\n"
-		"Time:             %u-%02u-%02uT%02u:%02u:%02u\n"
-		"Device ID:        %lu\n"
-		"Server URL:       %s:%s\n"
-		"ADC level MIN:    %u\n"
-		"ADC level MAX:    %u\n"
-		"Liquid level MIN: %lu l\n"
-		"Liquid level MAX: %lu l\n"
-		"Target:           %lu ml/dn"
-		"Pump speed:       %lu ml/h\n"
-		"Sleep time:       %lu sec\n"
-		"Server log ID:    %lu\n"
-		"Pump work:        %lu sec\n"
-		"Pump work day:    %lu sec\n"
-		"Config ver:       %lu\n"
-		"Pump              %s\n"
-		"###################SETTINGS###################\n",
-		DS1307_GetYear(),
-		DS1307_GetMonth(),
-		DS1307_GetDate(),
-		DS1307_GetHour(),
-		DS1307_GetMinute(),
-		DS1307_GetSecond(),
-		module_settings.id,
-		module_settings.server_url,
-		module_settings.server_port,
-		module_settings.tank_ADC_min,
-		module_settings.tank_ADC_max,
-		module_settings.tank_liters_min,
-		module_settings.tank_liters_max,
-		module_settings.milliliters_per_day,
-		module_settings.pump_speed,
-		module_settings.sleep_time / MILLIS_IN_SECOND,
-		module_settings.server_log_id,
-		module_settings.pump_work_sec,
-		module_settings.pump_work_day_sec,
-		module_settings.cf_id,
-		module_settings.pump_enabled ? "ON" : "OFF"
-	);
-}
-
 void _show_error()
 {
-	LOG_MESSAGE(COMMAND_TAG, " invalid UART command\n");
+	LOG_MESSAGE(COMMAND_TAG, "invalid UART command\n");
 }

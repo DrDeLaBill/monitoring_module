@@ -14,240 +14,462 @@
 #include "utils.h"
 
 
-#define STORAGE_PAGE_ERRORS_ADDR ((uint32_t)(0))
-
-
-struct __attribute__((packed)) _storage_pages_err_list_t {
-	uint8_t blocked[STORAGE_PAGES_COUNT];
-} storage_pages_err_list = {0};
-
-
 const char* STORAGE_TAG = "STRG";
 
+bool is_error_page_updated = true;
+storage_errors_list_page_t storage_errors_page_list;
 
-storage_status_t _storage_write_page(uint32_t page_addr, uint8_t* buff, uint16_t len);
-storage_status_t _storage_read_page(uint32_t page_addr, uint8_t* buff, uint16_t len);
 
-storage_status_t _storage_write_pages_err_list();
-storage_status_t _storage_read_pages_err_list();
+storage_status_t _storage_write_page(uint32_t page_addr, uint8_t* buff, uint16_t len, uint8_t appointment);
+storage_status_t _storage_read_page(uint32_t page_addr, uint8_t* buff, uint16_t len, uint8_t appointment);
 
-void _storage_inverse_payload_bits(storage_payload_t* payload);
-bool _storage_check_payload_bits(storage_payload_t* payload);
+storage_status_t _storage_write_errors_list_page();
+storage_status_t _storage_read_errors_list_page();
+storage_status_t _storage_get_errors_list_page_addr(uint32_t* addr);
+
+void _storage_inverse_payload_bits(storage_page_record_t* payload);
+bool _storage_check_inverse_bits(storage_page_record_t* payload);
+
+bool _storage_is_page_blocked(uint16_t page_num);
+void _storage_set_page_blocked(uint16_t page_num, bool blocked);
 
 
 storage_status_t storage_load(uint32_t addr, uint8_t* data, uint16_t len)
 {
-	storage_status_t status = _storage_read_pages_err_list();
-	if (status != STORAGE_OK) {
-		LOG_DEBUG(STORAGE_TAG, " unable to load, unable to get available addresses\n");
-		return status;
-	}
+#if STORAGE_DEBUG
+	LOG_DEBUG(STORAGE_TAG, "storage load: begin\n");
+#endif
 
-	if (storage_pages_err_list.blocked[addr / STORAGE_MAX_PAYLOAD_SIZE]) {
-		LOG_DEBUG(STORAGE_TAG, " unavailable address: storage page error\n");
-		return STORAGE_ERROR_ADDR;
-	}
+    storage_status_t status = _storage_read_errors_list_page();
+    if (status != STORAGE_OK) {
+#if STORAGE_DEBUG
+        LOG_DEBUG(STORAGE_TAG, "storage load: unable to get errors list page\n");
+#endif
+        return status;
+    }
 
-	status = _storage_read_page(addr, data, len);
-	if (status == STORAGE_ERROR_BITS) {
-		storage_pages_err_list.blocked[addr / STORAGE_MAX_PAYLOAD_SIZE] = true;
-		_storage_write_pages_err_list(); // TODO: add check
-	}
-	if (status != STORAGE_OK) {
-		LOG_DEBUG(STORAGE_TAG, " unable to load, unable to get available addresses\n");
-		return status;
-	}
+    if (_storage_is_page_blocked(addr / STORAGE_PAGE_SIZE)) {
+#if STORAGE_DEBUG
+        LOG_DEBUG(STORAGE_TAG, "storage load: unavailable address - errors list page\n");
+#endif
+        return STORAGE_ERROR_BLOCKED;
+    }
 
-	return STORAGE_OK;
+    status = _storage_read_page(addr, data, len, STORAGE_APPOINTMENT_COMMON);
+    if (status != STORAGE_OK) {
+#if STORAGE_DEBUG
+        LOG_DEBUG(STORAGE_TAG, "storage load: unable to get available addresses\n");
+#endif
+        return status;
+    }
+
+#if STORAGE_DEBUG
+	LOG_DEBUG(STORAGE_TAG, "storage load: OK\n");
+#endif
+    return STORAGE_OK;
 }
 
 storage_status_t storage_save(uint32_t addr, uint8_t* data, uint16_t len)
 {
-	storage_status_t status = _storage_read_pages_err_list();
-	if (status != STORAGE_OK) {
-		LOG_DEBUG(STORAGE_TAG, " unable to load, unable to get available addresses\n");
-		return status;
-	}
-	if (storage_pages_err_list.blocked[addr / STORAGE_MAX_PAYLOAD_SIZE]) {
-		LOG_DEBUG(STORAGE_TAG, " unavailable address: storage page blocked\n");
-		return STORAGE_ERROR_ADDR;
-	}
+#if STORAGE_DEBUG
+	LOG_DEBUG(STORAGE_TAG, "storage save: begin\n");
+#endif
 
-	status = _storage_write_page(addr, data, len);
-	if (status != STORAGE_OK) {
-		LOG_DEBUG(STORAGE_TAG, " unable to load: storage write error\n");
-		return status;
-	}
+    storage_status_t status = _storage_read_errors_list_page();
+    if (status != STORAGE_OK) {
+#if STORAGE_DEBUG
+        LOG_DEBUG(STORAGE_TAG, "storage save: unable to get errors list page\n");
+#endif
+        return status;
+    }
+    if (_storage_is_page_blocked(addr / STORAGE_PAGE_SIZE)) {
+#if STORAGE_DEBUG
+        LOG_DEBUG(STORAGE_TAG, "storage save: storage page blocked\n");
+#endif
+        return STORAGE_ERROR_BLOCKED;
+    }
 
-	return STORAGE_OK;
+    status = _storage_write_page(addr, data, len, STORAGE_APPOINTMENT_COMMON);
+    if (status != STORAGE_OK) {
+#if STORAGE_DEBUG
+        LOG_DEBUG(STORAGE_TAG, "storage save: storage write error\n");
+#endif
+        return status;
+    }
+
+#if STORAGE_DEBUG
+	LOG_DEBUG(STORAGE_TAG, "storage save: OK\n");
+#endif
+    return STORAGE_OK;
 }
 
 storage_status_t storage_get_first_available_addr(uint32_t* addr)
 {
-	storage_status_t status = _storage_read_pages_err_list();
+#if STORAGE_DEBUG
+	LOG_DEBUG(STORAGE_TAG, "get first available address\n");
+#endif
+    return storage_get_next_available_addr(STORAGE_START_ADDR, addr);
+}
+
+storage_status_t storage_get_next_available_addr(uint32_t prev_addr, uint32_t* next_addr)
+{
+#if STORAGE_DEBUG
+	LOG_DEBUG(STORAGE_TAG, "get next of %lu address: begin\n", prev_addr);
+#endif
+
+    if (prev_addr + sizeof(storage_page_record_t) - 1 > STORAGE_SIZE) {
+#if STORAGE_DEBUG
+        LOG_DEBUG(STORAGE_TAG, "get next of %lu address: error - out of memory\n", prev_addr);
+#endif
+        return STORAGE_ERROR_OUT_OF_MEMORY;
+    }
+
+    storage_status_t status = _storage_read_errors_list_page();
+	if (status != STORAGE_OK) {
+#if STORAGE_DEBUG
+		LOG_DEBUG(STORAGE_TAG, "get next of %lu address: error read errors list page - try to write errors list page\n", prev_addr);
+#endif
+		status = storage_reset_errors_list_page();
+	}
 
 	if (status != STORAGE_OK) {
-		LOG_DEBUG(STORAGE_TAG, " try to write errors list page\n");
-		memset((uint8_t*)&storage_pages_err_list, 0, sizeof(storage_pages_err_list));
-		status = _storage_write_pages_err_list();
+#if STORAGE_DEBUG
+		LOG_DEBUG(STORAGE_TAG, "get next of %lu address: unable to read errors list page\n", prev_addr);
+#endif
+		return STORAGE_ERROR;
 	}
 
+	uint32_t start_addr = STORAGE_START_ADDR;
+	status = _storage_get_errors_list_page_addr(&start_addr);
 	if (status != STORAGE_OK) {
-		LOG_DEBUG(STORAGE_TAG, " unable to get first available address\n");
+#if STORAGE_DEBUG
+		LOG_DEBUG(STORAGE_TAG, "get next of %lu address: unable to find storage start address\n", prev_addr);
+#endif
 		return STORAGE_ERROR;
 	}
 
-	for (uint16_t i = 1; i < sizeof(storage_pages_err_list.blocked); i++) {
-		if (!storage_pages_err_list.blocked[i]) {
-			*addr = i * STORAGE_MAX_PAYLOAD_SIZE;
-			LOG_DEBUG(STORAGE_TAG, " first address found: %lu\n", *addr);
-			return STORAGE_OK;
-		}
+	if (prev_addr < start_addr) {
+		prev_addr = start_addr;
 	}
 
-	LOG_DEBUG(STORAGE_TAG, " there are no available addresses\n");
-	return status;
+    for (uint16_t i = prev_addr / STORAGE_PAGE_SIZE + 1; i < STORAGE_PAGES_COUNT; i++) {
+        if (!_storage_is_page_blocked(i)) {
+            *next_addr = i * STORAGE_PAGE_SIZE;
+#if STORAGE_DEBUG
+            LOG_DEBUG(STORAGE_TAG, "get next of %lu address: next address found  %lu\n", prev_addr, *next_addr);
+#endif
+            return STORAGE_OK;
+        }
+    }
+
+#if STORAGE_DEBUG
+    LOG_DEBUG(STORAGE_TAG, "get next of %lu address: there is no available next address\n", prev_addr);
+#endif
+    return STORAGE_ERROR_OUT_OF_MEMORY;
 }
 
-storage_status_t storage_get_next_available_addr(const uint32_t prev_addr, uint32_t* next_addr)
-{
-	uint32_t tmp_addr = prev_addr + STORAGE_MAX_PAYLOAD_SIZE;
-	if (tmp_addr > STORAGE_MAX_PAYLOAD_SIZE * (STORAGE_PAGES_COUNT - 1)) {
-		LOG_DEBUG(STORAGE_TAG, " end of memory\n");
-		return STORAGE_EOM;
-	}
-
-	for (uint16_t i = prev_addr / STORAGE_MAX_PAYLOAD_SIZE + 1; i < sizeof(storage_pages_err_list.blocked); i++) {
-		if (!storage_pages_err_list.blocked[i]) {
-			*next_addr = i * STORAGE_MAX_PAYLOAD_SIZE;
-			LOG_DEBUG(STORAGE_TAG, " next address found: %lu\n", *next_addr);
-			return STORAGE_OK;
-		}
-	}
-
-	LOG_DEBUG(STORAGE_TAG, " there is no available next address\n");
-	return STORAGE_ERROR;
+storage_status_t storage_reset_errors_list_page() {
+#if STORAGE_DEBUG
+    LOG_DEBUG(STORAGE_TAG, "WARNING! Trying to reset errors list page\n");
+#endif
+    memset((uint8_t*)&storage_errors_page_list, 0, sizeof(storage_errors_page_list));
+    return _storage_write_errors_list_page();
 }
 
-storage_status_t _storage_write_page(uint32_t page_addr, uint8_t* buff, uint16_t len)
+storage_status_t _storage_write_page(uint32_t page_addr, uint8_t* buff, uint16_t len, uint8_t appointment)
 {
-	storage_payload_t payload;
-	memset((uint8_t*)&payload, 0, sizeof(payload));
+	storage_page_record_t payload;
+    memset((uint8_t*)&payload, 0, sizeof(payload));
 
-	if (len > sizeof(payload.payload_bits)) {
-		LOG_DEBUG(STORAGE_TAG, " buffer length out of range\n");
+#if STORAGE_DEBUG
+    LOG_DEBUG(STORAGE_TAG, "write page (address=%lu): begin\n", page_addr);
+#endif
+
+    if (len > sizeof(payload.v2.payload)) {
+#if STORAGE_DEBUG
+        LOG_DEBUG(STORAGE_TAG, "write page (address=%lu): buffer length out of payload size\n", page_addr);
+#endif
+        return STORAGE_ERROR_OUT_OF_MEMORY;
+    }
+
+    if (page_addr + sizeof(payload) - 1 > STORAGE_SIZE) {
+#if STORAGE_DEBUG
+        LOG_DEBUG(STORAGE_TAG, "write page (address=%lu): unavailable page address\n", page_addr);
+#endif
+        return STORAGE_ERROR_OUT_OF_MEMORY;
+    }
+
+    payload.v2.header.magic = STORAGE_PAYLOAD_MAGIC;
+    payload.v2.header.version = STORAGE_PAYLOAD_VERSION;
+    payload.v2.header.appointment = appointment;
+
+    memcpy(payload.v2.payload, buff, len);
+
+    payload.v2.crc = util_get_crc16((uint8_t*)&payload.v2, sizeof(payload) - sizeof(payload.v2.crc) - sizeof(payload.v2.invers_bits));
+
+    _storage_inverse_payload_bits(&payload);
+
+    storage_status_t storage_status = STORAGE_OK;
+    eeprom_status_t eeprom_status = eeprom_write(page_addr, (uint8_t*)&payload, sizeof(payload));
+    if (payload.v2.header.appointment == STORAGE_APPOINTMENT_COMMON && eeprom_status == EEPROM_ERROR) {
+        _storage_set_page_blocked(page_addr / STORAGE_PAGE_SIZE, true);
+        storage_status = _storage_write_errors_list_page();
+    }
+    if (eeprom_status != EEPROM_OK) {
+#if STORAGE_DEBUG
+        LOG_DEBUG(STORAGE_TAG, "write page (address=%lu): eeprom write error\n", page_addr);
+#endif
+        return STORAGE_ERROR;
+    }
+    if (storage_status != STORAGE_OK) {
+#if STORAGE_DEBUG
+        LOG_DEBUG(STORAGE_TAG, "write page (address=%lu): update errors list page error\n", page_addr);
+#endif
+        return STORAGE_ERROR;
+    }
+
+    memset((uint8_t*)&payload, 0, sizeof(payload));
+    eeprom_status = eeprom_read(page_addr, (uint8_t*)&payload, sizeof(payload));
+    if (eeprom_status != EEPROM_OK) {
+#if STORAGE_DEBUG
+		LOG_DEBUG(STORAGE_TAG, "write page (address=%lu): error read record\n", page_addr);
+#endif
 		return STORAGE_ERROR;
 	}
-
-	if (page_addr > STORAGE_MAX_PAYLOAD_SIZE * (STORAGE_PAGES_COUNT - 1)) {
-		LOG_DEBUG(STORAGE_TAG, " unavailable page address\n");
-		return STORAGE_ERROR;
-	}
-
-	payload.header.magic = STORAGE_PAYLOAD_MAGIC;
-	payload.header.version = STORAGE_PAYLOAD_VERSION;
-
-	memcpy(payload.payload_bits, buff, len);
-
-	_storage_inverse_payload_bits(&payload);
-
-	payload.crc = util_get_crc16((uint8_t*)&payload, sizeof(payload) - sizeof(payload.crc));
-
-	eeprom_status_t eeprom_status = eeprom_write(page_addr, (uint8_t*)&payload, sizeof(payload));
-	if (eeprom_status == EEPROM_ERROR) {
-		storage_pages_err_list.blocked[page_addr / STORAGE_MAX_PAYLOAD_SIZE] = 1;
-		_storage_write_pages_err_list();
-	}
-	if (eeprom_status != EEPROM_OK) {
-		LOG_DEBUG(STORAGE_TAG, " eeprom write error\n");
-		return STORAGE_ERROR;
-	}
-
-	LOG_DEBUG(STORAGE_TAG, " page saved\n");
-	return STORAGE_OK;
-}
-
-storage_status_t _storage_read_page(uint32_t page_addr, uint8_t* buff, uint16_t len)
-{
-	storage_payload_t payload;
-	memset((uint8_t*)&payload, 0, sizeof(payload));
-
-	if (len > sizeof(payload.payload_bits)) {
-		LOG_DEBUG(STORAGE_TAG, " buffer length out of range\n");
-		return STORAGE_ERROR;
-	}
-
-	if (page_addr > STORAGE_MAX_PAYLOAD_SIZE * (STORAGE_PAGES_COUNT - 1)) {
-		LOG_DEBUG(STORAGE_TAG, " unavailable page address\n");
-		return STORAGE_ERROR_ADDR;
-	}
-
-	if (eeprom_read(page_addr, (uint8_t*)&payload, sizeof(payload)) != EEPROM_OK) {
-		LOG_DEBUG(STORAGE_TAG, " eeprom read error\n");
-		return STORAGE_ERROR;
-	}
-
-	if(payload.header.magic != STORAGE_PAYLOAD_MAGIC) {
-		LOG_DEBUG(STORAGE_TAG, " bad storage magic %08lX!=%08lX\n", payload.header.magic, STORAGE_PAYLOAD_MAGIC);
-		return STORAGE_ERROR;
-	}
-
-	if(payload.header.version != STORAGE_PAYLOAD_VERSION) {
-		LOG_DEBUG(STORAGE_TAG, " bad storage version %i!=%i\n", payload.header.version, STORAGE_PAYLOAD_VERSION);
-		return STORAGE_ERROR;
-	}
-
-	if (!_storage_check_payload_bits(&payload)) {
+    if (!_storage_check_inverse_bits(&payload)) {
+#if STORAGE_DEBUG
+		LOG_DEBUG(STORAGE_TAG, "write page (address=%lu): bad inverse bits\n", page_addr);
+#endif
 		return STORAGE_ERROR_BITS;
 	}
 
-	memcpy((uint8_t*)&buff, payload.payload_bits, len);
-	LOG_DEBUG(STORAGE_TAG, " page read\n");
-	return STORAGE_OK;
+#if STORAGE_DEBUG
+    LOG_DEBUG(STORAGE_TAG, "write page (address=%lu): OK\n", page_addr);
+#endif
+
+#if STORAGE_DEBUG
+	util_debug_hex_dump(STORAGE_TAG, (uint8_t*)&payload, sizeof(payload));
+#endif
+    return STORAGE_OK;
 }
 
-storage_status_t _storage_write_pages_err_list()
+storage_status_t _storage_read_page(uint32_t page_addr, uint8_t* buff, uint16_t len, uint8_t appointment)
 {
-	storage_status_t status = _storage_write_page(STORAGE_PAGE_ERRORS_ADDR, (uint8_t*)&storage_pages_err_list, sizeof(storage_pages_err_list));
-	if (status != STORAGE_OK) {
-		LOG_DEBUG(STORAGE_TAG, " unable to write error pages list\n");
-		return STORAGE_ERROR;
+	storage_page_record_t payload;
+    memset((uint8_t*)&payload, 0, sizeof(payload));
+
+#if STORAGE_DEBUG
+    LOG_DEBUG(STORAGE_TAG, "read page (address=%lu): begin\n", page_addr);
+#endif
+
+    if (len > sizeof(payload.v2.payload)) {
+#if STORAGE_DEBUG
+        LOG_DEBUG(STORAGE_TAG, "read page (address=%lu): buffer length out of payload size - %u > %d\n", page_addr, len, sizeof(payload.v2.payload));
+#endif
+        return STORAGE_ERROR_OUT_OF_MEMORY;
+    }
+
+    if (page_addr + sizeof(payload) - 1 > STORAGE_SIZE) {
+#if STORAGE_DEBUG
+        LOG_DEBUG(STORAGE_TAG, "read page (address=%lu): unavailable page address\n", page_addr);
+#endif
+        return STORAGE_ERROR_OUT_OF_MEMORY;
+    }
+
+    if (eeprom_read(page_addr, (uint8_t*)&payload, sizeof(payload)) != EEPROM_OK) {
+#if STORAGE_DEBUG
+        LOG_DEBUG(STORAGE_TAG, "read page (address=%lu): eeprom read error\n", page_addr);
+#endif
+        return STORAGE_ERROR;
+    }
+
+    if (!_storage_check_inverse_bits(&payload)) {
+#if STORAGE_DEBUG
+        LOG_DEBUG(STORAGE_TAG, "read page (address=%lu): bad inverse bits\n", page_addr);
+#endif
+        return STORAGE_ERROR_BITS;
+    }
+
+    if(payload.v2.header.magic != STORAGE_PAYLOAD_MAGIC) {
+#if STORAGE_DEBUG
+        LOG_DEBUG(STORAGE_TAG, "read page (address=%lu): bad storage magic %08lX!=%08lX\n", page_addr, payload.v2.header.magic, STORAGE_PAYLOAD_MAGIC);
+#endif
+        return STORAGE_ERROR_BADACODE;
+    }
+
+    if(payload.v2.header.version != STORAGE_PAYLOAD_VERSION) {
+#if STORAGE_DEBUG
+        LOG_DEBUG(STORAGE_TAG, "read page (address=%lu): bad storage version %i!=%i\n", page_addr, payload.v2.header.version, STORAGE_PAYLOAD_VERSION);
+#endif
+        return STORAGE_ERROR_VER;
+    }
+
+    if(payload.v2.header.appointment != appointment) {
+#if STORAGE_DEBUG
+		LOG_DEBUG(STORAGE_TAG, "read page (address=%lu): wrong storage appointment %i!=%i\n", page_addr, payload.v2.header.appointment, appointment);
+#endif
+		return STORAGE_ERROR_APPOINTMENT;
 	}
 
-	status = _storage_read_pages_err_list();
-	if (status != STORAGE_OK) {
-		LOG_DEBUG(STORAGE_TAG, " unable to check error pages list\n");
-		return STORAGE_ERROR;
-	}
+#if STORAGE_DEBUG
+    LOG_DEBUG(STORAGE_TAG, "read page (address=%lu): OK\n", page_addr);
+#endif
 
-	return STORAGE_OK;
+#if STORAGE_DEBUG
+	util_debug_hex_dump(STORAGE_TAG, (uint8_t*)&payload, sizeof(payload));
+#endif
+    memcpy(buff, payload.v2.payload, len);
+    return STORAGE_OK;
 }
 
-storage_status_t _storage_read_pages_err_list()
+storage_status_t _storage_write_errors_list_page()
 {
-	storage_status_t status = _storage_read_page(STORAGE_PAGE_ERRORS_ADDR, (uint8_t*)&storage_pages_err_list, sizeof(storage_pages_err_list));
-	if (status != STORAGE_OK) {
-		LOG_DEBUG(STORAGE_TAG, " unable to read error pages list\n");
-		return STORAGE_ERROR;
-	}
+	is_error_page_updated = true;
 
-	return STORAGE_OK;
-}
+#if STORAGE_DEBUG
+    LOG_DEBUG(STORAGE_TAG, "write errors list page: begin\n");
+    LOG_DEBUG(STORAGE_TAG, "write errors list page: WARNING! Trying to write errors bits\n");
+#endif
 
-bool _storage_check_payload_bits(storage_payload_t* payload)
-{
-	for (uint32_t i = 0; i < sizeof(payload->payload_bits) / sizeof(*payload->payload_bits); i++) {
-		if ((payload->payload_bits[i] ^ 0xFF) != payload->invers_bits[i]) {
-			LOG_DEBUG(STORAGE_TAG, " bad byte %lu check: %d!=%d\n", i, payload->payload_bits[i], payload->invers_bits[i]);
-			return false;
+    storage_status_t status = STORAGE_OK;
+    uint32_t page_addr = STORAGE_START_ADDR;
+	while (status != STORAGE_ERROR_OUT_OF_MEMORY) {
+		status = _storage_write_page(page_addr, (uint8_t*)&storage_errors_page_list, sizeof(storage_errors_page_list), STORAGE_APPOINTMENT_ERRORS_LIST_PAGE);
+		if (status != STORAGE_OK) {
+#if STORAGE_DEBUG
+			LOG_DEBUG(STORAGE_TAG, "write errors list page: unable to write errors list page (address=%lu)\n", page_addr);
+#endif
+			page_addr += STORAGE_PAGE_SIZE;
+			continue;
+		}
+
+	    status = _storage_read_page(page_addr, (uint8_t*)&storage_errors_page_list, sizeof(storage_errors_page_list), STORAGE_APPOINTMENT_ERRORS_LIST_PAGE);
+	    if (status != STORAGE_OK) {
+#if STORAGE_DEBUG
+	        LOG_DEBUG(STORAGE_TAG, "write errors list page: unable to check errors list page\n");
+#endif
+			page_addr += STORAGE_PAGE_SIZE;
+			continue;
+	    }
+
+		if (status == STORAGE_OK) {
+			break;
 		}
 	}
-	return true;
+
+#if STORAGE_DEBUG
+    LOG_DEBUG(STORAGE_TAG, "write errors list page on adddress %lu: OK\n", page_addr);
+#endif
+    return status;
 }
 
-void _storage_inverse_payload_bits(storage_payload_t* payload)
+storage_status_t _storage_read_errors_list_page()
 {
-	for (uint32_t i = 0; i < STORAGE_PAYLOAD_BITS_SIZE(STORAGE_MAX_PAYLOAD_SIZE) / 2; i++) {
-		payload->invers_bits[i] = (payload->payload_bits[i] ^ 0xFF);
+	if (!is_error_page_updated) {
+	    return STORAGE_OK;
 	}
+
+#if STORAGE_DEBUG
+    LOG_DEBUG(STORAGE_TAG, "read errors list page: begin\n");
+#endif
+
+    storage_status_t status = STORAGE_OK;
+    uint32_t page_addr = STORAGE_START_ADDR;
+    storage_errors_list_page_t search_buf;
+    memset((uint8_t*)&search_buf, 0, sizeof(search_buf));
+    while (status != STORAGE_ERROR_OUT_OF_MEMORY) {
+		status = _storage_read_page(page_addr, (uint8_t*)&search_buf, sizeof(search_buf), STORAGE_APPOINTMENT_ERRORS_LIST_PAGE);
+		if (status != STORAGE_OK) {
+#if STORAGE_DEBUG
+			LOG_DEBUG(STORAGE_TAG, "read errors list page: unable to read\n");
+#endif
+			page_addr += STORAGE_PAGE_SIZE;
+			continue;
+		}
+
+		if (status == STORAGE_OK) {
+			break;
+		}
+	}
+
+    if (status == STORAGE_OK) {
+        memcpy((uint8_t*)&storage_errors_page_list, (uint8_t*)&search_buf, sizeof(storage_errors_page_list));
+        is_error_page_updated = false;
+#if STORAGE_DEBUG
+    	LOG_DEBUG(STORAGE_TAG, "read errors list page: OK\n");
+#endif
+    } else {
+#if STORAGE_DEBUG
+    	LOG_DEBUG(STORAGE_TAG, "read errors list page: error=%02x\n", status);
+#endif
+    }
+
+    return status;
+}
+
+storage_status_t _storage_get_errors_list_page_addr(uint32_t* addr)
+{
+	storage_status_t status = STORAGE_OK;
+	uint32_t page_addr = STORAGE_START_ADDR;
+	storage_errors_list_page_t search_buf;
+	memset((uint8_t*)&search_buf, 0, sizeof(search_buf));
+	while (status != STORAGE_ERROR_OUT_OF_MEMORY) {
+		status = _storage_read_page(page_addr, (uint8_t*)&search_buf, sizeof(search_buf), STORAGE_APPOINTMENT_ERRORS_LIST_PAGE);
+		if (status != STORAGE_OK) {
+#if STORAGE_DEBUG
+			LOG_DEBUG(STORAGE_TAG, "read errors list page: unable to read\n");
+#endif
+			page_addr += STORAGE_PAGE_SIZE;
+			continue;
+		}
+
+		if (status == STORAGE_OK) {
+			*addr = page_addr;
+			break;
+		}
+	}
+
+	return status;
+}
+
+bool _storage_check_inverse_bits(storage_page_record_t* payload)
+{
+    for (uint32_t i = 0; i <  sizeof(payload->payload_bits); i++) {
+        if ((payload->payload_bits[i] ^ 0xFF) != payload->invers_bits[i]) {
+#if STORAGE_DEBUG
+            LOG_DEBUG(STORAGE_TAG, "bad byte %lu check: %d!=%d\n", i, payload->payload_bits[i], payload->invers_bits[i]);
+#endif
+            return false;
+        }
+    }
+    return true;
+}
+
+void _storage_inverse_payload_bits(storage_page_record_t* payload)
+{
+    for (uint32_t i = 0; i < sizeof(payload->payload_bits); i++) {
+        payload->invers_bits[i] = (payload->payload_bits[i] ^ 0xFF);
+    }
+}
+
+bool _storage_is_page_blocked(uint16_t page_num)
+{
+    uint32_t idx = page_num / 8;
+    if (idx > sizeof(storage_errors_page_list.blocked)) {
+        return true;
+    }
+    return (storage_errors_page_list.blocked[idx] >> (page_num % 8)) & 0x01;
+}
+
+void _storage_set_page_blocked(uint16_t page_num, bool blocked)
+{
+    uint32_t idx = page_num / 8;
+    if (idx > sizeof(storage_errors_page_list.blocked)) {
+        return;
+    }
+    if (blocked) {
+        storage_errors_page_list.blocked[idx] |= (uint8_t)(0x01 << (page_num % 8));
+    } else {
+        storage_errors_page_list.blocked[idx] &= ~(uint8_t)(0x01 << (page_num % 8));
+    }
 }

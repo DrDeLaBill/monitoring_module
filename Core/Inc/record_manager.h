@@ -2,7 +2,13 @@
 #define INC_RECORD_MANAGER_H_
 
 
+#include <stdbool.h>
+
 #include "defines.h"
+#include "storage_data_manager.h"
+
+
+#define RECORD_DEBUG (false)
 
 
 typedef enum _record_status_t {
@@ -25,6 +31,12 @@ typedef struct _log_record_t {
 	uint32_t press_1;                     // First sensor pressure
 //	uint32_t press_2;                     // Second sensor pressure
 } log_record_t;
+
+typedef struct _log_ids_cache_t {
+	bool is_need_to_scan;
+	uint32_t first_record_addr;
+	uint32_t ids_cache[STORAGE_PAGES_COUNT];
+} log_ids_cache_t;
 
 
 extern log_record_t cur_log_record;

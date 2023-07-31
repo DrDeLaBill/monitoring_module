@@ -189,7 +189,7 @@ void _send_AT_command(const char* cmd)
 {
 	HAL_UART_Transmit(&SIM_MODULE_UART, (uint8_t*)cmd, strlen(cmd), UART_TIMEOUT);
 	HAL_UART_Transmit(&SIM_MODULE_UART, (uint8_t*)LINE_BREAK, strlen(LINE_BREAK), UART_TIMEOUT);
-	LOG_DEBUG(SIM_TAG, " send - %s\r\n", cmd);
+	LOG_DEBUG(SIM_TAG, "send - %s\r\n", cmd);
 }
 
 void _check_response(const char* needed_resp)
@@ -241,7 +241,7 @@ void _check_double_break_itr() {
 void _wait_data_itr() {
 	if (response_counter >= response_data_count) {
 		sim_state.state = SIM_SUCCESS;
-		LOG_DEBUG(SIM_TAG, " HTTP response -\n%s\n", sim_response);
+		LOG_DEBUG(SIM_TAG, "HTTP response -\n%s\n", sim_response);
 		sim_state.check_http_header_itr = &_wait_itr;
 	}
 }
@@ -251,7 +251,7 @@ void _wait_itr() {}
 void _check_response_timer()
 {
 	if (!util_is_timer_wait(&sim_state.delay_timer)) {
-		LOG_DEBUG(SIM_TAG, " error - %s\n", strlen(sim_response) ? sim_response : "empty answer");
+		LOG_DEBUG(SIM_TAG, "error - %s\n", strlen(sim_response) ? sim_response : "empty answer");
 		sim_state.state = SIM_ERROR;
 		sim_state.error_count++;
 	}
@@ -260,7 +260,7 @@ void _check_response_timer()
 void _validate_response(const char* needed_resp)
 {
 	if (strnstr(sim_response, needed_resp, sizeof(sim_response))) {
-		LOG_DEBUG(SIM_TAG, " success - %s\n", sim_response);
+		LOG_DEBUG(SIM_TAG, "success - %s\n", sim_response);
 		sim_state.state = SIM_SUCCESS;
 		sim_state.error_count = 0;
 	}
@@ -276,7 +276,7 @@ void _do_error(uint8_t attempts)
 	}
 
 	if (sim_state.error_count < attempts) {
-		LOG_DEBUG(SIM_TAG, " retry command, attempt number %d\n", sim_state.error_count + 1);
+		LOG_DEBUG(SIM_TAG, "retry command, attempt number %d\n", sim_state.error_count + 1);
 		sim_state.state = READY;
 		_clear_response();
 		_start_module();
@@ -284,7 +284,7 @@ void _do_error(uint8_t attempts)
 	}
 
 	if (sim_state.error_count >= attempts) {
-		LOG_DEBUG(SIM_TAG, " too many errors\n");
+		LOG_DEBUG(SIM_TAG, "too many errors\n");
 		_reset_module();
 		util_timer_start(&sim_state.restart_timer, RESTART_WAIT);
 		return;
@@ -304,7 +304,7 @@ void _reset_module()
 	if (util_is_timer_wait(&sim_state.restart_timer)) {
 		return;
 	}
-	LOG_DEBUG(SIM_TAG, " sim module RESTART\n");
+	LOG_DEBUG(SIM_TAG, "sim module RESTART\n");
 	HAL_GPIO_WritePin(SIM_MODULE_RESET_PORT, SIM_MODULE_RESET_PIN, GPIO_PIN_RESET);
 }
 

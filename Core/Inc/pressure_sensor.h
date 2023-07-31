@@ -22,7 +22,7 @@ typedef struct _channel_measurement {
 	uint32_t shunt_buf_min;
 	uint32_t shunt_buf_max;
 	uint32_t shunt_val_max;
-	uint8_t state;
+	uint8_t  state;
 } channel_measurement;
 
 

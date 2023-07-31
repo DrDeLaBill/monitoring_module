@@ -26,9 +26,9 @@ typedef struct _module_settings_t {
 	// Current server log ID
 	uint32_t server_log_id;
 	// Liters ADC value when liquid tank can be considered full
-	uint16_t tank_ADC_min;
+	uint32_t tank_ADC_min;
 	// Liters ADC value when liquid tank can be considered empty
-	uint16_t tank_ADC_max;
+	uint32_t tank_ADC_max;
 	// Liters value when liquid tank can be considered full
 	uint32_t tank_liters_max;
 	// Liters value when liquid tank can be considered empty
@@ -56,6 +56,8 @@ extern module_settings_t module_settings;
 settings_status_t settings_reset();
 settings_status_t settings_load();
 settings_status_t settings_save();
+
+void show_settings();
 
 
 #endif /* INC_SETTINGS_MANAGER_H_ */

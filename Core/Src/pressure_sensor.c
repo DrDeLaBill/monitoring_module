@@ -15,12 +15,14 @@
 #include "defines.h"
 
 
+#define PRESS_ADC_VAL_MIN     780
+#define PRESS_ADC_VAL_MAX     3916
 #define CURRENT_MIN           400
 #define CURRENT_MAX           2000
 #define CHANNELS_COUNT        1
 #define FIRST_SHUNT_NUM       0
 #define SECOND_SHUNT_NUM      1
-#define SHUNT_ERROR_VAL       -1
+#define SHUNT_ERROR_VAL       0
 #define PRESSURE_ADC_CHANNEL1 1
 
 
@@ -63,7 +65,7 @@ void _do_channel_measurements(uint8_t channel_num)
 	channel_measurement *channel_ms = &measurement_buf[channel_num];
 	uint32_t cur_level = _pressure_get_absolute_value();
 
-	if (cur_level <= 0.0) {
+	if (cur_level <= CURRENT_MIN) {
 		channel_ms->shunt_buf_max = 0.0;
 		channel_ms->shunt_buf_min = CURRENT_MAX;
 		channel_ms->shunt_val_max = SHUNT_ERROR_VAL;
@@ -113,6 +115,6 @@ uint16_t _pressure_get_adc_value()
 
 uint32_t _pressure_get_absolute_value()
 {
-	return util_convert_range(_pressure_get_adc_value(), 0, MAX_ADC_VALUE, CURRENT_MIN, CURRENT_MAX);
+	return util_convert_range(_pressure_get_adc_value(), PRESS_ADC_VAL_MIN, PRESS_ADC_VAL_MAX, CURRENT_MIN, CURRENT_MAX);
 }
 

@@ -11,6 +11,8 @@
 
 #include <stdio.h>
 
+#include "main.h"
+
 
 #ifndef __min
 #define __min(x, y) ((x) < (y) ? (x) : (y))
@@ -52,19 +54,14 @@ uint16_t util_get_crc16(uint8_t* buf, uint16_t len);
 
 
 #ifdef DEBUG
-#define LOG_DEBUG(MODULE_TAG, format, ...) { \
-	printf("%s:", MODULE_TAG); printf(format __VA_OPT__(,) __VA_ARGS__); \
-}
-#define LOG_DEBUG_LN(format, ...) { \
-	printf(format __VA_OPT__(,) __VA_ARGS__);   \
-}
+#define LOG_DEBUG(MODULE_TAG, format, ...) printf("%s: \t", MODULE_TAG); printf(format __VA_OPT__(,) __VA_ARGS__);
+#define LOG_DEBUG_LN(format, ...)          printf(format __VA_OPT__(,) __VA_ARGS__);
 #else /* DEBUG */
 #define LOG_DEBUG(MODULE_TAG, format, ...) {}
 #define LOG_DEBUG_LN(format, ...) {}
 #endif /* DEBUG */
-#define LOG_MESSAGE(MODULE_TAG, format, ...) { \
-	printf("%s:", MODULE_TAG); printf(format __VA_OPT__(,) __VA_ARGS__); \
-}
+
+#define LOG_MESSAGE(MODULE_TAG, format, ...) printf("%s: \t", MODULE_TAG); printf(format __VA_OPT__(,) __VA_ARGS__);
 
 #define SUBTRACT_DELTA(var, delta) { var -= (var <= delta) ? var : delta; }
 

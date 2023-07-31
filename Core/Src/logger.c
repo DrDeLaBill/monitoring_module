@@ -17,7 +17,7 @@
 #include "record_manager.h"
 #include "settings_manager.h"
 #include "sim_module.h"
-#include "ds1307_for_stm32_hal.h"
+#include "clock_service.h"
 #include "pressure_sensor.h"
 #include "pump.h"
 
@@ -88,7 +88,7 @@ void logger_proccess()
 	}
 
 	if (!module_settings.sleep_time) {
-		LOG_DEBUG(LOG_TAG, "no setting - sleep_time\r\n");
+		LOG_DEBUG(LOG_TAG, "no setting - sleep_time\n");
 		module_settings.sleep_time = DEFAULT_SLEEPING_TIME;
 		return;
 	}
@@ -126,16 +126,16 @@ void _send_http_log()
 		"id=%lu\n"
 		"fw_id=%lu\n"
 		"cf_id=%lu\n"
-		"t=%d-%02d-%02dT%02d:%02d:%02d\n",
+		"t=20%02d-%02d-%02dT%02d:%02d:%02d\n",
 		module_settings.id,
 		cur_log_record.fw_id,
 		module_settings.cf_id,
-		DS1307_GetYear(),
-		DS1307_GetMonth(),
-		DS1307_GetDate(),
-		DS1307_GetHour(),
-		DS1307_GetMinute(),
-		DS1307_GetSecond()
+		get_year(),
+		get_month(),
+		get_date(),
+		get_date(),
+		get_minute(),
+		get_second()
 	);
 
 	record_status_t record_res = next_record_load();
@@ -151,15 +151,15 @@ void _send_http_log()
 			sizeof(data) - strlen(data),
 			"d="
 				"id=%lu;"
-				"t=%s;"
+				"t=20%02d-%02d-%02dT%02d:%02d:%02d;"
 				"level=%ld;"
 				"press_1=%lu.%02lu;"
 //				"press_2=%lu.%02lu;"
-				"pumpw=%lu\n"
-				"pumpd=%lu\n",
+				"pumpw=%lu;"
+				"pumpd=%lu\r\n",
 			cur_log_record.id,
-			cur_log_record.time,
-			cur_log_record.level,
+			cur_log_record.time[0], cur_log_record.time[1], cur_log_record.time[2], cur_log_record.time[3], cur_log_record.time[4], cur_log_record.time[5],
+			cur_log_record.level / 100,
 			cur_log_record.press_1 / 100, cur_log_record.press_1 % 100,
 //			cur_log_record.press_2 / 100, cur_log_record.press_2 % 100,
 			module_settings.pump_work_sec,
@@ -186,7 +186,7 @@ record_status_t _load_current_log()
 	if (util_is_timer_wait(&error_read_timer)) {
 		return RECORD_NO_LOG;
 	}
-	LOG_DEBUG(LOG_TAG, " load current log\n");
+	LOG_DEBUG(LOG_TAG, "load current log\n");
 	_make_measurements();
 	return RECORD_OK;
 }
@@ -210,23 +210,24 @@ void _make_measurements()
 	cur_log_record.press_1 = get_first_press();
 //	cur_log_record.press_2 = get_second_press();
 
-	cur_log_record.time[0] = DS1307_GetYear() % 100;
-	cur_log_record.time[1] = DS1307_GetMonth();
-	cur_log_record.time[2] = DS1307_GetDate();
-	cur_log_record.time[3] = DS1307_GetHour();
-	cur_log_record.time[4] = DS1307_GetMinute();
-	cur_log_record.time[5] = DS1307_GetSecond();
+	cur_log_record.time[0] = get_year() % 100;
+	cur_log_record.time[1] = get_month();
+	cur_log_record.time[2] = get_date();
+	cur_log_record.time[3] = get_hour();
+	cur_log_record.time[4] = get_minute();
+	cur_log_record.time[5] = get_second();
 }
 
 void _show_measurements()
 {
 	LOG_DEBUG(
 		LOG_TAG,
-		"\r\nID: %lu\r\n"
-		"Time: %u-%02u-%02uT%02u:%02u:%02u\r\n"
-		"Level: %d.%d l\r\n"
-		"Press 1: %d.%02d MPa\r\n"
-		"Press 2: %d.%02d MPa\r\n",
+		"\n"
+		"ID:      %lu\n"
+		"Time:    20%02u-%02u-%02uT%02u:%02u:%02u\n"
+		"Level:   %lu l\n"
+		"Press 1: %lu.%02lu MPa\n",
+//		"Press 2: %d.%02d MPa\n",
 		cur_log_record.id,
 		cur_log_record.time[0], cur_log_record.time[1], cur_log_record.time[2], cur_log_record.time[3], cur_log_record.time[4], cur_log_record.time[5],
 		cur_log_record.level,
@@ -243,57 +244,69 @@ void _parse_response()
 		goto do_error;
 	}
 	// Parse time
+    RTC_TimeTypeDef time;
+    RTC_DateTypeDef date;
+
 	data_ptr = strnstr(var_ptr, TIME_FIELD, strlen(var_ptr));
 	if (!data_ptr) {
 		goto do_error;
 	}
 	data_ptr += strlen(TIME_FIELD);
-	uint16_t tmp = atoi(data_ptr);
-	DS1307_SetYear(tmp);
+	date.Year = atoi(data_ptr) % 100;
 
-	data_ptr = strnstr(data_ptr, T_DASH_FIELD, strlen(var_ptr));
+	data_ptr = strnstr(data_ptr, T_DASH_FIELD, strlen(data_ptr));
 	if (!data_ptr) {
 		goto do_error;
 	}
 	data_ptr += strlen(T_DASH_FIELD);
-	DS1307_SetMonth((uint8_t)atoi(data_ptr));
+	date.Month = (uint8_t)atoi(data_ptr);
 
-	data_ptr = strnstr(data_ptr, T_DASH_FIELD, strlen(var_ptr));
+	data_ptr = strnstr(data_ptr, T_DASH_FIELD, strlen(data_ptr));
 	if (!data_ptr) {
 		goto do_error;
 	}
 	data_ptr += strlen(T_DASH_FIELD);
-	DS1307_SetDate(atoi(data_ptr));
+	date.Date = atoi(data_ptr);
 
-	data_ptr = strnstr(data_ptr, T_TIME_FIELD, strlen(var_ptr));
+    if(!save_date(&date)) {
+    	LOG_DEBUG(LOG_TAG, "parse error - unable to update date\n");
+		goto do_error;
+    }
+
+	data_ptr = strnstr(data_ptr, T_TIME_FIELD, strlen(data_ptr));
 	if (!data_ptr) {
 		goto do_error;
 	}
 	data_ptr += strlen(T_TIME_FIELD);
-	DS1307_SetHour(atoi(data_ptr));
+	time.Hours = atoi(data_ptr);
 
-	data_ptr = strnstr(data_ptr, T_COLON_FIELD, strlen(var_ptr));
+	data_ptr = strnstr(data_ptr, T_COLON_FIELD, strlen(data_ptr));
 	if (!data_ptr) {
 		goto do_error;
 	}
 	data_ptr += strlen(T_COLON_FIELD);
-	DS1307_SetMinute(atoi(data_ptr));
+	time.Minutes = atoi(data_ptr);
 
-	data_ptr = strnstr(data_ptr, T_COLON_FIELD, strlen(var_ptr));
+	data_ptr = strnstr(data_ptr, T_COLON_FIELD, strlen(data_ptr));
 	if (!data_ptr) {
 		goto do_error;
 	}
 	data_ptr += strlen(T_COLON_FIELD);
-	DS1307_SetSecond(atoi(data_ptr));
+	time.Seconds = atoi(data_ptr);
 
-	LOG_DEBUG(LOG_TAG, " time updated\n");
+    if(!save_time(&time)) {
+    	LOG_DEBUG(LOG_TAG, "parse error - unable to update time\n");
+		goto do_error;
+    }
+
+	LOG_DEBUG(LOG_TAG, "time updated\n");
 
 	if (module_settings.server_log_id < sended_log_id) {
 		module_settings.pump_work_sec = 0;
 		module_settings.pump_downtime_sec = 0;
 		module_settings.server_log_id = sended_log_id;
 		settings_save();
-		LOG_DEBUG(LOG_TAG, " server log id updated\n");
+		LOG_DEBUG(LOG_TAG, "server log id updated\n");
 	}
 
 	// Parse configuration:
@@ -323,7 +336,9 @@ void _parse_response()
 	var_ptr = data_ptr;
 	data_ptr = strnstr(var_ptr, CF_PWR_FIELD, strlen(var_ptr));
 	if (data_ptr) {
-		pump_update_power(atoi(data_ptr + strlen(CF_PWR_FIELD)));
+		bool enabled = atoi(data_ptr + strlen(CF_PWR_FIELD));
+		module_settings.pump_enabled = enabled;
+		pump_update_enable_state(enabled);
 	}
 
 	data_ptr = strnstr(var_ptr, CF_LTRMIN_FIELD, strlen(var_ptr));
@@ -361,18 +376,20 @@ void _parse_response()
 		clear_log();
 	}
 
-	LOG_DEBUG(LOG_TAG, " configuration updated\n");
+	LOG_DEBUG(LOG_TAG, "configuration updated\n");
 	show_settings();
 
 	goto do_success;
 
 
 do_error:
-	LOG_DEBUG(LOG_TAG, " unable to parse response - %s\r\n", get_response());
+	LOG_DEBUG(LOG_TAG, "unable to parse response - %s\n", get_response());
 	goto do_exit;
 
 do_success:
-	settings_save();
+	if (settings_save() != SETTINGS_OK) {
+		module_settings.cf_id = 0;
+	}
 	goto do_exit;
 
 do_exit:

@@ -22,6 +22,7 @@
 #include "crc.h"
 #include "i2c.h"
 #include "iwdg.h"
+#include "rtc.h"
 #include "usart.h"
 #include "gpio.h"
 
@@ -31,11 +32,11 @@
 #include "pressure_sensor.h"
 #include "command_manager.h"
 #include "sim_module.h"
-#include "ds1307_for_stm32_hal.h"
 #include "liquid_sensor.h"
 #include "pump.h"
 #include "logger.h"
 #include "settings_manager.h"
+#include "storage_data_manager.h"
 
 /* USER CODE END Includes */
 
@@ -56,14 +57,12 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+const char *MAIN_TAG = "MAIN";
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-
-int _write(int file, uint8_t *ptr, int len);
-
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -103,16 +102,23 @@ int main(void)
   MX_USART1_UART_Init();
   MX_USART2_UART_Init();
   MX_IWDG_Init();
-  MX_USB_PCD_Init();
   MX_ADC1_Init();
+  MX_USART3_UART_Init();
+  MX_RTC_Init();
   /* USER CODE BEGIN 2 */
 	HAL_Delay(100);
+	// Start message
+	LOG_MESSAGE(MAIN_TAG, "\n\n########################DEVICE START########################\n\n");
     // Settings initializing
 	if (settings_load() != SETTINGS_OK) {
 		settings_reset();
 	}
-	// Clock
-	DS1307_Init();
+	if (module_settings.is_first_start) {
+		storage_reset_errors_list_page();
+		module_settings.is_first_start = false;
+		settings_save();
+	}
+	show_settings();
 	// Shunt
 	pressure_sensor_begin();
 	// UART command manager
@@ -123,12 +129,8 @@ int main(void)
 	logger_manager_begin();
 	// Pump
 	pump_init();
-	// State LED
-	HAL_GPIO_WritePin(RED_LED_GPIO_Port, RED_LED_Pin, SET);
 	// Measure ADC start
 	HAL_ADCEx_Calibration_Start(&MEASURE_ADC);
-	// Start message
-	LOG_MESSAGE("GNRL", "Module start\n");
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -139,7 +141,7 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 	  // Watchdog timer update
-	  HAL_IWDG_Refresh(&hiwdg);
+	  HAL_IWDG_Refresh(&DEVICE_IWDG);
 	  // Commands from UART
 	  command_manager_proccess();
 	  // Shunt sensor
@@ -167,9 +169,11 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSI|RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSI|RCC_OSCILLATORTYPE_HSE
+                              |RCC_OSCILLATORTYPE_LSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
+  RCC_OscInitStruct.LSEState = RCC_LSE_ON;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
@@ -193,9 +197,9 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_ADC|RCC_PERIPHCLK_USB;
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_RTC|RCC_PERIPHCLK_ADC;
+  PeriphClkInit.RTCClockSelection = RCC_RTCCLKSOURCE_LSE;
   PeriphClkInit.AdcClockSelection = RCC_ADCPCLK2_DIV6;
-  PeriphClkInit.UsbClockSelection = RCC_USBCLKSOURCE_PLL_DIV1_5;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
     Error_Handler();
