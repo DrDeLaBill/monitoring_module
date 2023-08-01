@@ -39,7 +39,7 @@ void cmd_proccess_input(const char input_chr);
 		"Config ver:       %lu\n" \
 		"Pump              %s\n" \
 		"###################SETTINGS###################\n", \
-		get_year(), \
+		get_year() % 100, \
 		get_month(), \
 		get_date(), \
 		get_hour(), \

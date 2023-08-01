@@ -142,7 +142,7 @@ void pump_show_status()
     if (liquid_val < 0) {
     	LOG_MESSAGE(PUMP_TAG, "Tank liquid value ERR (ADC=%d)\n##############################################\n", liquid_adc);
     } else {
-    	LOG_MESSAGE(PUMP_TAG, "Tank liquid value: %ld l (ADC=%d)\n##############################################\n", liquid_val, liquid_adc);
+    	LOG_MESSAGE(PUMP_TAG, "Tank liquid value: %ld l (ADC=%d)\n##############################################\n", liquid_val / 1000, liquid_adc);
     }
 }
 

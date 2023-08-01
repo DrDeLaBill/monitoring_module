@@ -14,15 +14,16 @@
 
 #include "stm32f1xx_hal.h"
 
+#include "defines.h"
 
-uint8_t get_year();
+
+uint16_t get_year();
 uint8_t get_month();
 uint8_t get_date();
 uint8_t get_hour();
 uint8_t get_minute();
 uint8_t get_second();
-bool save_date(RTC_DateTypeDef* date);
-bool save_time(RTC_TimeTypeDef* time);
+bool save_datetime(DateTime* datetime);
 
 
 #endif /* INC_CLOCK_SERVICE_H_ */

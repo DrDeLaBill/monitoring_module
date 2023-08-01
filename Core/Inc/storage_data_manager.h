@@ -45,15 +45,15 @@ typedef struct __attribute__((packed)) _storage_payload_header_t {
 } storage_payload_header_t;
 
 
-#define STORAGE_PAYLOAD_MAGIC           ((uint32_t)(0xBADAC0DE))
-#define STORAGE_PAYLOAD_VERSION         (2)
-#define STORAGE_PAGE_SIZE               (EEPROM_PAGE_SIZE)
-#define STORAGE_PAGES_COUNT             (EEPROM_PAGE_COUNT)
-#define STORAGE_START_ADDR              ((uint32_t)(0))
+#define STORAGE_PAYLOAD_MAGIC     ((uint32_t)(0xBADAC0DE))
+#define STORAGE_PAYLOAD_VERSION   (2)
+#define STORAGE_PAGE_SIZE         (EEPROM_PAGE_SIZE)
+#define STORAGE_PAGES_COUNT       (EEPROM_PAGE_COUNT)
+#define STORAGE_START_ADDR        ((uint32_t)(0))
 
-#define STORAGE_PAYLOAD_BITS_SIZE       (STORAGE_PAGE_SIZE / 2)
-#define STORAGE_PAYLOAD_SIZE(PAGE_SIZE) (PAGE_SIZE - sizeof(struct _storage_payload_header_t) - sizeof(uint16_t))
-#define STORAGE_SIZE                    (STORAGE_PAGE_SIZE * STORAGE_PAGES_COUNT)
+#define STORAGE_PAYLOAD_BITS_SIZE (STORAGE_PAGE_SIZE / 2)
+#define STORAGE_PAYLOAD_SIZE      (STORAGE_PAYLOAD_BITS_SIZE - sizeof(struct _storage_payload_header_t) - sizeof(uint16_t))
+#define STORAGE_SIZE              (STORAGE_PAGE_SIZE * STORAGE_PAGES_COUNT)
 
 
 typedef union _storage_page_record_t {
@@ -63,7 +63,7 @@ typedef union _storage_page_record_t {
 	};
 	struct __attribute__((packed)) {
 		struct _storage_payload_header_t header;
-		uint8_t payload[STORAGE_PAYLOAD_SIZE(STORAGE_PAYLOAD_BITS_SIZE)];
+		uint8_t payload[STORAGE_PAYLOAD_SIZE];
 		uint16_t crc;
 		uint8_t invers_bits[STORAGE_PAYLOAD_BITS_SIZE];
 	} v2;
@@ -71,7 +71,7 @@ typedef union _storage_page_record_t {
 
 
 typedef struct __attribute__((packed)) _storage_errors_list_page_t {
-    uint8_t blocked[STORAGE_PAYLOAD_SIZE(STORAGE_PAYLOAD_BITS_SIZE)];
+    uint8_t blocked[STORAGE_PAYLOAD_SIZE];
 } storage_errors_list_page_t;
 
 

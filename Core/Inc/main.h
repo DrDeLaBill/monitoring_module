@@ -88,12 +88,11 @@ extern UART_HandleTypeDef     huart1;
 #define SIM_MODULE_RESET_PORT SIM_RESET_GPIO_Port
 #define SIM_MODULE_RESET_PIN  SIM_RESET_Pin
 
-// EEPROM
 extern I2C_HandleTypeDef      hi2c1;
+// EEPROM
 #define EEPROM_I2C            hi2c1
 // Clock
-extern RTC_HandleTypeDef      hrtc;
-#define CLOCK_RTC             hrtc
+#define CLOCK_I2C             hi2c1
 // Watchdog
 extern IWDG_HandleTypeDef     hiwdg;
 #define DEVICE_IWDG           hiwdg

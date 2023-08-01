@@ -22,7 +22,6 @@
 #include "crc.h"
 #include "i2c.h"
 #include "iwdg.h"
-#include "rtc.h"
 #include "usart.h"
 #include "gpio.h"
 
@@ -37,6 +36,7 @@
 #include "logger.h"
 #include "settings_manager.h"
 #include "storage_data_manager.h"
+#include "ds1307_driver.h"
 
 /* USER CODE END Includes */
 
@@ -104,7 +104,6 @@ int main(void)
   MX_IWDG_Init();
   MX_ADC1_Init();
   MX_USART3_UART_Init();
-  MX_RTC_Init();
   /* USER CODE BEGIN 2 */
 	HAL_Delay(100);
 	// Start message
@@ -129,6 +128,8 @@ int main(void)
 	logger_manager_begin();
 	// Pump
 	pump_init();
+	// Clock
+	DS1307_Init();
 	// Measure ADC start
 	HAL_ADCEx_Calibration_Start(&MEASURE_ADC);
   /* USER CODE END 2 */
@@ -169,11 +170,9 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSI|RCC_OSCILLATORTYPE_HSE
-                              |RCC_OSCILLATORTYPE_LSE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSI|RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
-  RCC_OscInitStruct.LSEState = RCC_LSE_ON;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
@@ -197,8 +196,7 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_RTC|RCC_PERIPHCLK_ADC;
-  PeriphClkInit.RTCClockSelection = RCC_RTCCLKSOURCE_LSE;
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_ADC;
   PeriphClkInit.AdcClockSelection = RCC_ADCPCLK2_DIV6;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
@@ -231,6 +229,7 @@ void Error_Handler(void)
   __disable_irq();
   while (1)
   {
+	  NVIC_SystemReset();
   }
   /* USER CODE END Error_Handler_Debug */
 }

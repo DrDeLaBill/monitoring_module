@@ -9,92 +9,87 @@
 #include <stdbool.h>
 
 #include "stm32f1xx_hal.h"
-#include "rtc.h"
 
 #include "main.h"
+#include "ds1307_driver.h"
 
 
-uint8_t get_year()
+uint8_t _get_days_in_month(uint8_t month);
+
+uint16_t get_year()
 {
-	RTC_DateTypeDef date;
-	HAL_StatusTypeDef res = HAL_RTC_GetDate(&CLOCK_RTC, &date, RTC_FORMAT_BIN);
-	if(res != HAL_OK) {
-	    return 0;
-	}
-	return date.Year;
+	return DS1307_GetYear();
 }
 
 uint8_t get_month()
 {
-	RTC_DateTypeDef date;
-	HAL_StatusTypeDef res = HAL_RTC_GetDate(&CLOCK_RTC, &date, RTC_FORMAT_BIN);
-	if(res != HAL_OK) {
-	    return 0;
-	}
-	return date.Month;
+	return DS1307_GetMonth();
 }
 
 uint8_t get_date()
 {
-	RTC_DateTypeDef date;
-	HAL_StatusTypeDef res = HAL_RTC_GetDate(&CLOCK_RTC, &date, RTC_FORMAT_BIN);
-	if(res != HAL_OK) {
-	    return 0;
-	}
-	return date.Date;
+	return DS1307_GetDate();
 }
 
 uint8_t get_hour()
 {
-	RTC_TimeTypeDef time;
-	HAL_StatusTypeDef res = HAL_RTC_GetTime(&CLOCK_RTC, &time, RTC_FORMAT_BIN);
-	if(res != HAL_OK) {
-	    return 0;
-	}
-	return time.Hours;
+	return DS1307_GetHour();
 }
 
 uint8_t get_minute()
 {
-	RTC_TimeTypeDef time;
-	HAL_StatusTypeDef res = HAL_RTC_GetTime(&CLOCK_RTC, &time, RTC_FORMAT_BIN);
-	if(res != HAL_OK) {
-	    return 0;
-	}
-	return time.Minutes;
+	return DS1307_GetMinute();
 }
 
 uint8_t get_second()
 {
-	RTC_TimeTypeDef time;
-	HAL_StatusTypeDef res = HAL_RTC_GetTime(&CLOCK_RTC, &time, RTC_FORMAT_BIN);
-	if(res != HAL_OK) {
-	    return 0;
-	}
-	return time.Seconds;
+	return DS1307_GetSecond();
 }
 
-bool save_date(RTC_DateTypeDef* date)
+bool save_datetime(DateTime* datetime)
 {
-	if (date->Date > 31) {
-		date->Date = 1;
+	if (datetime->second > 59) {
+		return false;
 	}
-	if (date->Month > 12) {
-		date->Month = 1;
+	if (datetime->minute > 59) {
+		return false;
 	}
-	return HAL_RTC_SetDate(&CLOCK_RTC, date, RTC_FORMAT_BIN) == HAL_OK;
+	if (datetime->hour > 23) {
+		return false;
+	}
+	if (datetime->month > 12) {
+		return false;
+	}
+	if (datetime->date > _get_days_in_month(datetime->month)) {
+		return false;
+	}
+	DS1307_SetYear(datetime->year);
+	DS1307_SetMonth(datetime->month);
+	DS1307_SetDate(datetime->date);
+	DS1307_SetHour(datetime->hour);
+	DS1307_SetMinute(datetime->minute);
+	DS1307_SetSecond(datetime->second);
+	return true;
 }
 
-bool save_time(RTC_TimeTypeDef* time)
-{
-	if (time->Hours > 23) {
-		time->Hours = 0;
+uint8_t _get_days_in_month(uint8_t month) {
+	switch (month) {
+		case 1:
+		case 3:
+		case 5:
+		case 7:
+		case 8:
+		case 10:
+		case 12:
+			return 31;
+		case 2:
+			return get_year() % 4 ? 28 : 29;
+		case 4:
+		case 6:
+		case 9:
+		case 11:
+			return 30;
+		default:
+			return 0;
 	}
-	if (time->Minutes > 59) {
-		time->Minutes = 0;
-	}
-	if (time->Seconds > 59) {
-		time->Seconds = 0;
-	}
-	return HAL_RTC_SetTime(&CLOCK_RTC, time, RTC_FORMAT_BIN) == HAL_OK;
 }

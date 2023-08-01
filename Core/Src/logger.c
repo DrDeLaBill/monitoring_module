@@ -128,7 +128,7 @@ void _send_http_log()
 		"cf_id=%lu\n"
 		"t=20%02d-%02d-%02dT%02d:%02d:%02d\n",
 		module_settings.id,
-		cur_log_record.fw_id,
+		FW_VERSION,
 		module_settings.cf_id,
 		get_year(),
 		get_month(),
@@ -142,7 +142,7 @@ void _send_http_log()
 
 	if (record_res == RECORD_ERROR) {
 		record_res = _load_current_log();
-		cur_log_record.id = module_settings.server_log_id;
+		log_record.id = module_settings.server_log_id;
 	}
 
 	if (record_res == RECORD_OK) {
@@ -157,10 +157,10 @@ void _send_http_log()
 //				"press_2=%lu.%02lu;"
 				"pumpw=%lu;"
 				"pumpd=%lu\r\n",
-			cur_log_record.id,
-			cur_log_record.time[0], cur_log_record.time[1], cur_log_record.time[2], cur_log_record.time[3], cur_log_record.time[4], cur_log_record.time[5],
-			cur_log_record.level / 100,
-			cur_log_record.press_1 / 100, cur_log_record.press_1 % 100,
+			log_record.id,
+			log_record.time[0], log_record.time[1], log_record.time[2], log_record.time[3], log_record.time[4], log_record.time[5],
+			log_record.level / 1000,
+			log_record.press_1 / 100, log_record.press_1 % 100,
 //			cur_log_record.press_2 / 100, cur_log_record.press_2 % 100,
 			module_settings.pump_work_sec,
 			module_settings.pump_downtime_sec
@@ -178,7 +178,7 @@ void _send_http_log()
 	send_http_post(data);
 	_start_settings_timer();
 	_start_error_timer();
-	sended_log_id = cur_log_record.id;
+	sended_log_id = log_record.id;
 }
 
 record_status_t _load_current_log()
@@ -203,19 +203,19 @@ void _start_settings_timer()
 
 void _make_measurements()
 {
-	cur_log_record.fw_id   = FW_VERSION;
-	cur_log_record.cf_id   = module_settings.cf_id;
-	get_new_id(&cur_log_record.id);
-	cur_log_record.level   = get_liquid_liters();
-	cur_log_record.press_1 = get_first_press();
+//	cur_log_record.fw_id   = FW_VERSION;
+	log_record.cf_id   = module_settings.cf_id;
+	get_new_id(&log_record.id);
+	log_record.level   = get_liquid_liters();
+	log_record.press_1 = get_first_press();
 //	cur_log_record.press_2 = get_second_press();
 
-	cur_log_record.time[0] = get_year() % 100;
-	cur_log_record.time[1] = get_month();
-	cur_log_record.time[2] = get_date();
-	cur_log_record.time[3] = get_hour();
-	cur_log_record.time[4] = get_minute();
-	cur_log_record.time[5] = get_second();
+	log_record.time[0] = get_year() % 100;
+	log_record.time[1] = get_month();
+	log_record.time[2] = get_date();
+	log_record.time[3] = get_hour();
+	log_record.time[4] = get_minute();
+	log_record.time[5] = get_second();
 }
 
 void _show_measurements()
@@ -228,10 +228,10 @@ void _show_measurements()
 		"Level:   %lu l\n"
 		"Press 1: %lu.%02lu MPa\n",
 //		"Press 2: %d.%02d MPa\n",
-		cur_log_record.id,
-		cur_log_record.time[0], cur_log_record.time[1], cur_log_record.time[2], cur_log_record.time[3], cur_log_record.time[4], cur_log_record.time[5],
-		cur_log_record.level,
-		cur_log_record.press_1 / 100, cur_log_record.press_1 % 100
+		log_record.id,
+		log_record.time[0], log_record.time[1], log_record.time[2], log_record.time[3], log_record.time[4], log_record.time[5],
+		log_record.level,
+		log_record.press_1 / 100, log_record.press_1 % 100
 //		cur_log_record.press_2 / 100, cur_log_record.press_2 % 100
 	);
 }
@@ -244,58 +244,52 @@ void _parse_response()
 		goto do_error;
 	}
 	// Parse time
-    RTC_TimeTypeDef time;
-    RTC_DateTypeDef date;
+	DateTime datetime = {0};
 
 	data_ptr = strnstr(var_ptr, TIME_FIELD, strlen(var_ptr));
 	if (!data_ptr) {
 		goto do_error;
 	}
 	data_ptr += strlen(TIME_FIELD);
-	date.Year = atoi(data_ptr) % 100;
+	datetime.year = atoi(data_ptr) % 100;
 
 	data_ptr = strnstr(data_ptr, T_DASH_FIELD, strlen(data_ptr));
 	if (!data_ptr) {
 		goto do_error;
 	}
 	data_ptr += strlen(T_DASH_FIELD);
-	date.Month = (uint8_t)atoi(data_ptr);
+	datetime.month = (uint8_t)atoi(data_ptr);
 
 	data_ptr = strnstr(data_ptr, T_DASH_FIELD, strlen(data_ptr));
 	if (!data_ptr) {
 		goto do_error;
 	}
 	data_ptr += strlen(T_DASH_FIELD);
-	date.Date = atoi(data_ptr);
-
-    if(!save_date(&date)) {
-    	LOG_DEBUG(LOG_TAG, "parse error - unable to update date\n");
-		goto do_error;
-    }
+	datetime.date = atoi(data_ptr);
 
 	data_ptr = strnstr(data_ptr, T_TIME_FIELD, strlen(data_ptr));
 	if (!data_ptr) {
 		goto do_error;
 	}
 	data_ptr += strlen(T_TIME_FIELD);
-	time.Hours = atoi(data_ptr);
+	datetime.hour = atoi(data_ptr);
 
 	data_ptr = strnstr(data_ptr, T_COLON_FIELD, strlen(data_ptr));
 	if (!data_ptr) {
 		goto do_error;
 	}
 	data_ptr += strlen(T_COLON_FIELD);
-	time.Minutes = atoi(data_ptr);
+	datetime.minute = atoi(data_ptr);
 
 	data_ptr = strnstr(data_ptr, T_COLON_FIELD, strlen(data_ptr));
 	if (!data_ptr) {
 		goto do_error;
 	}
 	data_ptr += strlen(T_COLON_FIELD);
-	time.Seconds = atoi(data_ptr);
+	datetime.second = atoi(data_ptr);
 
-    if(!save_time(&time)) {
-    	LOG_DEBUG(LOG_TAG, "parse error - unable to update time\n");
+    if(!save_datetime(&datetime)) {
+    	LOG_DEBUG(LOG_TAG, "parse error - unable to update datetime\n");
 		goto do_error;
     }
 
@@ -311,6 +305,12 @@ void _parse_response()
 
 	// Parse configuration:
 	data_ptr = var_ptr;
+	data_ptr = strnstr(data_ptr, CF_LOGID_FIELD, strlen(data_ptr));
+	if (data_ptr) {
+		module_settings.server_log_id = atoi(data_ptr + strlen(CF_LOGID_FIELD));
+	}
+
+	data_ptr = var_ptr;
 	data_ptr = strnstr(data_ptr, CF_ID_FIELD, strlen(data_ptr));
 	if (!data_ptr) {
 		goto do_exit;
@@ -320,12 +320,6 @@ void _parse_response()
 		goto do_exit;
 	}
 	module_settings.cf_id = new_cf_id;
-
-	data_ptr = var_ptr;
-	data_ptr = strnstr(data_ptr, CF_LOGID_FIELD, strlen(data_ptr));
-	if (data_ptr) {
-		module_settings.server_log_id = atoi(data_ptr + strlen(CF_LOGID_FIELD));
-	}
 
 	data_ptr = strnstr(var_ptr, CF_DATA_FIELD, strlen(var_ptr));
 	if (!var_ptr) {

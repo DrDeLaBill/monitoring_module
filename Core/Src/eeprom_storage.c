@@ -15,7 +15,8 @@
 #include "utils.h"
 
 
-#define EEPROM_DELAY ((uint16_t)0xFFFF)
+#define EEPROM_DELAY       ((uint16_t)0xFFFF)
+#define EEPROM_TIMER_DELAY ((uint16_t)5000)
 
 const char* EEPROM_TAG = "EEPR";
 
@@ -44,7 +45,17 @@ eeprom_status_t eeprom_read(uint32_t addr, uint8_t* buf, uint16_t len)
     LOG_DEBUG(EEPROM_TAG, "eeprom read: device i2c address - 0x%02x\n", dev_addr);
 #endif
 
-    HAL_StatusTypeDef status = HAL_I2C_Mem_Read(&EEPROM_I2C, dev_addr, (uint16_t)(addr & 0xFFFF), I2C_MEMADD_SIZE_16BIT, buf, len, EEPROM_DELAY);
+    HAL_StatusTypeDef status;
+    dio_timer_t timer;
+    util_timer_start(&timer, EEPROM_TIMER_DELAY);
+    while (util_is_timer_wait(&timer)) {
+    	status = HAL_I2C_IsDeviceReady(&EEPROM_I2C, dev_addr, 1, HAL_MAX_DELAY);
+    	if (status == HAL_OK) {
+    		break;
+    	}
+    }
+
+    status = HAL_I2C_Mem_Read(&EEPROM_I2C, dev_addr, (uint16_t)(addr & 0xFFFF), I2C_MEMADD_SIZE_16BIT, buf, len, EEPROM_DELAY);
     if (status != HAL_OK) {
 #if EEPROM_DEBUG
         LOG_DEBUG(EEPROM_TAG, "eeprom read: i2c error=0x%02x\n", status);
@@ -84,7 +95,17 @@ eeprom_status_t eeprom_write(uint32_t addr, uint8_t* buf, uint16_t len)
     LOG_DEBUG(EEPROM_TAG, "eeprom write: device i2c address - 0x%02x\n", dev_addr);
 #endif
 
-    HAL_StatusTypeDef status = HAL_I2C_Mem_Write(&EEPROM_I2C, dev_addr, (uint16_t)(addr & 0xFFFF), I2C_MEMADD_SIZE_16BIT, buf, len, EEPROM_DELAY);
+    HAL_StatusTypeDef status;
+    dio_timer_t timer;
+    util_timer_start(&timer, EEPROM_TIMER_DELAY);
+    while (util_is_timer_wait(&timer)) {
+    	status = HAL_I2C_IsDeviceReady(&EEPROM_I2C, dev_addr, 1, HAL_MAX_DELAY);
+    	if (status == HAL_OK) {
+    		break;
+    	}
+    }
+
+    status = HAL_I2C_Mem_Write(&EEPROM_I2C, dev_addr, (uint16_t)(addr & 0xFFFF), I2C_MEMADD_SIZE_16BIT, buf, len, EEPROM_DELAY);
     if (status != HAL_OK) {
 #if EEPROM_DEBUG
         LOG_DEBUG(EEPROM_TAG, "eeprom write: i2c error=0x%02x\n", status);
