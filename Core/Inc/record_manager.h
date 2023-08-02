@@ -39,6 +39,7 @@ typedef struct _log_record_clust_t {
 
 typedef struct _log_ids_cache_t {
 	bool is_need_to_scan;
+	uint32_t cur_scan_address;
 	uint32_t first_record_addr;
 	uint32_t ids_cache[STORAGE_PAGES_COUNT][RECORDS_CLUST_SIZE];
 } log_ids_cache_t;
@@ -49,7 +50,9 @@ extern log_record_t log_record;
 
 record_status_t next_record_load();
 record_status_t record_save();
-record_status_t get_new_id();
+record_status_t record_get_new_id();
+record_status_t record_delete_record(uint32_t id);
+void            record_cache_records_proccess();
 
 
 #endif /* INC_RECORD_MANAGER_H_ */

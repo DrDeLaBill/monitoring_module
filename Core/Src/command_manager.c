@@ -146,6 +146,9 @@ void _execute_command()
 	} else if (strncmp("setlogid", command, CHAR_COMMAND_SIZE) == 0) {
 		module_settings.server_log_id = (uint32_t)atoi(value);
 		goto do_success;
+	} else if (strncmp("delrecord", command, CHAR_COMMAND_SIZE) == 0) {
+		record_delete_record((uint32_t)atoi(value));
+		goto do_success;
 	}
 #ifdef DEBUG
 	else if (strncmp("setadcmin", command, CHAR_COMMAND_SIZE) == 0) {

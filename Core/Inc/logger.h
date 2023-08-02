@@ -11,6 +11,8 @@
 #include "record_manager.h"
 
 
+#define LOGGER_DEBUG (false)
+
 #define LOG_SIZE 370
 
 

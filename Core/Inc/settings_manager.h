@@ -52,6 +52,9 @@ typedef struct _module_settings_t {
 
 extern module_settings_t module_settings;
 
+extern const char default_server_url[CHAR_SETIINGS_SIZE];
+extern const char default_server_port[CHAR_SETIINGS_SIZE];
+
 
 settings_status_t settings_reset();
 settings_status_t settings_load();

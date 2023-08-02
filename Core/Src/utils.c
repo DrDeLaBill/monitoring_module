@@ -4,10 +4,13 @@
  *  Created on: May 20, 2022
  *      Author: gauss
  */
+#include "utils.h"
 
 #include <stdio.h>
+#include <stdbool.h>
+
 #include "stm32f1xx_hal.h"
-#include "utils.h"
+
 #include "defines.h"
 
 
@@ -17,8 +20,8 @@ void util_timer_start(dio_timer_t* tm, uint32_t waitMs) {
 }
 
 
-uint8_t util_is_timer_wait(dio_timer_t* tm) {
-	return (HAL_GetTick() - tm->start) < tm->delay;
+bool util_is_timer_wait(dio_timer_t* tm) {
+	return ((uint32_t)((uint32_t)HAL_GetTick() - (uint32_t)tm->start)) < ((uint32_t)tm->delay);
 }
 
 int util_convert_range(int val, int rngl1, int rngh1, int rngl2, int rngh2) {

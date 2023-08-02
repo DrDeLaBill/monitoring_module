@@ -67,14 +67,16 @@ int _write(int file, uint8_t *ptr, int len);
 #define RS485_TX_GPIO_Port GPIOA
 #define RS485_RX_Pin GPIO_PIN_3
 #define RS485_RX_GPIO_Port GPIOA
-#define PUMP_Pin GPIO_PIN_12
-#define PUMP_GPIO_Port GPIOB
 #define SIM_RESET_Pin GPIO_PIN_8
 #define SIM_RESET_GPIO_Port GPIOA
-#define RED_LED_Pin GPIO_PIN_15
-#define RED_LED_GPIO_Port GPIOA
-#define GREEN_LED_Pin GPIO_PIN_3
-#define GREEN_LED_GPIO_Port GPIOB
+#define PUMP_LAMP_Pin GPIO_PIN_11
+#define PUMP_LAMP_GPIO_Port GPIOA
+#define PUMP_Pin GPIO_PIN_12
+#define PUMP_GPIO_Port GPIOA
+#define GREEN_LED_Pin GPIO_PIN_15
+#define GREEN_LED_GPIO_Port GPIOA
+#define RED_LED_Pin GPIO_PIN_5
+#define RED_LED_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
 // UART command manager
 extern UART_HandleTypeDef     huart3;

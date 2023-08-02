@@ -95,7 +95,12 @@ void logger_proccess()
 
 	_make_measurements();
 	_show_measurements();
-	record_save();
+	record_status_t status = record_save();
+	if (status == RECORD_OK) {
+		LOG_MESSAGE(LOG_TAG, "saved new log\n");
+	} else {
+		LOG_MESSAGE(LOG_TAG, "error saving new log\n");
+	}
 	update_log_timer();
 }
 
@@ -186,7 +191,9 @@ record_status_t _load_current_log()
 	if (util_is_timer_wait(&error_read_timer)) {
 		return RECORD_NO_LOG;
 	}
+#if LOGGER_DEBUG
 	LOG_DEBUG(LOG_TAG, "load current log\n");
+#endif
 	_make_measurements();
 	return RECORD_OK;
 }
@@ -205,7 +212,7 @@ void _make_measurements()
 {
 //	cur_log_record.fw_id   = FW_VERSION;
 	log_record.cf_id   = module_settings.cf_id;
-	get_new_id(&log_record.id);
+	record_get_new_id(&log_record.id);
 	log_record.level   = get_liquid_liters();
 	log_record.press_1 = get_first_press();
 //	cur_log_record.press_2 = get_second_press();
@@ -223,12 +230,16 @@ void _show_measurements()
 	LOG_DEBUG(
 		LOG_TAG,
 		"\n"
+#if LOGGER_DEBUG
 		"ID:      %lu\n"
+#endif
 		"Time:    20%02u-%02u-%02uT%02u:%02u:%02u\n"
 		"Level:   %lu l\n"
 		"Press 1: %lu.%02lu MPa\n",
 //		"Press 2: %d.%02d MPa\n",
+#if LOGGER_DEBUG
 		log_record.id,
+#endif
 		log_record.time[0], log_record.time[1], log_record.time[2], log_record.time[3], log_record.time[4], log_record.time[5],
 		log_record.level,
 		log_record.press_1 / 100, log_record.press_1 % 100
@@ -289,18 +300,24 @@ void _parse_response()
 	datetime.second = atoi(data_ptr);
 
     if(!save_datetime(&datetime)) {
+#if LOGGER_DEBUG
     	LOG_DEBUG(LOG_TAG, "parse error - unable to update datetime\n");
+#endif
 		goto do_error;
     }
 
+#if LOGGER_DEBUG
 	LOG_DEBUG(LOG_TAG, "time updated\n");
+#endif
 
 	if (module_settings.server_log_id < sended_log_id) {
 		module_settings.pump_work_sec = 0;
 		module_settings.pump_downtime_sec = 0;
 		module_settings.server_log_id = sended_log_id;
 		settings_save();
+#if LOGGER_DEBUG
 		LOG_DEBUG(LOG_TAG, "server log id updated\n");
+#endif
 	}
 
 	// Parse configuration:
@@ -309,6 +326,8 @@ void _parse_response()
 	if (data_ptr) {
 		module_settings.server_log_id = atoi(data_ptr + strlen(CF_LOGID_FIELD));
 	}
+
+	LOG_MESSAGE(LOG_TAG, "Recieved response from the server\n");
 
 	data_ptr = var_ptr;
 	data_ptr = strnstr(data_ptr, CF_ID_FIELD, strlen(data_ptr));
@@ -322,7 +341,7 @@ void _parse_response()
 	module_settings.cf_id = new_cf_id;
 
 	data_ptr = strnstr(var_ptr, CF_DATA_FIELD, strlen(var_ptr));
-	if (!var_ptr) {
+	if (!data_ptr) {
 		goto do_error;
 	}
 	data_ptr += strlen(CF_DATA_FIELD);
@@ -370,18 +389,25 @@ void _parse_response()
 		clear_log();
 	}
 
+#if LOGGER_DEBUG
 	LOG_DEBUG(LOG_TAG, "configuration updated\n");
+#endif
 	show_settings();
 
 	goto do_success;
 
 
 do_error:
+#if LOGGER_DEBUG
 	LOG_DEBUG(LOG_TAG, "unable to parse response - %s\n", get_response());
+#endif
 	goto do_exit;
 
 do_success:
-	if (settings_save() != SETTINGS_OK) {
+	if (settings_save() == SETTINGS_OK) {
+		LOG_MESSAGE(LOG_TAG, "New settings have been received from the server\n");
+	} else {
+		LOG_MESSAGE(LOG_TAG, "Unable to recieve new settings from the server\n");
 		module_settings.cf_id = 0;
 	}
 	goto do_exit;

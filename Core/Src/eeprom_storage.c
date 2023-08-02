@@ -67,7 +67,6 @@ eeprom_status_t eeprom_read(uint32_t addr, uint8_t* buf, uint16_t len)
     LOG_DEBUG(EEPROM_TAG, "eeprom read: OK\n");
 #endif
 
-    HAL_IWDG_Refresh(&DEVICE_IWDG);
     return EEPROM_OK;
 }
 

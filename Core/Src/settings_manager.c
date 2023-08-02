@@ -15,8 +15,8 @@
 
 const char* STNG_MODULE_TAG = "STNG";
 
-const char _default_server_url[CHAR_SETIINGS_SIZE] = "urv.a.izhpt.com";
-const char _default_server_port[CHAR_SETIINGS_SIZE] = "80";
+const char default_server_url[CHAR_SETIINGS_SIZE] = "urv.a.izhpt.com";
+const char default_server_port[CHAR_SETIINGS_SIZE] = "80";
 
 
 module_settings_t module_settings;
@@ -30,8 +30,8 @@ settings_status_t settings_reset() {
 	module_settings.id = 1;
 	memset(module_settings.server_url, 0, sizeof(module_settings.server_url));
 	memset(module_settings.server_port, 0, sizeof(module_settings.server_port));
-	strncpy(module_settings.server_url, _default_server_url, sizeof(module_settings.server_url));
-	strncpy(module_settings.server_port, _default_server_port, sizeof(module_settings.server_port));
+	strncpy(module_settings.server_url, default_server_url, sizeof(module_settings.server_url));
+	strncpy(module_settings.server_port, default_server_port, sizeof(module_settings.server_port));
 	module_settings.tank_liters_min = MIN_TANK_LTR;
 	module_settings.tank_liters_max = MAX_TANK_LTR;
 	module_settings.tank_ADC_max = MAX_TANK_VOLUME;

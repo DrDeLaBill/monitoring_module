@@ -153,6 +153,8 @@ int main(void)
 	  sim_module_proccess();
 	  // Logger
 	  logger_proccess();
+	  // Scan records
+	  record_cache_records_proccess();
   }
   /* USER CODE END 3 */
 }

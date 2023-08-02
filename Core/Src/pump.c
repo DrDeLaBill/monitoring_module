@@ -25,7 +25,7 @@
 #define MIN_PUMP_WORK_TIME 30000
 #define MINUTES_PER_HOUR   60
 #define LOG_SIZE           140
-#define PUMP_WORK_PERIOD   900000
+#define PUMP_WORK_PERIOD   ((uint32_t)900000)
 
 
 void _pump_set_state(void (*action) (void));
@@ -44,6 +44,7 @@ void _pump_log_downtime();
 void _pump_check_log_date();
 
 void _pump_calculate_work_time();
+void _pump_indication_proccess();
 uint32_t _get_day_sec_left();
 
 
@@ -68,15 +69,12 @@ void pump_init()
     if (is_liquid_tank_empty()) {
         LOG_MESSAGE(PUMP_TAG, "WWARNING - pump init - liquid tank empty\n");
     }
-
-	// State LEDs
-    HAL_GPIO_WritePin(RED_LED_GPIO_Port, RED_LED_Pin, (module_settings.pump_enabled ? GPIO_PIN_SET : GPIO_PIN_RESET));
-    HAL_GPIO_WritePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin, GPIO_PIN_RESET);
 }
 
 void pump_proccess()
 {
     pump_state.state_action();
+    _pump_indication_proccess();
 }
 
 void pump_update_speed(uint32_t speed)
@@ -95,15 +93,17 @@ void pump_update_enable_state(bool enabled)
 	pump_reset_work_state();
 
 	pump_state.enabled = enabled;
-    HAL_GPIO_WritePin(RED_LED_GPIO_Port, RED_LED_Pin, (enabled ? GPIO_PIN_SET : GPIO_PIN_RESET));
 }
 
 void pump_reset_work_state() {
+	HAL_GPIO_WritePin(PUMP_GPIO_Port, PUMP_Pin, GPIO_PIN_RESET);
+
 	if (pump_state.enabled) {
 		_pump_log_work_time();
 	} else {
-		_pump_log_work_time();
+		_pump_log_downtime();
 	}
+
 	_pump_clear_state();
 }
 
@@ -118,7 +118,7 @@ void pump_clear_log()
 
 void pump_show_status()
 {
-    LOG_MESSAGE(PUMP_TAG, "PUMP_STATUS: %s\n##############################################\n", pump_state.enabled ? "ENABLED" : "DISABLED");
+    LOG_MESSAGE(PUMP_TAG, "PUMP_STATUS: %s\n################################################\n", pump_state.enabled ? "ENABLED" : "DISABLED");
 
     uint32_t time_period = 0;
     if (!module_settings.pump_enabled || (!pump_state.needed_work_time && !pump_state.start_time)) {
@@ -127,23 +127,43 @@ void pump_show_status()
 	} else if (pump_state.state_action == _pump_fsm_state_start || pump_state.state_action == _pump_fsm_state_work) {
         time_period = (pump_state.start_time + pump_state.needed_work_time) - HAL_GetTick();
         LOG_MESSAGE(PUMP_TAG, "Pump work from %lu ms to %lu ms (internal)\n", pump_state.start_time, pump_state.start_time + pump_state.needed_work_time);
-    } else {
-        time_period = pump_state.start_time + PUMP_WORK_PERIOD - HAL_GetTick();
+    } else if (pump_state.state_action == _pump_fsm_state_stop || pump_state.state_action == _pump_fsm_state_off) {
+    	time_period = pump_state.start_time + PUMP_WORK_PERIOD - HAL_GetTick();
         LOG_MESSAGE(PUMP_TAG, "Pump will start at %lu ms (internal)\n", HAL_GetTick() - pump_state.start_time + PUMP_WORK_PERIOD);
-    }
+    } else if (pump_state.state_action == _pump_fsm_state_check_downtime) {
+    	LOG_MESSAGE(PUMP_TAG, "Counting pump downtime period\n");
+    } else {
+    	LOG_MESSAGE(PUMP_TAG, "Pump current day work time: %lu\n", module_settings.pump_work_day_sec);
+	}
 
     if (time_period) {
     	LOG_MESSAGE(PUMP_TAG, "Wait %lu min %lu sec\n", time_period / SECONDS_PER_MINUTE / MILLIS_IN_SECOND, (time_period / MILLIS_IN_SECOND) % SECONDS_PER_MINUTE);
     }
+
     LOG_MESSAGE(PUMP_TAG, "Internal clock: %lu ms\n", HAL_GetTick());
 
 	int32_t liquid_val = get_liquid_liters();
 	uint16_t liquid_adc = get_liquid_adc();
     if (liquid_val < 0) {
-    	LOG_MESSAGE(PUMP_TAG, "Tank liquid value ERR (ADC=%d)\n##############################################\n", liquid_adc);
+    	LOG_MESSAGE(PUMP_TAG, "Tank liquid value ERR (ADC=%d)\n################################################\n", liquid_adc);
     } else {
-    	LOG_MESSAGE(PUMP_TAG, "Tank liquid value: %ld l (ADC=%d)\n##############################################\n", liquid_val / 1000, liquid_adc);
+    	LOG_MESSAGE(PUMP_TAG, "Tank liquid value: %ld l (ADC=%d)\n################################################\n", liquid_val / 1000, liquid_adc);
     }
+}
+
+void _pump_indication_proccess()
+{
+	GPIO_PinState state = GPIO_PIN_RESET;
+	if (pump_state.enabled) {
+		state = GPIO_PIN_SET;
+	}
+	HAL_GPIO_WritePin(RED_LED_GPIO_Port, RED_LED_Pin, state);
+	HAL_GPIO_WritePin(PUMP_LAMP_GPIO_Port, PUMP_LAMP_Pin, state);
+
+	if (pump_state.state_action == _pump_fsm_state_start || pump_state.state_action == _pump_fsm_state_work) {
+		state = GPIO_PIN_SET;
+	}
+	HAL_GPIO_WritePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin, state);
 }
 
 void _pump_set_state(void (*action) (void))
@@ -174,19 +194,18 @@ void _pump_fsm_state_start()
 	pump_state.start_time = HAL_GetTick();
 	util_timer_start(&pump_state.wait_timer, pump_state.needed_work_time);
 
-    pump_show_status();
-
 	if (!module_settings.pump_enabled) {
 	    _pump_set_state(_pump_fsm_state_check_downtime);
+	    pump_show_status();
 	    return;
 	}
 
 	LOG_DEBUG(PUMP_TAG, "PUMP ON (will work %lu ms)\n", pump_state.needed_work_time);
-
 	HAL_GPIO_WritePin(PUMP_GPIO_Port, PUMP_Pin, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin, GPIO_PIN_SET);
 
     _pump_set_state(_pump_fsm_state_work);
+
+    pump_show_status();
 }
 
 void _pump_fsm_state_stop()
@@ -194,14 +213,12 @@ void _pump_fsm_state_stop()
 	LOG_DEBUG(PUMP_TAG, "PUMP OFF (%lu ms)\n", PUMP_WORK_PERIOD - pump_state.needed_work_time);
 
 	uint32_t work_time = HAL_GetTick() - pump_state.start_time;
-	util_timer_start(&pump_state.wait_timer, (HAL_GetTick() - work_time + PUMP_WORK_PERIOD));
-
+	util_timer_start(&pump_state.wait_timer, (PUMP_WORK_PERIOD - work_time));
 	HAL_GPIO_WritePin(PUMP_GPIO_Port, PUMP_Pin, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin, GPIO_PIN_RESET);
-
-	pump_show_status();
 
     _pump_set_state(_pump_fsm_state_off);
+
+    pump_show_status();
 }
 
 void _pump_fsm_state_work()
@@ -233,13 +250,15 @@ void _pump_fsm_state_off()
 	}
 
 	_pump_set_state(_pump_fsm_state_enable);
+
+    pump_show_status();
 }
 
 void _pump_log_work_time()
 {
 	_pump_check_log_date();
 
-	if (!pump_state.start_time) {
+	if (!(pump_state.start_time / 1000)) {
 		return;
 	}
 
@@ -255,7 +274,7 @@ void _pump_log_downtime()
 {
 	_pump_check_log_date();
 
-	if (!pump_state.start_time) {
+	if (!(pump_state.start_time / 1000)) {
 		return;
 	}
 

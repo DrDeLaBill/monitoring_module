@@ -10,6 +10,7 @@
 
 
 #include <stdio.h>
+#include <stdbool.h>
 
 #include "main.h"
 
@@ -45,7 +46,7 @@ typedef struct _dio_timer_t {
 } dio_timer_t;
 
 void util_timer_start(dio_timer_t* tm, uint32_t waitMs);
-uint8_t util_is_timer_wait(dio_timer_t* tm);
+bool util_is_timer_wait(dio_timer_t* tm);
 
 
 void util_debug_hex_dump(const char* tag, const uint8_t* buf, uint16_t len);

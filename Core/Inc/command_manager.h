@@ -22,7 +22,7 @@ void cmd_proccess_input(const char input_chr);
 
 
 #define LOG_DEBUG_SETTINGS_FORMAT \
-		"\n###################SETTINGS###################\n" \
+		"\n\n####################SETTINGS####################\n" \
 		"Time:             20%02u-%02u-%02uT%02u:%02u:%02u\n" \
 		"Device ID:        %lu\n" \
 		"Server URL:       %s:%s\n" \
@@ -38,7 +38,7 @@ void cmd_proccess_input(const char input_chr);
 		"Pump work day:    %lu sec\n" \
 		"Config ver:       %lu\n" \
 		"Pump              %s\n" \
-		"###################SETTINGS###################\n", \
+		"####################SETTINGS####################\n\n", \
 		get_year() % 100, \
 		get_month(), \
 		get_date(), \
