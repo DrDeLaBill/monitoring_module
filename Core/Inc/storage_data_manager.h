@@ -41,7 +41,9 @@ typedef enum _storage_appointment_t {
 
 
 typedef struct __attribute__((packed)) _storage_payload_header_t {
-	uint32_t magic; uint8_t version; uint8_t appointment;
+	uint32_t magic;
+	uint8_t version;
+	uint8_t appointment;
 } storage_payload_header_t;
 
 

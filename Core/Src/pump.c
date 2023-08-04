@@ -22,10 +22,12 @@
 #define MONTHS_PER_YEAR    12
 #define HOURS_PER_DAY      24
 #define SECONDS_PER_MINUTE 60
-#define MIN_PUMP_WORK_TIME 30000
+#define MIN_PUMP_WORK_TIME ((uint32_t)30000)
+#define PUMP_OFF_TIME_MIN  ((uint32_t)5000)
 #define MINUTES_PER_HOUR   60
 #define LOG_SIZE           140
 #define PUMP_WORK_PERIOD   ((uint32_t)900000)
+#define PUMP_LED_PERIOD    ((uint32_t)1000)
 
 
 void _pump_set_state(void (*action) (void));
@@ -45,6 +47,7 @@ void _pump_check_log_date();
 
 void _pump_calculate_work_time();
 void _pump_indication_proccess();
+void _pump_indicate_disable_state();
 uint32_t _get_day_sec_left();
 
 
@@ -154,9 +157,14 @@ void pump_show_status()
 void _pump_indication_proccess()
 {
 	GPIO_PinState state = GPIO_PIN_RESET;
-	if (pump_state.enabled) {
-		state = GPIO_PIN_SET;
+
+	if (!pump_state.enabled) {
+		_pump_indicate_disable_state();
+		return;
 	}
+
+	state = GPIO_PIN_SET;
+
 	HAL_GPIO_WritePin(RED_LED_GPIO_Port, RED_LED_Pin, state);
 	HAL_GPIO_WritePin(PUMP_LAMP_GPIO_Port, PUMP_LAMP_Pin, state);
 
@@ -164,6 +172,21 @@ void _pump_indication_proccess()
 		state = GPIO_PIN_SET;
 	}
 	HAL_GPIO_WritePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin, state);
+}
+
+void _pump_indicate_disable_state()
+{
+	HAL_GPIO_WritePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(PUMP_LAMP_GPIO_Port, PUMP_LAMP_Pin, GPIO_PIN_RESET);
+
+	if (util_is_timer_wait(&pump_state.indication_timer)) {
+		return;
+	}
+	util_timer_start(&pump_state.indication_timer, PUMP_LED_PERIOD);
+
+	GPIO_PinState state = HAL_GPIO_ReadPin(RED_LED_GPIO_Port, RED_LED_Pin);
+
+	HAL_GPIO_WritePin(RED_LED_GPIO_Port, RED_LED_Pin, !state);
 }
 
 void _pump_set_state(void (*action) (void))
@@ -195,6 +218,7 @@ void _pump_fsm_state_start()
 	util_timer_start(&pump_state.wait_timer, pump_state.needed_work_time);
 
 	if (!module_settings.pump_enabled) {
+		LOG_DEBUG(PUMP_TAG, "PUMP COUNT DOWNTIME (wait %lu ms)\n", pump_state.needed_work_time);
 	    _pump_set_state(_pump_fsm_state_check_downtime);
 	    pump_show_status();
 	    return;
@@ -210,10 +234,21 @@ void _pump_fsm_state_start()
 
 void _pump_fsm_state_stop()
 {
-	LOG_DEBUG(PUMP_TAG, "PUMP OFF (%lu ms)\n", PUMP_WORK_PERIOD - pump_state.needed_work_time);
+	uint32_t work_state_time = (HAL_GetTick() - pump_state.start_time);
+	if (work_state_time > PUMP_WORK_PERIOD) {
+		_pump_set_state(_pump_fsm_state_enable);
+		return;
+	}
 
-	uint32_t work_time = HAL_GetTick() - pump_state.start_time;
-	util_timer_start(&pump_state.wait_timer, (PUMP_WORK_PERIOD - work_time));
+	uint32_t off_state_time = PUMP_WORK_PERIOD - work_state_time;
+	if (off_state_time < MIN_PUMP_WORK_TIME) {
+		_pump_set_state(_pump_fsm_state_enable);
+		return;
+	}
+
+	LOG_DEBUG(PUMP_TAG, "PUMP OFF (%lu ms)\n", off_state_time);
+
+	util_timer_start(&pump_state.wait_timer, off_state_time);
 	HAL_GPIO_WritePin(PUMP_GPIO_Port, PUMP_Pin, GPIO_PIN_RESET);
 
     _pump_set_state(_pump_fsm_state_off);

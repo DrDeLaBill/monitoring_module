@@ -125,10 +125,10 @@ void _execute_command()
 		update_log_sleep(atoi(value) * MILLIS_IN_SECOND);
 		goto do_success;
 	} else if (strncmp("seturl", command, CHAR_COMMAND_SIZE) == 0) {
-		strncpy(module_settings.server_url, value, sizeof(module_settings.server_url));
+		strncpy(module_settings.server_url, value, sizeof(module_settings.server_url) - 1);
 		goto do_success;
 	} else if (strncmp("setport", command, CHAR_COMMAND_SIZE) == 0) {
-		strncpy(module_settings.server_port, value, sizeof(module_settings.server_port));
+		strncpy(module_settings.server_port, value, sizeof(module_settings.server_port) - 1);
 		goto do_success;
 	} else if (strncmp("setlitersmin", command, CHAR_COMMAND_SIZE) == 0) {
 		module_settings.tank_liters_min = atoi(value);

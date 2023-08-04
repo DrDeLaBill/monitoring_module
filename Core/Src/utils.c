@@ -32,7 +32,7 @@ int util_convert_range(int val, int rngl1, int rngh1, int rngl2, int rngh2) {
 }
 
 uint16_t util_get_crc16(uint8_t* buf, uint16_t len) {
-	uint16_t crc;
+	uint16_t crc = 0;
 	for (uint16_t i = 1; i < len; i++) {
 		crc = (uint8_t)(crc >> 8) | (crc << 8);
 		crc ^= buf[i];

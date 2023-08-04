@@ -20,6 +20,7 @@ typedef struct _pump_state_t {
 	uint32_t    start_time;
 	uint32_t    needed_work_time;
 	dio_timer_t wait_timer;
+	dio_timer_t indication_timer;
 } pump_state_t;
 
 

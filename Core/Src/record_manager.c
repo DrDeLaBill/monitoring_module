@@ -36,16 +36,10 @@ record_status_t _record_cache_scan_storage_records();
 
 
 record_status_t next_record_load() {
-#if RECORD_DEBUG
-    LOG_DEBUG(RECORD_TAG, "reccord load: begin\n");
-#endif
     uint32_t needed_addr = 0;
     uint16_t needed_record_num = 0;
 
 	if (log_ids_cache.is_need_to_scan) {
-#if RECORD_DEBUG
-        LOG_DEBUG(RECORD_TAG, "reccord load: error - cache not loaded\n");
-#endif
 		return RECORD_ERROR;
 	}
 
@@ -53,6 +47,11 @@ record_status_t next_record_load() {
     if (record_status == RECORD_NO_LOG) {
     	return RECORD_NO_LOG;
     }
+
+#if RECORD_DEBUG
+    LOG_DEBUG(RECORD_TAG, "reccord load: begin\n");
+#endif
+
 	if (record_status != RECORD_OK) {
 #if RECORD_DEBUG
         LOG_DEBUG(RECORD_TAG, "reccord load: error get available address by cache\n");

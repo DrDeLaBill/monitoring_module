@@ -9,6 +9,11 @@
 #define INC_EEPROM_STORAGE_H_
 
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 #include <stm32f1xx_hal.h>
 #include <stdbool.h>
 
@@ -29,6 +34,11 @@ typedef enum _eeprom_status_t {
 
 eeprom_status_t eeprom_read(uint32_t addr, uint8_t* buf, uint16_t len);
 eeprom_status_t eeprom_write(uint32_t addr, uint8_t* buf, uint16_t len);
+
+
+#ifdef __cplusplus
+}
+#endif
 
 
 #endif /* INC_EEPROM_STORAGE_H_ */

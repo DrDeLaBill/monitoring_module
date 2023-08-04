@@ -28,7 +28,7 @@ typedef struct _channel_measurement {
 
 void pressure_sensor_begin();
 uint32_t get_first_press();
-uint32_t get_second_press();
+//uint32_t get_second_press();
 void pressure_sensor_proccess();
 
 

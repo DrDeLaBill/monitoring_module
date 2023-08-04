@@ -46,10 +46,10 @@ uint32_t get_first_press()
 	return measurement_buf[0].shunt_val_max;
 }
 
-uint32_t get_second_press()
-{
-	return measurement_buf[1].shunt_val_max;
-}
+//uint32_t get_second_press()
+//{
+//	return measurement_buf[1].shunt_val_max;
+//}
 
 void pressure_sensor_proccess()
 {
