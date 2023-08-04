@@ -123,6 +123,19 @@ void pump_show_status()
 {
     LOG_MESSAGE(PUMP_TAG, "PUMP_STATUS: %s\n################################################\n", pump_state.enabled ? "ENABLED" : "DISABLED");
 
+    uint16_t used_day_liquid = module_settings.pump_work_day_sec * module_settings.pump_speed / MILLIS_IN_SECOND;
+    if (module_settings.milliliters_per_day == 0) {
+		LOG_MESSAGE(PUMP_TAG, "Unable to calculate work time - no setting day liquid target\n");
+	} else if (module_settings.pump_speed == 0) {
+		LOG_MESSAGE(PUMP_TAG, "Unable to calculate work time - no setting pump speed\n");
+	} else if (is_liquid_tank_empty()) {
+		LOG_MESSAGE(PUMP_TAG, "Unable to calculate work time - liquid tank empty\n");
+	} else if (pump_state.needed_work_time < MIN_PUMP_WORK_TIME) {
+    	LOG_MESSAGE(PUMP_TAG, "Unable to calculate work time - needed work time less than %d sec; set work time 0 sec\n", MIN_PUMP_WORK_TIME / 1000);
+	} else if (module_settings.milliliters_per_day <= used_day_liquid) {uint16_t used_day_liquid = module_settings.pump_work_day_sec * module_settings.pump_speed / MILLIS_IN_SECOND;
+		LOG_MESSAGE(PUMP_TAG, "Unable to calculate work time - target liquid amount per day already used\n");
+	}
+
     uint32_t time_period = 0;
     if (!module_settings.pump_enabled || (!pump_state.needed_work_time && !pump_state.start_time)) {
 		LOG_MESSAGE(PUMP_TAG, "Pump will not start - unexceptable settings or sesnors values\n");
@@ -170,14 +183,16 @@ void _pump_indication_proccess()
 
 	if (pump_state.state_action == _pump_fsm_state_start || pump_state.state_action == _pump_fsm_state_work) {
 		state = GPIO_PIN_SET;
+	} else {
+		state = GPIO_PIN_RESET;
 	}
+
 	HAL_GPIO_WritePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin, state);
 }
 
 void _pump_indicate_disable_state()
 {
 	HAL_GPIO_WritePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(PUMP_LAMP_GPIO_Port, PUMP_LAMP_Pin, GPIO_PIN_RESET);
 
 	if (util_is_timer_wait(&pump_state.indication_timer)) {
 		return;
@@ -187,6 +202,7 @@ void _pump_indicate_disable_state()
 	GPIO_PinState state = HAL_GPIO_ReadPin(RED_LED_GPIO_Port, RED_LED_Pin);
 
 	HAL_GPIO_WritePin(RED_LED_GPIO_Port, RED_LED_Pin, !state);
+	HAL_GPIO_WritePin(PUMP_LAMP_GPIO_Port, PUMP_LAMP_Pin, !state);
 }
 
 void _pump_set_state(void (*action) (void))
@@ -293,11 +309,16 @@ void _pump_log_work_time()
 {
 	_pump_check_log_date();
 
-	if (!(pump_state.start_time / 1000)) {
+	if (HAL_GetTick() < pump_state.start_time) {
 		return;
 	}
 
-	uint32_t time = (HAL_GetTick() - pump_state.start_time) / MILLIS_IN_SECOND;
+	uint32_t work_state_time = (HAL_GetTick() - pump_state.start_time);
+	if (work_state_time < MILLIS_IN_SECOND) {
+		return;
+	}
+
+	uint32_t time = work_state_time / MILLIS_IN_SECOND;
 	module_settings.pump_work_day_sec += time;
 	module_settings.pump_work_sec += time;
 	LOG_DEBUG(PUMP_TAG, "update work log: time added (%lu s)\n", time);
@@ -335,22 +356,18 @@ void _pump_calculate_work_time()
     pump_state.needed_work_time = 0;
 
     if (module_settings.milliliters_per_day == 0) {
-    	LOG_MESSAGE(PUMP_TAG, "unable to calculate work time - no setting day liquid target\n");
-        return;
+    	return;
     }
     if (module_settings.pump_speed == 0) {
-    	LOG_MESSAGE(PUMP_TAG, "unable to calculate work time - no setting pump speed\n");
-        return;
+    	return;
     }
     if (is_liquid_tank_empty()) {
-    	LOG_MESSAGE(PUMP_TAG, "unable to calculate work time - liquid tank empty\n");
-        return;
+    	return;
     }
 
     uint16_t used_day_liquid = module_settings.pump_work_day_sec * module_settings.pump_speed / MILLIS_IN_SECOND;
     if (module_settings.milliliters_per_day <= used_day_liquid) {
-    	LOG_MESSAGE(PUMP_TAG, "unable to calculate work time - target liquid amount per day already used\n");
-        return;
+    	return;
     }
 
     uint32_t time_left = _get_day_sec_left();
@@ -368,8 +385,7 @@ void _pump_calculate_work_time()
         pump_state.needed_work_time = PUMP_WORK_PERIOD;
     }
 	if (pump_state.needed_work_time < MIN_PUMP_WORK_TIME) {
-    	LOG_MESSAGE(PUMP_TAG, "unable to calculate work time - needed work time less than %d sec; set work time 0 sec\n", MIN_PUMP_WORK_TIME / 1000);
-        pump_state.needed_work_time = 0;
+    	pump_state.needed_work_time = 0;
 	}
 }
 
