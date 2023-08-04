@@ -1,8 +1,17 @@
-/* An STM32 HAL library written for the DS1307 real-time clock IC. */
-/* Library by @eepj www.github.com/eepj */
-#ifndef DS1307_FOR_STM32_HAL_H
-#define DS1307_FOR_STM32_HAL_H
-#include "main.h"
+#ifndef INC_DS1307_DRIVER_H_
+#define INC_DS1307_DRIVER_H_
+
+
+#ifdef __cplusplus
+extern "C"{
+#endif
+
+
+#include <stdint.h>
+
+#include "stm32f1xx_hal.h"
+
+
 /*----------------------------------------------------------------------------*/
 #define DS1307_I2C_ADDR 	0x68
 #define DS1307_REG_SECOND 	0x00
@@ -65,4 +74,9 @@ void DS1307_SetTimeZone(int8_t hr, uint8_t min);
 uint8_t DS1307_DecodeBCD(uint8_t bin);
 uint8_t DS1307_EncodeBCD(uint8_t dec);
 
+
+#ifdef __cplusplus
+}
 #endif
+
+#endif /* INC_DS1307_DRIVER_H_ */

@@ -2,7 +2,7 @@
  * record.c
  *
  *  Created on: 19 дек. 2022 г.
- *      Author: georgy
+ *      Author: DrDeLaBill
  */
 
 #include "logger.h"
@@ -17,8 +17,7 @@
 #include "record_manager.h"
 #include "settings_manager.h"
 #include "sim_module.h"
-#include "settings.h"
-#include "ds1307_for_stm32_hal.h"
+#include "clock_service.h"
 #include "pressure_sensor.h"
 #include "pump.h"
 
@@ -26,8 +25,6 @@
 #define UPDATE_SETTINGS_TIME 60000
 
 
-void _general_record_save(record_sd_payload_t* payload);
-void _general_record_load(const record_sd_payload_t* payload);
 void _send_http_log();
 void _make_measurements();
 void _show_measurements();
@@ -58,42 +55,11 @@ const char* CF_LOGID_FIELD  = "d_hwm=";
 const char* CF_CLEAR_FIELD  = "clr=";
 
 
-LogRecord log_record;
-record_tag_t general_record_load = {
-	.save_cb = &_general_record_save,
-	.load_cb = &_general_record_load
-};
-record_tag_t* record_cbs[] = {
-	&general_record_load,
-	NULL
-};
 dio_timer_t log_timer;
 dio_timer_t error_read_timer;
 dio_timer_t settings_timer;
 uint32_t sended_log_id;
 
-
-void _general_record_save(record_sd_payload_t* payload)
-{
-	payload->v1.payload_record.id      = log_record.id;
-	payload->v1.payload_record.cf_id   = log_record.cf_id;
-	payload->v1.payload_record.fw_id   = log_record.fw_id;
-	payload->v1.payload_record.level   = log_record.level;
-	payload->v1.payload_record.press_1 = log_record.press_1;
-	payload->v1.payload_record.press_2 = log_record.press_2;
-	strncpy(payload->v1.payload_record.time, log_record.time, sizeof(log_record.time));
-}
-
-void _general_record_load(const record_sd_payload_t* payload)
-{
-	log_record.id      = payload->v1.payload_record.id;
-	log_record.cf_id   = payload->v1.payload_record.cf_id;
-	log_record.fw_id   = payload->v1.payload_record.fw_id;
-	log_record.level   = payload->v1.payload_record.level;
-	log_record.press_1 = payload->v1.payload_record.press_1;
-	log_record.press_2 = payload->v1.payload_record.press_2;
-	strncpy(log_record.time, payload->v1.payload_record.time, sizeof(log_record.time));
-}
 
 void logger_manager_begin()
 {
@@ -117,25 +83,30 @@ void logger_proccess()
 		log_timer.delay = module_settings.sleep_time;
 	}
 
-	if (Util_TimerPending(&log_timer)) {
+	if (util_is_timer_wait(&log_timer)) {
 		return;
 	}
 
 	if (!module_settings.sleep_time) {
-		LOG_DEBUG(LOG_TAG, "no setting - sleep_time\r\n");
+		LOG_DEBUG(LOG_TAG, "no setting - sleep_time\n");
 		module_settings.sleep_time = DEFAULT_SLEEPING_TIME;
 		return;
 	}
 
 	_make_measurements();
 	_show_measurements();
-	record_save();
+	record_status_t status = record_save();
+	if (status == RECORD_OK) {
+		LOG_MESSAGE(LOG_TAG, "saved new log\n");
+	} else {
+		LOG_MESSAGE(LOG_TAG, "error saving new log\n");
+	}
 	update_log_timer();
 }
 
 void update_log_timer()
 {
-	Util_TimerStart(&log_timer, module_settings.sleep_time);
+	util_timer_start(&log_timer, module_settings.sleep_time);
 }
 
 void update_log_sleep(uint32_t time)
@@ -146,7 +117,6 @@ void update_log_sleep(uint32_t time)
 
 void clear_log()
 {
-	remove_old_records();
 	module_settings.server_log_id = 0;
 	module_settings.pump_work_sec = 0;
 	settings_save();
@@ -161,16 +131,16 @@ void _send_http_log()
 		"id=%lu\n"
 		"fw_id=%lu\n"
 		"cf_id=%lu\n"
-		"t=%d-%02d-%02dT%02d:%02d:%02d\n",
+		"t=20%02d-%02d-%02dT%02d:%02d:%02d\n",
 		module_settings.id,
-		log_record.fw_id,
+		FW_VERSION,
 		module_settings.cf_id,
-		DS1307_GetYear(),
-		DS1307_GetMonth(),
-		DS1307_GetDate(),
-		DS1307_GetHour(),
-		DS1307_GetMinute(),
-		DS1307_GetSecond()
+		get_year(),
+		get_month(),
+		get_date(),
+		get_date(),
+		get_minute(),
+		get_second()
 	);
 
 	record_status_t record_res = next_record_load();
@@ -186,17 +156,17 @@ void _send_http_log()
 			sizeof(data) - strlen(data),
 			"d="
 				"id=%lu;"
-				"t=%s;"
+				"t=20%02d-%02d-%02dT%02d:%02d:%02d;"
 				"level=%ld;"
-				"press_1=%d.%02d;"
-				"press_2=%d.%02d;"
-				"pumpw=%lu\n"
-				"pumpd=%lu\n",
+				"press_1=%lu.%02lu;"
+//				"press_2=%lu.%02lu;"
+				"pumpw=%lu;"
+				"pumpd=%lu\r\n",
 			log_record.id,
-			log_record.time,
-			log_record.level,
-			FLOAT_AS_STRINGS(log_record.press_1),
-			FLOAT_AS_STRINGS(log_record.press_2),
+			log_record.time[0], log_record.time[1], log_record.time[2], log_record.time[3], log_record.time[4], log_record.time[5],
+			log_record.level / 1000,
+			log_record.press_1 / 100, log_record.press_1 % 100,
+//			cur_log_record.press_2 / 100, cur_log_record.press_2 % 100,
 			module_settings.pump_work_sec,
 			module_settings.pump_downtime_sec
 		);
@@ -206,7 +176,7 @@ void _send_http_log()
 		return;
 	}
 
-	if (record_res == RECORD_NO_LOG && Util_TimerPending(&settings_timer)) {
+	if (record_res == RECORD_NO_LOG && util_is_timer_wait(&settings_timer)) {
 		return;
 	}
 
@@ -218,194 +188,228 @@ void _send_http_log()
 
 record_status_t _load_current_log()
 {
-	if (Util_TimerPending(&error_read_timer)) {
+	if (util_is_timer_wait(&error_read_timer)) {
 		return RECORD_NO_LOG;
 	}
-	LOG_DEBUG(LOG_TAG, " load current log\n");
+#if LOGGER_DEBUG
+	LOG_DEBUG(LOG_TAG, "load current log\n");
+#endif
 	_make_measurements();
 	return RECORD_OK;
 }
 
 void _start_error_timer()
 {
-	Util_TimerStart(&error_read_timer, module_settings.sleep_time);
+	util_timer_start(&error_read_timer, module_settings.sleep_time);
 }
 
 void _start_settings_timer()
 {
-	Util_TimerStart(&settings_timer, UPDATE_SETTINGS_TIME);
+	util_timer_start(&settings_timer, UPDATE_SETTINGS_TIME);
 }
 
 void _make_measurements()
 {
-	log_record.fw_id   = FW_VERSION;
+//	cur_log_record.fw_id   = FW_VERSION;
 	log_record.cf_id   = module_settings.cf_id;
-	log_record.id      = get_new_id();
+	record_get_new_id(&log_record.id);
 	log_record.level   = get_liquid_liters();
 	log_record.press_1 = get_first_press();
-	log_record.press_2 = get_second_press();
-	snprintf(
-		log_record.time,
-		sizeof(log_record.time),
-		"%d-%02d-%02dT%02d:%02d:%02d",
-		DS1307_GetYear(),
-		DS1307_GetMonth(),
-		DS1307_GetDate(),
-		DS1307_GetHour(),
-		DS1307_GetMinute(),
-		DS1307_GetSecond()
-	);
+//	cur_log_record.press_2 = get_second_press();
+
+	log_record.time[0] = get_year() % 100;
+	log_record.time[1] = get_month();
+	log_record.time[2] = get_date();
+	log_record.time[3] = get_hour();
+	log_record.time[4] = get_minute();
+	log_record.time[5] = get_second();
 }
 
 void _show_measurements()
 {
 	LOG_DEBUG(
 		LOG_TAG,
-		"\r\nID: %lu\r\n"
-		"Time: %s\r\n"
-		"Level: %d.%d l\r\n"
-		"Press 1: %d.%02d MPa\r\n"
-		"Press 2: %d.%02d MPa\r\n",
+		"\n"
+#if LOGGER_DEBUG
+		"ID:      %lu\n"
+#endif
+		"Time:    20%02u-%02u-%02uT%02u:%02u:%02u\n"
+		"Level:   %lu l\n"
+		"Press 1: %lu.%02lu MPa\n",
+//		"Press 2: %d.%02d MPa\n",
+#if LOGGER_DEBUG
 		log_record.id,
-		log_record.time,
-		FLOAT_AS_STRINGS(log_record.level),
-		FLOAT_AS_STRINGS((log_record.press_1 > 4 ? log_record.press_1 - 4 : 0)),
-		FLOAT_AS_STRINGS((log_record.press_2 > 4 ? log_record.press_2 - 4 : 0))
+#endif
+		log_record.time[0], log_record.time[1], log_record.time[2], log_record.time[3], log_record.time[4], log_record.time[5],
+		log_record.level,
+		log_record.press_1 / 100, log_record.press_1 % 100
+//		cur_log_record.press_2 / 100, cur_log_record.press_2 % 100
 	);
 }
 
 void _parse_response()
 {
-	char *var_ptr = get_response();
+	char* var_ptr = get_response();
+	char* data_ptr = var_ptr;
+	if (!var_ptr) {
+		goto do_error;
+	}
 	// Parse time
-	var_ptr = strnstr(var_ptr, TIME_FIELD, strlen(var_ptr));
-	if (!var_ptr) {
+	DateTime datetime = {0};
+
+	data_ptr = strnstr(var_ptr, TIME_FIELD, strlen(var_ptr));
+	if (!data_ptr) {
 		goto do_error;
 	}
-	var_ptr += strlen(TIME_FIELD);
-	uint16_t tmp = atoi(var_ptr);
-	DS1307_SetYear(tmp);
+	data_ptr += strlen(TIME_FIELD);
+	datetime.year = atoi(data_ptr) % 100;
 
-	var_ptr = strnstr(var_ptr, T_DASH_FIELD, strlen(var_ptr));
-	if (!var_ptr) {
+	data_ptr = strnstr(data_ptr, T_DASH_FIELD, strlen(data_ptr));
+	if (!data_ptr) {
 		goto do_error;
 	}
-	var_ptr += strlen(T_DASH_FIELD);
-	DS1307_SetMonth((uint8_t)atoi(var_ptr));
+	data_ptr += strlen(T_DASH_FIELD);
+	datetime.month = (uint8_t)atoi(data_ptr);
 
-	var_ptr = strnstr(var_ptr, T_DASH_FIELD, strlen(var_ptr));
-	if (!var_ptr) {
+	data_ptr = strnstr(data_ptr, T_DASH_FIELD, strlen(data_ptr));
+	if (!data_ptr) {
 		goto do_error;
 	}
-	var_ptr += strlen(T_DASH_FIELD);
-	DS1307_SetDate(atoi(var_ptr));
+	data_ptr += strlen(T_DASH_FIELD);
+	datetime.date = atoi(data_ptr);
 
-	var_ptr = strnstr(var_ptr, T_TIME_FIELD, strlen(var_ptr));
-	if (!var_ptr) {
+	data_ptr = strnstr(data_ptr, T_TIME_FIELD, strlen(data_ptr));
+	if (!data_ptr) {
 		goto do_error;
 	}
-	var_ptr += strlen(T_TIME_FIELD);
-	DS1307_SetHour(atoi(var_ptr));
+	data_ptr += strlen(T_TIME_FIELD);
+	datetime.hour = atoi(data_ptr);
 
-	var_ptr = strnstr(var_ptr, T_COLON_FIELD, strlen(var_ptr));
-	if (!var_ptr) {
+	data_ptr = strnstr(data_ptr, T_COLON_FIELD, strlen(data_ptr));
+	if (!data_ptr) {
 		goto do_error;
 	}
-	var_ptr += strlen(T_COLON_FIELD);
-	DS1307_SetMinute(atoi(var_ptr));
+	data_ptr += strlen(T_COLON_FIELD);
+	datetime.minute = atoi(data_ptr);
 
-	var_ptr = strnstr(var_ptr, T_COLON_FIELD, strlen(var_ptr));
-	if (!var_ptr) {
+	data_ptr = strnstr(data_ptr, T_COLON_FIELD, strlen(data_ptr));
+	if (!data_ptr) {
 		goto do_error;
 	}
-	var_ptr += strlen(T_COLON_FIELD);
-	DS1307_SetSecond(atoi(var_ptr));
+	data_ptr += strlen(T_COLON_FIELD);
+	datetime.second = atoi(data_ptr);
 
-	LOG_DEBUG(LOG_TAG, " time updated\n");
+    if(!save_datetime(&datetime)) {
+#if LOGGER_DEBUG
+    	LOG_DEBUG(LOG_TAG, "parse error - unable to update datetime\n");
+#endif
+		goto do_error;
+    }
+
+#if LOGGER_DEBUG
+	LOG_DEBUG(LOG_TAG, "time updated\n");
+#endif
 
 	if (module_settings.server_log_id < sended_log_id) {
 		module_settings.pump_work_sec = 0;
 		module_settings.pump_downtime_sec = 0;
 		module_settings.server_log_id = sended_log_id;
 		settings_save();
-		LOG_DEBUG(LOG_TAG, " server log id updated\n");
+#if LOGGER_DEBUG
+		LOG_DEBUG(LOG_TAG, "server log id updated\n");
+#endif
 	}
 
 	// Parse configuration:
-	var_ptr = get_response();
-	var_ptr = strnstr(var_ptr, CF_ID_FIELD, strlen(var_ptr));
-	if (!var_ptr) {
+	data_ptr = var_ptr;
+	data_ptr = strnstr(data_ptr, CF_LOGID_FIELD, strlen(data_ptr));
+	if (data_ptr) {
+		module_settings.server_log_id = atoi(data_ptr + strlen(CF_LOGID_FIELD));
+	}
+
+	LOG_MESSAGE(LOG_TAG, "Recieved response from the server\n");
+
+	data_ptr = var_ptr;
+	data_ptr = strnstr(data_ptr, CF_ID_FIELD, strlen(data_ptr));
+	if (!data_ptr) {
 		goto do_exit;
 	}
-	uint32_t new_cf_id = atoi(var_ptr + strlen(CF_ID_FIELD));
+	uint32_t new_cf_id = atoi(data_ptr + strlen(CF_ID_FIELD));
 	if (new_cf_id == module_settings.cf_id) {
 		goto do_exit;
 	}
 	module_settings.cf_id = new_cf_id;
 
-	var_ptr = strnstr(var_ptr, CF_LOGID_FIELD, strlen(var_ptr));
-	if (var_ptr) {
-		module_settings.server_log_id = atoi(var_ptr + strlen(CF_LOGID_FIELD));
-	}
-
-	char *cnfg_ptr = strnstr(var_ptr, CF_DATA_FIELD, strlen(var_ptr));
-	if (!var_ptr) {
+	data_ptr = strnstr(var_ptr, CF_DATA_FIELD, strlen(var_ptr));
+	if (!data_ptr) {
 		goto do_error;
 	}
-	cnfg_ptr += strlen(CF_DATA_FIELD);
+	data_ptr += strlen(CF_DATA_FIELD);
 
-	var_ptr = strnstr(cnfg_ptr, CF_PWR_FIELD, strlen(cnfg_ptr));
-	if (var_ptr) {
-		pump_update_power(atoi(var_ptr + strlen(CF_PWR_FIELD)));
+	var_ptr = data_ptr;
+	data_ptr = strnstr(var_ptr, CF_PWR_FIELD, strlen(var_ptr));
+	if (data_ptr) {
+		bool enabled = atoi(data_ptr + strlen(CF_PWR_FIELD));
+		module_settings.pump_enabled = enabled;
+		pump_update_enable_state(enabled);
 	}
 
-	var_ptr = strnstr(cnfg_ptr, CF_LTRMIN_FIELD, strlen(cnfg_ptr));
-	if (var_ptr) {
-		module_settings.tank_liters_min = atoi(var_ptr + strlen(CF_LTRMIN_FIELD));
+	data_ptr = strnstr(var_ptr, CF_LTRMIN_FIELD, strlen(var_ptr));
+	if (data_ptr) {
+		module_settings.tank_liters_min = atoi(data_ptr + strlen(CF_LTRMIN_FIELD));
 	}
 
-	var_ptr = strnstr(cnfg_ptr, CF_LTRMAX_FIELD, strlen(cnfg_ptr));
-	if (var_ptr) {
-		module_settings.tank_liters_max = atoi(var_ptr + strlen(CF_LTRMAX_FIELD));
+	data_ptr = strnstr(var_ptr, CF_LTRMAX_FIELD, strlen(var_ptr));
+	if (data_ptr) {
+		module_settings.tank_liters_max = atoi(data_ptr + strlen(CF_LTRMAX_FIELD));
 	}
 
-	var_ptr = strnstr(cnfg_ptr, CF_TRGT_FIELD, strlen(cnfg_ptr));
-	if (var_ptr) {
-		module_settings.milliliters_per_day = atoi(var_ptr + strlen(CF_TRGT_FIELD));
+	data_ptr = strnstr(var_ptr, CF_TRGT_FIELD, strlen(var_ptr));
+	if (data_ptr) {
+		module_settings.milliliters_per_day = atoi(data_ptr + strlen(CF_TRGT_FIELD));
 	}
 
-	var_ptr = strnstr(cnfg_ptr, CF_SLEEP_FIELD, strlen(cnfg_ptr));
-	if (var_ptr) {
-		update_log_sleep(atoi(var_ptr + strlen(CF_SLEEP_FIELD)) * MILLIS_IN_SECOND);
+	data_ptr = strnstr(var_ptr, CF_SLEEP_FIELD, strlen(var_ptr));
+	if (data_ptr) {
+		update_log_sleep(atoi(data_ptr + strlen(CF_SLEEP_FIELD)) * MILLIS_IN_SECOND);
 	}
 
-	var_ptr = strnstr(cnfg_ptr, CF_SPEED_FIELD, strlen(cnfg_ptr));
-	if (var_ptr) {
-		pump_update_speed(atoi(var_ptr + strlen(CF_SPEED_FIELD)));
+	data_ptr = strnstr(var_ptr, CF_SPEED_FIELD, strlen(var_ptr));
+	if (data_ptr) {
+		pump_update_speed(atoi(data_ptr + strlen(CF_SPEED_FIELD)));
 	}
 
-	var_ptr = strnstr(cnfg_ptr, CF_MOD_ID_FIELD, strlen(cnfg_ptr));
-	if (var_ptr) {
-		module_settings.id = atoi(var_ptr + strlen(CF_MOD_ID_FIELD));
+	data_ptr = strnstr(var_ptr, CF_MOD_ID_FIELD, strlen(var_ptr));
+	if (data_ptr) {
+		module_settings.id = atoi(data_ptr + strlen(CF_MOD_ID_FIELD));
 	}
 
-	var_ptr = strnstr(cnfg_ptr, CF_CLEAR_FIELD, strlen(cnfg_ptr));
-	if (var_ptr && atoi(var_ptr + strlen(CF_CLEAR_FIELD)) == 1) {
+	data_ptr = strnstr(var_ptr, CF_CLEAR_FIELD, strlen(var_ptr));
+	if (data_ptr && atoi(data_ptr + strlen(CF_CLEAR_FIELD)) == 1) {
 		clear_log();
 	}
 
-	LOG_DEBUG(LOG_TAG, " configuration updated\n");
+#if LOGGER_DEBUG
+	LOG_DEBUG(LOG_TAG, "configuration updated\n");
+#endif
 	show_settings();
 
 	goto do_success;
 
 
 do_error:
-	LOG_DEBUG(LOG_TAG, " unable to parse response - %s\r\n", get_response());
+#if LOGGER_DEBUG
+	LOG_DEBUG(LOG_TAG, "unable to parse response - %s\n", get_response());
+#endif
 	goto do_exit;
 
 do_success:
-	settings_save();
+	if (settings_save() == SETTINGS_OK) {
+		LOG_MESSAGE(LOG_TAG, "New settings have been received from the server\n");
+	} else {
+		LOG_MESSAGE(LOG_TAG, "Unable to recieve new settings from the server\n");
+		module_settings.cf_id = 0;
+	}
 	goto do_exit;
 
 do_exit:

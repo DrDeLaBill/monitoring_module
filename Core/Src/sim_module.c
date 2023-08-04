@@ -2,7 +2,7 @@
  * sim_module.c
  *
  *  Created on: Sep 4, 2022
- *      Author: georg
+ *      Author: DrDeLaBill
  */
 
 #include "sim_module.h"
@@ -12,11 +12,11 @@
 #include <strings.h>
 #include <ctype.h>
 
-#include "settings.h"
+#include "settings_manager.h"
 #include "utils.h"
-#include "ina3221_sensor.h"
 #include "liquid_sensor.h"
 #include "logger.h"
+#include "main.h"
 
 
 #define LINE_BREAK_COUNT 2
@@ -61,6 +61,7 @@ void _wait_itr();
 void _clear_response();
 void _reset_module();
 void _start_module();
+void _sim_set_error_response_state();
 
 enum {
 	WAIT = 0,
@@ -77,6 +78,8 @@ struct _sim_state {
 	dio_timer_t restart_timer;
 	uint8_t state;
 	uint8_t error_count;
+	char session_server_url[CHAR_SETIINGS_SIZE];
+	char session_server_port[CHAR_SETIINGS_SIZE];
 } sim_state;
 
 const char* SIM_TAG = "SIM";
@@ -88,6 +91,7 @@ const char* SUCCESS_HTTP_RQST = "content-length: ";
 const char* SUCCESS_HTTP_RESP = "200 ok";
 const char* LINE_BREAK        = "\r\n";
 const char* DOUBLE_LINE_BREAK = "\r\n\r\n";
+const char* SIM_ERR_RESPONSE  = "\r\nerror\r\n";
 
 char sim_response[RESPONSE_SIZE] = {};
 uint16_t response_counter = 0;
@@ -95,7 +99,9 @@ uint16_t response_data_count = 0;
 
 void sim_module_begin() {
 	memset(&sim_state, 0, sizeof(sim_state));
-	Util_TimerStart(&sim_state.start_timer, CNFG_WAIT);
+	strncpy(sim_state.session_server_url, module_settings.server_url, sizeof(sim_state.session_server_url));
+	strncpy(sim_state.session_server_port, module_settings.server_port, sizeof(sim_state.session_server_port));
+	util_timer_start(&sim_state.start_timer, CNFG_WAIT);
 	_set_active_state(&_cmd_AT_state);
 	_start_module();
 	_clear_response();
@@ -103,7 +109,7 @@ void sim_module_begin() {
 
 void sim_module_proccess()
 {
-	if (Util_TimerPending(&sim_state.start_timer)) {
+	if (util_is_timer_wait(&sim_state.start_timer)) {
 		return;
 	}
 
@@ -142,7 +148,7 @@ void send_http_post(const char* data)
 		"\r\n"
 		"%s"
 		"%c",
-		module_settings.server_url,
+		sim_state.session_server_url,
 		strlen(data),
 		data,
 		END_OF_STRING
@@ -182,14 +188,16 @@ void _execute_state(const char* cmd, uint16_t delay)
 	_clear_response();
 	_send_AT_command(cmd);
 	sim_state.state = WAIT;
-	Util_TimerStart(&sim_state.delay_timer, delay);
+	util_timer_start(&sim_state.delay_timer, delay);
 }
 
 void _send_AT_command(const char* cmd)
 {
 	HAL_UART_Transmit(&SIM_MODULE_UART, (uint8_t*)cmd, strlen(cmd), UART_TIMEOUT);
 	HAL_UART_Transmit(&SIM_MODULE_UART, (uint8_t*)LINE_BREAK, strlen(LINE_BREAK), UART_TIMEOUT);
-	LOG_DEBUG(SIM_TAG, " send - %s\r\n", cmd);
+#if SIM_MODULE_DEBUG
+	LOG_DEBUG(SIM_TAG, "send - %s\r\n", cmd);
+#endif
 }
 
 void _check_response(const char* needed_resp)
@@ -241,7 +249,9 @@ void _check_double_break_itr() {
 void _wait_data_itr() {
 	if (response_counter >= response_data_count) {
 		sim_state.state = SIM_SUCCESS;
-		LOG_DEBUG(SIM_TAG, " HTTP response -\n%s\n", sim_response);
+#if SIM_MODULE_DEBUG
+		LOG_DEBUG(SIM_TAG, "HTTP response -\n%s\n", sim_response);
+#endif
 		sim_state.check_http_header_itr = &_wait_itr;
 	}
 }
@@ -250,33 +260,64 @@ void _wait_itr() {}
 
 void _check_response_timer()
 {
-	if (!Util_TimerPending(&sim_state.delay_timer)) {
-		LOG_DEBUG(SIM_TAG, " error - %s\n", strlen(sim_response) ? sim_response : "empty answer");
-		sim_state.state = SIM_ERROR;
-		sim_state.error_count++;
+	if (util_is_timer_wait(&sim_state.delay_timer)) {
+		return;
+	}
+
+	_sim_set_error_response_state();
+
+	if (sim_state.active_cmd_state != _cmd_send_state) {
+		return;
+	}
+
+	if (sim_state.error_count < MAX_ERRORS) {
+		return;
+	}
+
+	if (strncmp(module_settings.server_url, default_server_url, sizeof(module_settings.server_url))) {
+		strncpy(sim_state.session_server_url, default_server_url, sizeof(sim_state.session_server_url));
+		strncpy(sim_state.session_server_port, default_server_port, sizeof(sim_state.session_server_port));
+	} else {
+		strncpy(sim_state.session_server_url, module_settings.server_url, sizeof(sim_state.session_server_url));
+		strncpy(sim_state.session_server_port, module_settings.server_port, sizeof(sim_state.session_server_port));
 	}
 }
 
 void _validate_response(const char* needed_resp)
 {
 	if (strnstr(sim_response, needed_resp, sizeof(sim_response))) {
-		LOG_DEBUG(SIM_TAG, " success - %s\n", sim_response);
+#if SIM_MODULE_DEBUG
+		LOG_DEBUG(SIM_TAG, "success - %s\n", sim_response);
+#endif
 		sim_state.state = SIM_SUCCESS;
 		sim_state.error_count = 0;
+	} else if (strnstr(sim_response, SIM_ERR_RESPONSE, sizeof(sim_response))) {
+		_sim_set_error_response_state();
 	}
+}
+
+void _sim_set_error_response_state()
+{
+#if SIM_MODULE_DEBUG
+	LOG_DEBUG(SIM_TAG, "error - %s\n", strlen(sim_response) ? sim_response : "empty answer");
+#endif
+	sim_state.state = SIM_ERROR;
+	sim_state.error_count++;
 }
 
 void _do_error(uint8_t attempts)
 {
-	if (Util_TimerPending(&sim_state.restart_timer)) {
+	if (util_is_timer_wait(&sim_state.restart_timer)) {
 		_set_active_state(&_cmd_AT_state);
 		sim_state.state = SIM_ERROR;
-		Util_TimerStart(&sim_state.start_timer, RESTART_WAIT);
+		util_timer_start(&sim_state.start_timer, RESTART_WAIT);
 		return;
 	}
 
 	if (sim_state.error_count < attempts) {
-		LOG_DEBUG(SIM_TAG, " retry command, attempt number %d\n", sim_state.error_count + 1);
+#if SIM_MODULE_DEBUG
+		LOG_DEBUG(SIM_TAG, "retry command, attempt number %d\n", sim_state.error_count + 1);
+#endif
 		sim_state.state = READY;
 		_clear_response();
 		_start_module();
@@ -284,9 +325,11 @@ void _do_error(uint8_t attempts)
 	}
 
 	if (sim_state.error_count >= attempts) {
-		LOG_DEBUG(SIM_TAG, " too many errors\n");
+#if SIM_MODULE_DEBUG
+		LOG_DEBUG(SIM_TAG, "too many errors\n");
+#endif
 		_reset_module();
-		Util_TimerStart(&sim_state.restart_timer, RESTART_WAIT);
+		util_timer_start(&sim_state.restart_timer, RESTART_WAIT);
 		return;
 	}
 }
@@ -301,19 +344,21 @@ void _clear_response()
 
 void _reset_module()
 {
-	if (Util_TimerPending(&sim_state.restart_timer)) {
+	if (util_is_timer_wait(&sim_state.restart_timer)) {
 		return;
 	}
-	LOG_DEBUG(SIM_TAG, " sim module RESTART\n");
+#if SIM_MODULE_DEBUG
+	LOG_DEBUG(SIM_TAG, "sim module RESTART\n");
+#endif
 	HAL_GPIO_WritePin(SIM_MODULE_RESET_PORT, SIM_MODULE_RESET_PIN, GPIO_PIN_RESET);
 }
 
 void _start_module()
 {
-	if (Util_TimerPending(&sim_state.restart_timer)) {
+	if (util_is_timer_wait(&sim_state.restart_timer)) {
 		return;
 	}
-	Util_TimerStart(&sim_state.start_timer, CNFG_WAIT);
+	util_timer_start(&sim_state.start_timer, CNFG_WAIT);
 	HAL_GPIO_WritePin(SIM_MODULE_RESET_PORT, SIM_MODULE_RESET_PIN, GPIO_PIN_SET);
 }
 
@@ -466,7 +511,7 @@ void _cmd_CHTTPACT_state()
 {
 	if (sim_state.state == READY) {
 		char http_act[HTTP_ACT_SIZE] = {};
-		snprintf(http_act, sizeof(http_act), "AT+CHTTPACT=\"%s\",%s\r\n", module_settings.server_url, module_settings.server_port);
+		snprintf(http_act, sizeof(http_act), "AT+CHTTPACT=\"%s\",%s\r\n", sim_state.session_server_url, sim_state.session_server_port);
 		_execute_state(http_act, HTTP_ACT_WAIT);
 	}
 	if (sim_state.state == WAIT) {
@@ -483,7 +528,7 @@ void _cmd_CHTTPACT_state()
 void _cmd_send_state()
 {
 	if (sim_state.state == READY) {
-		Util_TimerStart(&sim_state.delay_timer, HTTP_ACT_WAIT);
+		util_timer_start(&sim_state.delay_timer, HTTP_ACT_WAIT);
 	}
 	if (sim_state.state == WAIT) {
 		_check_response_timer();

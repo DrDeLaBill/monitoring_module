@@ -1,130 +1,119 @@
-/*
- * settings_manager.c
- *
- *  Created on: May 27, 2022
- *      Author: gauss
- */
-
-#include "stm32f1xx_hal.h"
-
-#include <fatfs.h>
-#include <string.h>
-//
-#include "utils.h"
-//
-#include "internal_storage.h"
 #include "settings_manager.h"
 
 
-const char* SETMGR_MODULE_TAG = "SETMGR";
+#include <string.h>
+#include <stdbool.h>
+
+#include "stm32f1xx_hal.h"
+
+#include "utils.h"
+#include "defines.h"
+#include "storage_data_manager.h"
+#include "command_manager.h"
+#include "clock_service.h"
 
 
-uint8_t settings_load_ok;
+const char* STNG_MODULE_TAG = "STNG";
+
+const char default_server_url[CHAR_SETIINGS_SIZE] = "urv.a.izhpt.com";
+const char default_server_port[CHAR_SETIINGS_SIZE] = "80";
 
 
-const char* settings_filename = "settings.bin";
+module_settings_t module_settings;
 
 
-void settings_reset() {
-	settings_sd_payload_t tmpbuf;
-	memset(&tmpbuf, 0, sizeof(tmpbuf));
-	settings_tag_t** pos;
+bool _settings_check(module_settings_t* sttngs);
 
-	pos = settings_cbs;
-	while((*pos)) {
-		if((*pos)->default_cb) (*pos)->default_cb(&tmpbuf);
-		pos++;
-	}
-	pos = settings_cbs;
-	while((*pos)) {
-		if((*pos)->load_cb) (*pos)->load_cb(&tmpbuf);
-		pos++;
-	}
+
+settings_status_t settings_reset() {
+	LOG_DEBUG(STNG_MODULE_TAG, "SET DEFAULT SETTINGS\n");
+	module_settings.id = 1;
+	memset(module_settings.server_url, 0, sizeof(module_settings.server_url));
+	memset(module_settings.server_port, 0, sizeof(module_settings.server_port));
+	strncpy(module_settings.server_url, default_server_url, sizeof(module_settings.server_url));
+	strncpy(module_settings.server_port, default_server_port, sizeof(module_settings.server_port));
+	module_settings.tank_liters_min = MIN_TANK_LTR;
+	module_settings.tank_liters_max = MAX_TANK_LTR;
+	module_settings.tank_ADC_max = MAX_TANK_VOLUME;
+	module_settings.tank_ADC_min = MIN_TANK_VOLUME;
+	module_settings.milliliters_per_day = MIN_TANK_LTR;
+	module_settings.pump_speed = 0;
+	module_settings.sleep_time = DEFAULT_SLEEPING_TIME;
+	module_settings.pump_enabled = true;
+	module_settings.server_log_id = 0;
+	module_settings.cf_id = CF_VERSION_DEFAULT;
+	module_settings.pump_work_day_sec = 0;
+	module_settings.pump_downtime_sec = 0;
+	module_settings.pump_work_sec = 0;
+	module_settings.pump_log_date = get_date();
+	module_settings.is_first_start = 1;
+	return settings_save();
 }
 
 
 settings_status_t settings_load() {
-	settings_sd_payload_t tmpbuf;
-	memset(&tmpbuf, 0, sizeof(tmpbuf));
+	module_settings_t buff;
+	memset(&buff, 0, sizeof(buff));
 
-	char filename[64];
-	snprintf(filename, sizeof(filename), "%s" "%s", DIOSPIPath, settings_filename);
-
-	UINT br;
-	settings_load_ok = 1;
-	FRESULT res = intstor_read_file(filename, &tmpbuf, sizeof(tmpbuf), &br);
-	if(res != FR_OK) {
-		settings_load_ok = 0;
-		LOG_DEBUG(SETMGR_MODULE_TAG, "read_file(%s) error=%i\n", filename, res);
+	LOG_DEBUG(STNG_MODULE_TAG, "load settings: begin\n");
+	uint32_t stor_addr = 0;
+	storage_status_t status = storage_get_first_available_addr(&stor_addr);
+	if (status != STORAGE_OK) {
+		LOG_DEBUG(STNG_MODULE_TAG, "load settings: error storage access\n");
+		return SETTINGS_ERROR;
 	}
 
-	if(tmpbuf.header.magic != SETTINGS_SD_PAYLOAD_MAGIC) {
-		settings_load_ok = 0;
-		LOG_DEBUG(SETMGR_MODULE_TAG, "bad settings magic %08lX!=%08lX\n", tmpbuf.header.magic, SETTINGS_SD_PAYLOAD_MAGIC);
+	status = storage_load(stor_addr, (uint8_t*)&buff, sizeof(buff));
+	if (status != STORAGE_OK) {
+		LOG_DEBUG(STNG_MODULE_TAG, "load settings: error read\n");
+		return SETTINGS_ERROR;
 	}
 
-	if(tmpbuf.header.version != SETTINGS_SD_PAYLOAD_VERSION) {
-		settings_load_ok = 0;
-		LOG_DEBUG(SETMGR_MODULE_TAG, "bad settings version %i!=%i\n", tmpbuf.header.version, SETTINGS_SD_PAYLOAD_VERSION);
+	if (!_settings_check(&buff)) {
+		LOG_DEBUG(STNG_MODULE_TAG, "load settings: error check\n");
+		return SETTINGS_ERROR;
 	}
 
-	if(!settings_load_ok) {
-		LOG_DEBUG(SETMGR_MODULE_TAG, "settings not loaded, using defaults\n");
-		settings_tag_t** pos = settings_cbs;
-		while((*pos)) {
-			if((*pos)->default_cb) (*pos)->default_cb(&tmpbuf);
-			pos++;
-		}
-	}
-
-	LOG_DEBUG(SETMGR_MODULE_TAG, "applying settings\n");
-	settings_tag_t** pos = settings_cbs;
-	while((*pos)) {
-		if((*pos)->load_cb) (*pos)->load_cb(&tmpbuf);
-		pos++;
-	}
-
-	if(!settings_load_ok) return settings_save();
-
+	memcpy((uint8_t*)&module_settings, (uint8_t*)&buff, sizeof(module_settings));
+	LOG_DEBUG(STNG_MODULE_TAG, "load settings: end - OK\n");
 	return SETTINGS_OK;
 }
 
 
 settings_status_t settings_save() {
-	settings_sd_payload_t tmpbuf;
-	memset(&tmpbuf, 0, sizeof(tmpbuf));
+	LOG_DEBUG(STNG_MODULE_TAG, "save settings: begin\n");
 
-	settings_tag_t** pos = settings_cbs;
-	while((*pos)) {
-		if((*pos)->save_cb) (*pos)->save_cb(&tmpbuf);
-		pos++;
-	}
-
-	tmpbuf.header.magic = SETTINGS_SD_PAYLOAD_MAGIC;
-	tmpbuf.header.version = SETTINGS_SD_PAYLOAD_VERSION;
-
-	WORD crc = 0;
-	for(uint16_t i = 0; i < sizeof(tmpbuf.bits); i++)
-		DIO_SPI_CardCRC16(&crc, tmpbuf.bits[i]);
-	tmpbuf.crc = crc;
-
-	LOG_DEBUG(SETMGR_MODULE_TAG, "saving settings\n");
-	Debug_HexDump(SETMGR_MODULE_TAG, (uint8_t*)&tmpbuf, sizeof(tmpbuf));
-
-	char filename[64];
-	snprintf(filename, sizeof(filename), "%s" "%s", DIOSPIPath, settings_filename);
-
-	UINT br;
-	FRESULT res = intstor_write_file(filename, &tmpbuf, sizeof(tmpbuf), &br);
-	if(res != FR_OK) {
-		settings_load_ok = 0;
-		LOG_DEBUG(SETMGR_MODULE_TAG, "settings NOT saved\n");
+	if (!_settings_check(&module_settings)) {
+		LOG_DEBUG(STNG_MODULE_TAG, "save settings: error check\n");
 		return SETTINGS_ERROR;
-
-	} else {
-		LOG_DEBUG(SETMGR_MODULE_TAG, "settings saved\n");
-		return SETTINGS_OK;
-
 	}
+
+	uint32_t stor_addr = 0;
+	storage_status_t status = storage_get_first_available_addr(&stor_addr);
+	if (status != STORAGE_OK) {
+		LOG_DEBUG(STNG_MODULE_TAG, "save settings: error storage access\n");
+		return SETTINGS_ERROR;
+	}
+
+	status = storage_save(stor_addr, (uint8_t*)&module_settings, sizeof(module_settings));
+	if (status != STORAGE_OK) {
+		LOG_DEBUG(STNG_MODULE_TAG, "save settings: error save %02x\n", status);
+		return SETTINGS_ERROR;
+	}
+
+	LOG_DEBUG(STNG_MODULE_TAG, "save settings: end - OK\n");
+	return SETTINGS_OK;
 }
 
+void show_settings()
+{
+	LOG_DEBUG(STNG_MODULE_TAG, LOG_DEBUG_SETTINGS_FORMAT);
+}
+
+bool _settings_check(module_settings_t* sttngs)
+{
+	if (!sttngs->sleep_time) {
+		return false;
+	}
+	return true;
+}
