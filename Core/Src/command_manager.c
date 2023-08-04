@@ -149,6 +149,11 @@ void _execute_command()
 	} else if (strncmp("delrecord", command, CHAR_COMMAND_SIZE) == 0) {
 		record_delete_record((uint32_t)atoi(value));
 		goto do_success;
+	}  else if (strncmp("setpower", command, CHAR_COMMAND_SIZE) == 0) {
+		bool enabled = (bool)atoi(value);
+		module_settings.pump_enabled = enabled;
+		pump_update_enable_state(enabled);
+		goto do_success;
 	}
 #ifdef DEBUG
 	else if (strncmp("setadcmin", command, CHAR_COMMAND_SIZE) == 0) {
@@ -156,11 +161,6 @@ void _execute_command()
 		goto do_success;
 	} else if (strncmp("setadcmax", command, CHAR_COMMAND_SIZE) == 0) {
 		module_settings.tank_ADC_max = (uint32_t)atoi(value);
-		goto do_success;
-	} else if (strncmp("setpower", command, CHAR_COMMAND_SIZE) == 0) {
-		bool enabled = (bool)atoi(value);
-		module_settings.pump_enabled = enabled;
-		pump_update_enable_state(enabled);
 		goto do_success;
 	} else if (strncmp("setconfigver", command, CHAR_COMMAND_SIZE) == 0) {
 		module_settings.cf_id = (uint32_t)atoi(value);
