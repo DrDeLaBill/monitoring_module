@@ -11,6 +11,33 @@ Device can be configurated from server and from UART port by special commands.
 | Pump enabled | Red LED: on; green LED: off | lamp: on |
 | Pump works | Red LED: 1 sec - off, 1 sec - on; green LED: 1 sec - on, 1 sec - off | lamp: 1 sec - off, 1 sec - on |
 
+### Calculation of the pump work time:
+
+![2023-08-07_18-21-58](https://github.com/DrDeLaBill/monitoring_module/assets/40359652/799f6bd4-4b38-43ea-82ec-da083f9f2810)
+- V<sub>dused</sub>  - pump used day liquid [ml]
+- t<sub>wday</sub> - pump work today [sec]
+- U<sub>p</sub> - pump speed [ml/hour]
+
+![2023-08-07_18-24-07](https://github.com/DrDeLaBill/monitoring_module/assets/40359652/affad669-8753-4d57-8f92-6ef8b3f1e6ae)
+- N<sub>p</sub> - number of periods until the end of the day
+- Δt - number of seconds until the end of the day [sec]
+- t<sub>pp</sub> - pump work period (default 900) [sec]
+
+![2023-08-07_18-27-35](https://github.com/DrDeLaBill/monitoring_module/assets/40359652/ad8cc8b8-e089-4def-940a-c5bdc2c2a946)
+- V<sub>p</sub> - needed liquid volume in this period [ml]
+- V<sub>dneed</sub> - needed day liquid volume [ml]
+
+![2023-08-07_18-28-42](https://github.com/DrDeLaBill/monitoring_module/assets/40359652/1188ced4-4314-4b3c-af24-26b66a4621fa)
+- t<sub>w</sub> - pump period work time [sec]
+
+
+If t<sub>w</sub> > t<sub>pp</sub> then t<sub>w</sub> = t<sub>pp</sub>
+  
+If t<sub>w</sub> < t<sub>pmin</sub> then t<sub>w</sub> = 0
+  
+t<sub>pmin</sub> - pump work period min (default 30) \[sec\]
+
+
 ### UART commands:
 
 - Standart commands:
