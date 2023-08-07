@@ -3,6 +3,14 @@
 Monitoring module is a device that regulates the amount of reagent supply to the liquid by pump, monitors the amount of liquid in the tank, logs pressure and level sensors state and sends recorded values to the server. 
 Device can be configurated from server and from UART port by special commands.
 
+### Status indication
+
+| State | Internal LED | External lamp |
+| --- | --- | --|
+| Pump disabled | Red LED: 6 sec - off, 300 msec - on; green LED: off | lamp: 6 sec - off, 300 msec - on |
+| Pump enabled | Red LED: on; green LED: off | lamp: on |
+| Pump works | Red LED: 1 sec - off, 1 sec - on; green LED: 1 sec - on, 1 sec - off | lamp: 1 sec - off, 1 sec - on |
+
 ### UART commands:
 
 - Standart commands:
