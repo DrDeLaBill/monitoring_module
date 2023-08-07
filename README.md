@@ -9,6 +9,8 @@ Device can be configurated from server and from UART port by special commands.
 
 ### Status indication
 
+The device has an external single-color lamp and an internal two-colors LED, that indicates the internal device state.
+
 | State | Internal LED | External lamp |
 | --- | --- | --|
 | Pump disabled | Red LED: 6 sec - off, 300 msec - on; green LED: off | lamp: 6 sec - off, 300 msec - on |
