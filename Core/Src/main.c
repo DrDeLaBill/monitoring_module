@@ -37,6 +37,7 @@
 #include "settings_manager.h"
 #include "storage_data_manager.h"
 #include "ds1307_driver.h"
+#include "stm32f1xx_it.h"
 
 /* USER CODE END Includes */
 
@@ -229,10 +230,7 @@ void Error_Handler(void)
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
   __disable_irq();
-  while (1)
-  {
-	  NVIC_SystemReset();
-  }
+  HardFault_Handler();
   /* USER CODE END Error_Handler_Debug */
 }
 
@@ -247,8 +245,8 @@ void Error_Handler(void)
 void assert_failed(uint8_t *file, uint32_t line)
 {
   /* USER CODE BEGIN 6 */
-  /* User can add his own implementation to report the file name and line number,
-     ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
+  /* User can add his own implementation to report the file name and line number, */
+     LOG_DEBUG(MAIN_TAG, "Wrong parameters value: file %s on line %d\r\n", file, line)
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */

@@ -135,8 +135,8 @@ void pump_show_status()
 	} else if (is_liquid_tank_empty()) {
 		LOG_MESSAGE(PUMP_TAG, "Unable to calculate work time - liquid tank empty\n");
 	} else if (pump_state.needed_work_time < MIN_PUMP_WORK_TIME) {
-    	LOG_MESSAGE(PUMP_TAG, "Unable to calculate work time - needed work time less than %d sec; set work time 0 sec\n", MIN_PUMP_WORK_TIME / 1000);
-	} else if (module_settings.milliliters_per_day <= used_day_liquid) {uint16_t used_day_liquid = module_settings.pump_work_day_sec * module_settings.pump_speed / MILLIS_IN_SECOND;
+    	LOG_MESSAGE(PUMP_TAG, "Unable to calculate work time - needed work time less than %lu sec; set work time 0 sec\n", MIN_PUMP_WORK_TIME / 1000);
+	} else if (module_settings.milliliters_per_day <= used_day_liquid) {
 		LOG_MESSAGE(PUMP_TAG, "Unable to calculate work time - target liquid amount per day already used\n");
 	}
 
@@ -382,14 +382,14 @@ void _pump_calculate_work_time()
     	return;
     }
 
-    uint16_t used_day_liquid = module_settings.pump_work_day_sec * module_settings.pump_speed / MILLIS_IN_SECOND;
+    uint16_t used_day_liquid = (module_settings.pump_work_day_sec * module_settings.pump_speed) / (MINUTES_PER_HOUR * SECONDS_PER_MINUTE);
     if (module_settings.milliliters_per_day <= used_day_liquid) {
     	return;
     }
 
     uint32_t time_left = _get_day_sec_left();
     uint32_t needed_ml = module_settings.milliliters_per_day - used_day_liquid;
-    uint32_t max_pump_ml_to_end_of_day = module_settings.pump_speed * (time_left / (MINUTES_PER_HOUR * SECONDS_PER_MINUTE));
+    uint32_t max_pump_ml_to_end_of_day = (module_settings.pump_speed * time_left) / (MINUTES_PER_HOUR * SECONDS_PER_MINUTE);
     if (needed_ml > max_pump_ml_to_end_of_day) {
         pump_state.needed_work_time = PUMP_WORK_PERIOD;
         return;
@@ -397,7 +397,7 @@ void _pump_calculate_work_time()
 
     uint32_t periods_count = (time_left * MILLIS_IN_SECOND) / PUMP_WORK_PERIOD;
     uint32_t needed_ml_per_period = needed_ml / periods_count;
-    pump_state.needed_work_time = (needed_ml_per_period * MILLIS_IN_SECOND / (module_settings.pump_speed / 4)) * MILLIS_IN_SECOND;
+    pump_state.needed_work_time = (needed_ml_per_period * ((MINUTES_PER_HOUR * SECONDS_PER_MINUTE) / PUMP_WORK_PERIOD)) / (module_settings.pump_speed * (MINUTES_PER_HOUR * SECONDS_PER_MINUTE));
     if (pump_state.needed_work_time > PUMP_WORK_PERIOD) {
         pump_state.needed_work_time = PUMP_WORK_PERIOD;
     }
