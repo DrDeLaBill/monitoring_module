@@ -17,6 +17,9 @@ Device can be configurated from server and from UART port by special commands.
 
 ### Calculation of the pump work time:
 
+The work time is calculated every 15 minutes and the device starts the pump for this time (which should be no more than 15 minutes).
+The device calculate pump work time using the following formulas:
+
 ![2023-08-07_18-21-58](https://github.com/DrDeLaBill/monitoring_module/assets/40359652/799f6bd4-4b38-43ea-82ec-da083f9f2810)
 - V<sub>dused</sub>  - pump used day liquid [ml]
 - t<sub>wday</sub> - pump work today [sec]
