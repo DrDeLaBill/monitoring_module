@@ -117,23 +117,23 @@ record_status_t record_save() {
 
     log_record_clust_t buff;
     memset((uint8_t*)&buff, 0 ,sizeof(buff));
-    storage_status_t storage_status = storage_load(needed_addr, (uint8_t*)&buff, sizeof(buff));
-	if (storage_status != STORAGE_OK) {
-#if RECORD_DEBUG
-		LOG_DEBUG(RECORD_TAG, "reccord save: storage load - storage_error=%i, needed_addr=%lu\n", storage_status, needed_addr);
-#endif
-		return RECORD_ERROR;
-	}
-
 	memcpy((uint8_t*)&buff.records[needed_record_num], (uint8_t*)&log_record, sizeof(log_record_t));
 
-	storage_status = storage_save(needed_addr, (uint8_t*)&buff, sizeof(buff));
+    storage_status_t storage_status = storage_save(needed_addr, (uint8_t*)&buff, sizeof(buff));
 	if (storage_status != STORAGE_OK) {
 #if RECORD_DEBUG
         LOG_DEBUG(RECORD_TAG, "reccord save: storage save - storage_error=%i, needed_addr=%lu\n", storage_status, needed_addr);
 #endif
         return RECORD_ERROR;
     }
+
+    storage_status = storage_load(needed_addr, (uint8_t*)&buff, sizeof(buff));
+	if (storage_status != STORAGE_OK) {
+#if RECORD_DEBUG
+		LOG_DEBUG(RECORD_TAG, "reccord save: storage load - storage_error=%i, needed_addr=%lu\n", storage_status, needed_addr);
+#endif
+		return RECORD_ERROR;
+	}
 
 #if RECORD_DEBUG
     LOG_DEBUG(RECORD_TAG, "reccord save: end, saved on page %lu (address=%lu)\n", needed_addr / STORAGE_PAGE_SIZE, needed_addr);
