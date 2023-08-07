@@ -85,7 +85,7 @@ t=2000-01-01T00:00:01
     - ```t``` - log time
 
 
-POST resoponse expected from server:
+POST resoponse expects from server:
 ```
 HTTP/1.1 200 OK
 server: nginx/1.18.0
