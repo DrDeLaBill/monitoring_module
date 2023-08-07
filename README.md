@@ -101,7 +101,7 @@ cf_id=33077616
 cf=id=123;ltrmin=10;ltrmax=375;trgt=10000;sleep=900;speed=1600;clr=0;pwr=1;logid=1
 ```
 
-If the device has the same ```cf_id``` than the server:
+If the device has the same ```cf_id``` with the server:
 ```
 HTTP/1.1 200 OK
 server: nginx/1.18.0
