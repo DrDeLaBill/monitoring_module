@@ -85,7 +85,9 @@ t=2000-01-01T00:00:01
     - ```t``` - log time
 
 
-POST resoponse expects from server:
+### POST resoponse expects from server example:
+
+If the device has a different ```cf_id``` than the server:
 ```
 HTTP/1.1 200 OK
 server: nginx/1.18.0
@@ -97,6 +99,18 @@ t=2023-01-19t12:56:09.386436
 d_hwm=0
 cf_id=33077616
 cf=id=123;ltrmin=10;ltrmax=375;trgt=10000;sleep=900;speed=1600;clr=0;pwr=1;logid=1
+```
+
+If the device has the same ```cf_id``` than the server:
+```
+HTTP/1.1 200 OK
+server: nginx/1.18.0
+date: t
+referrer-policy: same-origin
+cross-origin-opener-policy: same-origin
+
+t=2023-01-19t12:56:09.386436
+d_hwm=0
 ```
 
 - ```t``` - current time
