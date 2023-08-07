@@ -27,7 +27,10 @@
 #define MINUTES_PER_HOUR   60
 #define LOG_SIZE           140
 #define PUMP_WORK_PERIOD   ((uint32_t)900000)
-#define PUMP_LED_PERIOD    ((uint32_t)1000)
+
+#define PUMP_LED_DISABLE_STATE_OFF_TIME ((uint32_t)6000)
+#define PUMP_LED_DISABLE_STATE_ON_TIME  ((uint32_t)300)
+#define PUMP_LED_WORK_STATE_PERIOD      ((uint32_t)1000)
 
 
 void _pump_set_state(void (*action) (void));
@@ -48,6 +51,7 @@ void _pump_check_log_date();
 void _pump_calculate_work_time();
 void _pump_indication_proccess();
 void _pump_indicate_disable_state();
+void _pump_indicate_work_state();
 uint32_t _get_day_sec_left();
 
 
@@ -169,25 +173,18 @@ void pump_show_status()
 
 void _pump_indication_proccess()
 {
-	GPIO_PinState state = GPIO_PIN_RESET;
-
 	if (!pump_state.enabled) {
 		_pump_indicate_disable_state();
 		return;
 	}
 
-	state = GPIO_PIN_SET;
-
-	HAL_GPIO_WritePin(RED_LED_GPIO_Port, RED_LED_Pin, state);
-	HAL_GPIO_WritePin(PUMP_LAMP_GPIO_Port, PUMP_LAMP_Pin, state);
-
 	if (pump_state.state_action == _pump_fsm_state_start || pump_state.state_action == _pump_fsm_state_work) {
-		state = GPIO_PIN_SET;
+		_pump_indicate_work_state();
 	} else {
-		state = GPIO_PIN_RESET;
+		HAL_GPIO_WritePin(RED_LED_GPIO_Port, RED_LED_Pin, GPIO_PIN_SET);
+		HAL_GPIO_WritePin(PUMP_LAMP_GPIO_Port, PUMP_LAMP_Pin, GPIO_PIN_SET);
+		HAL_GPIO_WritePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin, GPIO_PIN_RESET);
 	}
-
-	HAL_GPIO_WritePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin, state);
 }
 
 void _pump_indicate_disable_state()
@@ -197,11 +194,31 @@ void _pump_indicate_disable_state()
 	if (util_is_timer_wait(&pump_state.indication_timer)) {
 		return;
 	}
-	util_timer_start(&pump_state.indication_timer, PUMP_LED_PERIOD);
 
 	GPIO_PinState state = HAL_GPIO_ReadPin(RED_LED_GPIO_Port, RED_LED_Pin);
 
+	if (state) {
+		util_timer_start(&pump_state.indication_timer, PUMP_LED_DISABLE_STATE_OFF_TIME);
+	} else {
+		util_timer_start(&pump_state.indication_timer, PUMP_LED_DISABLE_STATE_ON_TIME);
+	}
+
 	HAL_GPIO_WritePin(RED_LED_GPIO_Port, RED_LED_Pin, !state);
+	HAL_GPIO_WritePin(PUMP_LAMP_GPIO_Port, PUMP_LAMP_Pin, !state);
+}
+
+void _pump_indicate_work_state()
+{
+	if (util_is_timer_wait(&pump_state.indication_timer)) {
+		return;
+	}
+
+	GPIO_PinState state = HAL_GPIO_ReadPin(GREEN_LED_GPIO_Port, GREEN_LED_Pin);
+
+	util_timer_start(&pump_state.indication_timer, PUMP_LED_WORK_STATE_PERIOD);
+
+	HAL_GPIO_WritePin(RED_LED_GPIO_Port, RED_LED_Pin, state);
+	HAL_GPIO_WritePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin, !state);
 	HAL_GPIO_WritePin(PUMP_LAMP_GPIO_Port, PUMP_LAMP_Pin, !state);
 }
 
