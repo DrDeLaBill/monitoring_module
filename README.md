@@ -65,7 +65,7 @@ t<sub>pmin</sub> - pump work period min (default 30) \[sec\]
     - ```setport <string port>``` - sets server port
     - ```setlitersmin <uint32_t liters>``` - sets tank min level (in milliliters)
     - ```setlitersmax <uint32_t liters>``` - sets tank max level (in milliliters)
-    - ```settarget <uint32_t liters>``` - sets target liquid capacity per day (in milliliters)
+    - ```settarget <uint32_t liters>``` - sets target liquid capacity per day (in liters)
     - ```setpumpspeed <uint32_t liters>``` - sets pump speed (in milliliters per hour)
     - ```setlogid <uint32_t id>``` - set last log id that must be sended to the server
     - ```delrecord <uint32_t id>``` - removes log record from storage by id
@@ -136,7 +136,7 @@ cross-origin-opener-policy: same-origin
 t=2023-01-19t12:56:09.386436
 d_hwm=0
 cf_id=33077616
-cf=id=123;ltrmin=10;ltrmax=375;trgt=10000;sleep=900;speed=1600;clr=0;pwr=1;logid=1
+cf=id=123;ltrmin=10;ltrmax=375;trgt=20;sleep=900;speed=1600;clr=0;pwr=1;logid=1
 ```
 
 If the device has the same ```cf_id``` with the server:
@@ -158,7 +158,7 @@ d_hwm=0
     - ```id``` - new module id
     - ```ltrmin``` - tank min level (liters)
     - ```ltrmax``` - tank max level (liters)
-    - ```trgt``` - target liguid capacity per day (in milliliters)
+    - ```trgt``` - target liguid capacity per day (in liters)
     - ```sleep``` - log frequency (seconds)
     - ```speed``` - pump speed (milliliters per hour)
     - ```clr``` - remove old log (doesn't work now)
