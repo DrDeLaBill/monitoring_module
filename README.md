@@ -16,6 +16,7 @@ The device has an external single-color lamp and an internal two-colors LED, tha
 | Pump disabled | Red LED: 6 sec - off, 300 msec - on; green LED: off | lamp: 6 sec - off, 300 msec - on |
 | Pump enabled | Red LED: on; green LED: off | lamp: on |
 | Pump works | Red LED: 1 sec - off, 1 sec - on; green LED: 1 sec - on, 1 sec - off | lamp: 1 sec - off, 1 sec - on |
+| Internal error | Yellow color | - |
 
 ### Calculation of the pump work time:
 
@@ -114,6 +115,7 @@ t=2000-01-01T00:00:01
 - ```cf_id``` - current configuration vresion
 - ```t``` - current device time
 - ```d``` - log data
+    - ```id``` - log id
     - ```level``` - log liquid level (liters)
     - ```press_1``` - log first pressure sensor value (MPa)
     - ```pumpw``` - log pump work time (sec)
