@@ -20,7 +20,8 @@ The device has an external single-color lamp and an internal two-colors LED, tha
 
 ### Calculation of the pump work time:
 
-The work time is calculated every certain interval and the device starts the pump for this time (which should be no more than this interval).
+The calculation of the working time occurs at a certain interval and the device starts the pump for this time (which should be no more than this interval).
+The work time is calculated according to the parameters set by the user.
 The device calculate pump work time using the following formulas:
 
 ![img](https://github.com/DrDeLaBill/monitoring_module/assets/40359652/799f6bd4-4b38-43ea-82ec-da083f9f2810)
