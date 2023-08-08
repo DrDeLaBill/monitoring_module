@@ -1,6 +1,6 @@
 # Monitoring module
 
-Monitoring module is a device that regulates the amount of reagent supply to the liquid by pump, monitors the amount of liquid in the tank, logs pressure and level sensors state and sends recorded values to the server. 
+Monitoring module is a device that regulates the amount of reagent supply to the liquid by pump, monitors the amount of liquid in the tank, logs pressure and level sensors state and sends recorded values to the server; if communication with the server is not possible, the device logs the measured values in the log. 
 Device can be configurated from server and from UART port by special commands.
 
 ## README Translation
