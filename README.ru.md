@@ -23,21 +23,21 @@
 Время работы рассчитывается каждые 15 мин и устройство, на это время, включает насос (время не может быть больше 15 минут).
 Устройство рассчитывает время работы, испольлзуя следующие вормулы:
 
-![2023-08-07_18-21-58](https://github.com/DrDeLaBill/mвклitoring_module/assets/40359652/799f6bd4-4b38-43ea-82ec-da083f9f2810)
+![img](https://github.com/DrDeLaBill/monitoring_module/assets/40359652/799f6bd4-4b38-43ea-82ec-da083f9f2810)
 - V<sub>dused</sub>  - количество жмдкости, использованной за день [мл]
 - t<sub>wday</sub> - врем работы насоса на текущие сутки [сек]
 - U<sub>p</sub> - скорость работы насоса [мл/час]
 
-![2023-08-07_18-24-07](https://github.com/DrDeLaBill/mвклitoring_module/assets/40359652/affad669-8753-4d57-8f92-6ef8b3f1e6ae)
+![img](https://github.com/DrDeLaBill/monitoring_module/assets/40359652/affad669-8753-4d57-8f92-6ef8b3f1e6ae)
 - N<sub>p</sub> - количество периодов работы, оставшихся до конца дня
 - Δt - количество секунд, оставшихся до конца дня [сек]
 - t<sub>pp</sub> - период работы насоса (по-умолчанию: 900) [сек]
 
-![2023-08-07_18-27-35](https://github.com/DrDeLaBill/mвклitoring_module/assets/40359652/ad8cc8b8-e089-4def-940a-c5bdc2c2a946)
+![img](https://github.com/DrDeLaBill/monitoring_module/assets/40359652/ad8cc8b8-e089-4def-940a-c5bdc2c2a946)
 - V<sub>p</sub> - необходимый объём жидкости для текущего периода [мл]
 - V<sub>dneed</sub> - необходимый объём жидкости в день [мл]
 
-![2023-08-07_18-28-42](https://github.com/DrDeLaBill/mвклitoring_module/assets/40359652/1188ced4-4314-4b3c-af24-26b66a4621fa)
+![img](https://github.com/DrDeLaBill/monitoring_module/assets/40359652/1188ced4-4314-4b3c-af24-26b66a4621fa)
 - t<sub>w</sub> - рассчитанное время работы насоса для текущего периода [сек]
 
 
