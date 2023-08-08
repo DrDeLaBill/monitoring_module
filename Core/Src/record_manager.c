@@ -76,6 +76,13 @@ record_status_t next_record_load() {
         return RECORD_ERROR;
     }
 
+    if (buff.record_magic != RECORDS_CLUST_MAGIC) {
+#if RECORD_DEBUG
+        LOG_DEBUG(RECORD_TAG, "next reccord load: records count - clust has %u records, but needed %u\n", buff.record_magic, RECORDS_CLUST_SIZE);
+#endif
+    	return RECORD_ERROR;
+    }
+
     memcpy((uint8_t*)&log_record, (uint8_t*)&buff.records[needed_record_num], sizeof(log_record));
 
 #if RECORD_DEBUG
@@ -118,6 +125,7 @@ record_status_t record_save() {
     log_record_clust_t buff;
     memset((uint8_t*)&buff, 0 ,sizeof(buff));
 	memcpy((uint8_t*)&buff.records[needed_record_num], (uint8_t*)&log_record, sizeof(log_record_t));
+	buff.record_magic = RECORDS_CLUST_MAGIC;
 
     storage_status_t storage_status = storage_save(needed_addr, (uint8_t*)&buff, sizeof(buff));
 	if (storage_status != STORAGE_OK) {

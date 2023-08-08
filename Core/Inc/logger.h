@@ -19,7 +19,7 @@
 void logger_manager_begin();
 void logger_proccess();
 void update_log_timer();
-void update_log_sleep(uint32_t time);
+void log_update_sleep(uint32_t time);
 void clear_log();
 
 

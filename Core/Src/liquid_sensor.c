@@ -17,7 +17,6 @@
 
 
 #define LIQUID_ERROR         -1
-#define MILLILITERS_IN_LITER 1000
 #define LIQUID_ADC_CHANNEL   0
 
 
@@ -52,14 +51,20 @@ int32_t get_liquid_liters()
 		return LIQUID_ERROR;
 	}
 
-	uint16_t liquid_ADC_range = abs(module_settings.tank_ADC_min - module_settings.tank_ADC_max);
-	uint16_t liquid_liters_range = abs(module_settings.tank_liters_max - module_settings.tank_liters_min);
-	if (liquid_ADC_range == 0) {
-		LOG_DEBUG(LIQUID_TAG, "error liquid tank: settings error - tank_liters_range=%d, liquid_ADC_range=%d\n", liquid_liters_range, liquid_ADC_range);
+	if (liquid_ADC_value > module_settings.tank_ADC_min || liquid_ADC_value < module_settings.tank_ADC_max) {
+		LOG_DEBUG(LIQUID_TAG, "error liquid tank: settings error - liquid_ADC_valu=%u, tank_ADC_min=%lu, tank_ADC_max=%lu\n", liquid_ADC_value, module_settings.tank_ADC_min, module_settings.tank_ADC_max);
 		return LIQUID_ERROR;
 	}
 
-	int32_t liquid_in_liters = (liquid_ADC_range - liquid_ADC_value) * liquid_liters_range / liquid_ADC_range + module_settings.tank_liters_min;
+	uint32_t liquid_ADC_range = __abs(module_settings.tank_ADC_min - module_settings.tank_ADC_max);
+	uint32_t liquid_liters_range = __abs(module_settings.tank_liters_max - module_settings.tank_liters_min) / MILLILITERS_IN_LITER;
+	if (liquid_ADC_range == 0) {
+		LOG_DEBUG(LIQUID_TAG, "error liquid tank: settings error - tank_liters_range=%lu, liquid_ADC_range=%lu\n", liquid_liters_range, liquid_ADC_range);
+		return LIQUID_ERROR;
+	}
+
+	uint32_t min_in_liters = module_settings.tank_liters_min / MILLILITERS_IN_LITER;
+	int32_t liquid_in_liters = (liquid_liters_range - ((liquid_ADC_value * liquid_liters_range) / liquid_ADC_range)) + min_in_liters;
 	if (liquid_in_liters <= 0) {
 		LOG_DEBUG(LIQUID_TAG, "error liquid tank: get liquid liters - value less or equal to zero (val=%ld)\n", liquid_in_liters);
 		return LIQUID_ERROR;

@@ -25,15 +25,18 @@ typedef enum _record_status_t {
 typedef struct _log_record_t {
 	uint32_t id;                          // Record ID
 	uint8_t time[RECORD_TIME_ARRAY_SIZE]; // Record time
-//	uint32_t fw_id;                       // Firmware version
 	uint32_t cf_id;                       // Configuration version
 	int32_t level;                        // Liquid level
 	uint32_t press_1;                     // First pressure sensor
 //	uint32_t press_2;                     // Second pressure sensor
+	uint32_t pump_wok_time;               // Log pump downtime sec
+	uint32_t pump_downtime;               // Log pump work sec
 } log_record_t;
 
-#define RECORDS_CLUST_SIZE ((STORAGE_PAYLOAD_SIZE) / sizeof(struct _log_record_t))
+#define RECORDS_CLUST_SIZE  ((STORAGE_PAYLOAD_SIZE - sizeof(uint8_t)) / sizeof(struct _log_record_t))
+#define RECORDS_CLUST_MAGIC (sizeof(struct _log_record_t))
 typedef struct _log_record_clust_t {
+	uint8_t record_magic;
 	log_record_t records[RECORDS_CLUST_SIZE];
 }log_record_clust_t;
 

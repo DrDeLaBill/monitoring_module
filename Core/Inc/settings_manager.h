@@ -34,7 +34,7 @@ typedef struct _module_settings_t {
 	// Liters value when liquid tank can be considered empty
 	uint32_t tank_liters_min;
 	// Target milliliters per day for pump
-	uint32_t milliliters_per_day;
+	uint32_t pump_target;
 	// Pump speed: milliliters per hour
 	uint32_t pump_speed;
 	// Current pump work sec

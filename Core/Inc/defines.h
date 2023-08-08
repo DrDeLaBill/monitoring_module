@@ -22,15 +22,16 @@
 #define CHAR_SETIINGS_SIZE    30
 #define CHAR_PARAM_SIZE       30
 #define DEFAULT_SLEEPING_TIME 900000
-#define MIN_TANK_VOLUME       3500
-#define MAX_TANK_VOLUME       16
-#define MIN_TANK_LTR          10000
+#define MIN_TANK_VOLUME       3126
+#define MAX_TANK_VOLUME       75
+#define MIN_TANK_LTR          20000
 #define MAX_TANK_LTR          375000
 #define SETTING_VALUE_MIN     0
 #define MAX_ADC_VALUE         4095
 #define LOW_VOLTAGE           0
 #define HIGH_VOLTAGE          3.3
 #define ADC_READ_TIMEOUT      100
+#define MILLILITERS_IN_LITER  1000
 
 #define proxy_log(level, fmt, ...) _proxy_log(level, fmt"\n", ##__VA_ARGS__)
 

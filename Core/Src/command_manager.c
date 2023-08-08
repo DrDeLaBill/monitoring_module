@@ -2,7 +2,7 @@
  * uart_command.c
  *
  *  Created on: Sep 5, 2022
- *      Author: georg
+ *      Author: DrDeLaBill
  */
 
 #include <command_manager.h>
@@ -122,7 +122,7 @@ void _execute_command()
 		module_settings.id = (uint32_t)atoi(value);
 		goto do_success;
 	} else if (strncmp("setsleep", command, CHAR_COMMAND_SIZE) == 0) {
-		update_log_sleep(atoi(value) * MILLIS_IN_SECOND);
+		log_update_sleep(atoi(value) * MILLIS_IN_SECOND);
 		goto do_success;
 	} else if (strncmp("seturl", command, CHAR_COMMAND_SIZE) == 0) {
 		strncpy(module_settings.server_url, value, sizeof(module_settings.server_url) - 1);
@@ -131,17 +131,16 @@ void _execute_command()
 		strncpy(module_settings.server_port, value, sizeof(module_settings.server_port) - 1);
 		goto do_success;
 	} else if (strncmp("setlitersmin", command, CHAR_COMMAND_SIZE) == 0) {
-		module_settings.tank_liters_min = atoi(value);
+		pump_update_ltrmin(atoi(value));
 		goto do_success;
 	} else if (strncmp("setlitersmax", command, CHAR_COMMAND_SIZE) == 0) {
-		module_settings.tank_liters_max = atoi(value);
+		pump_update_ltrmax(atoi(value));
 		goto do_success;
 	} else if (strncmp("settarget", command, CHAR_COMMAND_SIZE) == 0) {
-		module_settings.milliliters_per_day = atoi(value);
-		pump_reset_work_state();
+		pump_update_target(atoi(value));
 		goto do_success;
 	} else if (strncmp("setpumpspeed", command, CHAR_COMMAND_SIZE) == 0) {
-		pump_update_speed((uint32_t)atoi(value));
+		pump_update_speed(atoi(value));
 		goto do_success;
 	} else if (strncmp("setlogid", command, CHAR_COMMAND_SIZE) == 0) {
 		module_settings.server_log_id = (uint32_t)atoi(value);
@@ -150,17 +149,17 @@ void _execute_command()
 		record_delete_record((uint32_t)atoi(value));
 		goto do_success;
 	}  else if (strncmp("setpower", command, CHAR_COMMAND_SIZE) == 0) {
-		bool enabled = (bool)atoi(value);
-		module_settings.pump_enabled = enabled;
-		pump_update_enable_state(enabled);
+		pump_update_enable_state(atoi(value));
 		goto do_success;
 	}
 #ifdef DEBUG
 	else if (strncmp("setadcmin", command, CHAR_COMMAND_SIZE) == 0) {
 		module_settings.tank_ADC_min = (uint32_t)atoi(value);
+	    pump_reset_work_state();
 		goto do_success;
 	} else if (strncmp("setadcmax", command, CHAR_COMMAND_SIZE) == 0) {
 		module_settings.tank_ADC_max = (uint32_t)atoi(value);
+	    pump_reset_work_state();
 		goto do_success;
 	} else if (strncmp("setconfigver", command, CHAR_COMMAND_SIZE) == 0) {
 		module_settings.cf_id = (uint32_t)atoi(value);

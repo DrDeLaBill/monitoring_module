@@ -67,7 +67,7 @@ void pump_init()
 
 	pump_update_enable_state(module_settings.pump_enabled);
 
-    if (module_settings.milliliters_per_day == 0) {
+    if (module_settings.pump_target == 0) {
         LOG_MESSAGE(PUMP_TAG, "WWARNING - pump init - no setting milliliters_per_day\n");
     }
     if (module_settings.pump_speed == 0) {
@@ -86,13 +86,19 @@ void pump_proccess()
 
 void pump_update_speed(uint32_t speed)
 {
+	if (speed == module_settings.pump_speed) {
+		return;
+	}
+
     module_settings.pump_speed = speed;
-    settings_save();
+
     pump_reset_work_state();
 }
 
 void pump_update_enable_state(bool enabled)
 {
+	module_settings.pump_enabled = enabled;
+
 	if (pump_state.enabled == enabled) {
 		return;
 	}
@@ -102,12 +108,49 @@ void pump_update_enable_state(bool enabled)
 	pump_state.enabled = enabled;
 }
 
-void pump_reset_work_state() {
-	HAL_GPIO_WritePin(PUMP_GPIO_Port, PUMP_Pin, GPIO_PIN_RESET);
+void pump_update_ltrmin(uint32_t ltrmin)
+{
+	ltrmin *= MILLILITERS_IN_LITER;
 
-	if (pump_state.enabled) {
+	if (ltrmin == module_settings.tank_liters_min) {
+		return;
+	}
+
+	module_settings.tank_liters_min = ltrmin;
+
+	pump_reset_work_state();
+}
+
+void pump_update_ltrmax(uint32_t ltrmax)
+{
+	ltrmax *= MILLILITERS_IN_LITER;
+
+	if (ltrmax == module_settings.tank_liters_max) {
+		return;
+	}
+
+	module_settings.tank_liters_max = ltrmax;
+
+	pump_reset_work_state();
+}
+
+void pump_update_target(uint32_t target)
+{
+	target *= MILLILITERS_IN_LITER;
+
+	if (target == module_settings.pump_target) {
+		return;
+	}
+
+	module_settings.pump_target = target;
+
+	pump_reset_work_state();
+}
+
+void pump_reset_work_state() {
+	if (pump_state.state_action == _pump_fsm_state_work) {
 		_pump_log_work_time();
-	} else {
+	} else if (pump_state.state_action == _pump_fsm_state_check_downtime) {
 		_pump_log_downtime();
 	}
 
@@ -128,7 +171,7 @@ void pump_show_status()
     LOG_MESSAGE(PUMP_TAG, "PUMP_STATUS: %s\n################################################\n", pump_state.enabled ? "ENABLED" : "DISABLED");
 
     uint16_t used_day_liquid = module_settings.pump_work_day_sec * module_settings.pump_speed / MILLIS_IN_SECOND;
-    if (module_settings.milliliters_per_day == 0) {
+    if (module_settings.pump_target == 0) {
 		LOG_MESSAGE(PUMP_TAG, "Unable to calculate work time - no setting day liquid target\n");
 	} else if (module_settings.pump_speed == 0) {
 		LOG_MESSAGE(PUMP_TAG, "Unable to calculate work time - no setting pump speed\n");
@@ -136,7 +179,7 @@ void pump_show_status()
 		LOG_MESSAGE(PUMP_TAG, "Unable to calculate work time - liquid tank empty\n");
 	} else if (pump_state.needed_work_time < MIN_PUMP_WORK_TIME) {
     	LOG_MESSAGE(PUMP_TAG, "Unable to calculate work time - needed work time less than %lu sec; set work time 0 sec\n", MIN_PUMP_WORK_TIME / 1000);
-	} else if (module_settings.milliliters_per_day <= used_day_liquid) {
+	} else if (module_settings.pump_target <= used_day_liquid) {
 		LOG_MESSAGE(PUMP_TAG, "Unable to calculate work time - target liquid amount per day already used\n");
 	}
 
@@ -167,7 +210,7 @@ void pump_show_status()
     if (liquid_val < 0) {
     	LOG_MESSAGE(PUMP_TAG, "Tank liquid value ERR (ADC=%d)\n################################################\n", liquid_adc);
     } else {
-    	LOG_MESSAGE(PUMP_TAG, "Tank liquid value: %ld l (ADC=%d)\n################################################\n", liquid_val / 1000, liquid_adc);
+    	LOG_MESSAGE(PUMP_TAG, "Tank liquid value: %ld l (ADC=%d)\n################################################\n", liquid_val, liquid_adc);
     }
 }
 
@@ -237,6 +280,7 @@ void _pump_clear_state()
 void _pump_fsm_state_enable()
 {
 	_pump_clear_state();
+	_pump_check_log_date();
 	_pump_calculate_work_time();
 	if (pump_state.needed_work_time) {
 		_pump_set_state(_pump_fsm_state_start);
@@ -269,6 +313,7 @@ void _pump_fsm_state_stop()
 {
 	uint32_t work_state_time = (HAL_GetTick() - pump_state.start_time);
 	if (work_state_time > PUMP_WORK_PERIOD) {
+		HAL_GPIO_WritePin(PUMP_GPIO_Port, PUMP_Pin, GPIO_PIN_RESET);
 		_pump_set_state(_pump_fsm_state_enable);
 		return;
 	}
@@ -326,11 +371,15 @@ void _pump_log_work_time()
 {
 	_pump_check_log_date();
 
+	if (pump_state.state_action != _pump_fsm_state_work) {
+		return;
+	}
+
 	if (HAL_GetTick() < pump_state.start_time) {
 		return;
 	}
 
-	uint32_t work_state_time = (HAL_GetTick() - pump_state.start_time);
+	uint32_t work_state_time = __abs_dif(HAL_GetTick(), pump_state.start_time);
 	if (work_state_time < MILLIS_IN_SECOND) {
 		return;
 	}
@@ -347,11 +396,15 @@ void _pump_log_downtime()
 {
 	_pump_check_log_date();
 
-	if (!(pump_state.start_time / 1000)) {
+	if (pump_state.state_action != _pump_fsm_state_check_downtime) {
 		return;
 	}
 
-	uint32_t time = (HAL_GetTick() - pump_state.start_time) / MILLIS_IN_SECOND;
+	if (HAL_GetTick() < pump_state.start_time) {
+		return;
+	}
+
+	uint32_t time = __abs_dif(HAL_GetTick(), pump_state.start_time) / MILLIS_IN_SECOND;
     module_settings.pump_downtime_sec += time;
     LOG_DEBUG(PUMP_TAG, "update downtime log: time added (%ld s)\n", time);
 
@@ -372,7 +425,7 @@ void _pump_calculate_work_time()
 {
     pump_state.needed_work_time = 0;
 
-    if (module_settings.milliliters_per_day == 0) {
+    if (module_settings.pump_target == 0) {
     	return;
     }
     if (module_settings.pump_speed == 0) {
@@ -383,12 +436,12 @@ void _pump_calculate_work_time()
     }
 
     uint16_t used_day_liquid = (module_settings.pump_work_day_sec * module_settings.pump_speed) / (MINUTES_PER_HOUR * SECONDS_PER_MINUTE);
-    if (module_settings.milliliters_per_day <= used_day_liquid) {
+    if (module_settings.pump_target <= used_day_liquid) {
     	return;
     }
 
     uint32_t time_left = _get_day_sec_left();
-    uint32_t needed_ml = module_settings.milliliters_per_day - used_day_liquid;
+    uint32_t needed_ml = module_settings.pump_target - used_day_liquid;
     uint32_t max_pump_ml_to_end_of_day = (module_settings.pump_speed * time_left) / (MINUTES_PER_HOUR * SECONDS_PER_MINUTE);
     if (needed_ml > max_pump_ml_to_end_of_day) {
         pump_state.needed_work_time = PUMP_WORK_PERIOD;
@@ -397,7 +450,8 @@ void _pump_calculate_work_time()
 
     uint32_t periods_count = (time_left * MILLIS_IN_SECOND) / PUMP_WORK_PERIOD;
     uint32_t needed_ml_per_period = needed_ml / periods_count;
-    pump_state.needed_work_time = (needed_ml_per_period * ((MINUTES_PER_HOUR * SECONDS_PER_MINUTE) / PUMP_WORK_PERIOD)) / (module_settings.pump_speed * (MINUTES_PER_HOUR * SECONDS_PER_MINUTE));
+    pump_state.needed_work_time = (needed_ml_per_period * (MINUTES_PER_HOUR * SECONDS_PER_MINUTE)) / (module_settings.pump_speed);
+    pump_state.needed_work_time *= MILLIS_IN_SECOND;
     if (pump_state.needed_work_time > PUMP_WORK_PERIOD) {
         pump_state.needed_work_time = PUMP_WORK_PERIOD;
     }

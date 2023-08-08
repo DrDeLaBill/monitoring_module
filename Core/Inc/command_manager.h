@@ -10,6 +10,7 @@
 
 #include <stdbool.h>
 
+#include "defines.h"
 #include "clock_service.h"
 
 #define CHAR_COMMAND_SIZE  40
@@ -50,9 +51,9 @@ void cmd_proccess_input(const char input_chr);
 		module_settings.server_port, \
 		module_settings.tank_ADC_min, \
 		module_settings.tank_ADC_max, \
-		module_settings.tank_liters_min, \
-		module_settings.tank_liters_max, \
-		module_settings.milliliters_per_day, \
+		module_settings.tank_liters_min / MILLILITERS_IN_LITER, \
+		module_settings.tank_liters_max / MILLILITERS_IN_LITER, \
+		module_settings.pump_target / MILLILITERS_IN_LITER, \
 		module_settings.sleep_time / MILLIS_IN_SECOND, \
 		module_settings.server_log_id, \
 		module_settings.pump_speed, \

@@ -36,7 +36,7 @@ settings_status_t settings_reset() {
 	module_settings.tank_liters_max = MAX_TANK_LTR;
 	module_settings.tank_ADC_max = MAX_TANK_VOLUME;
 	module_settings.tank_ADC_min = MIN_TANK_VOLUME;
-	module_settings.milliliters_per_day = MIN_TANK_LTR;
+	module_settings.pump_target = 0;
 	module_settings.pump_speed = 0;
 	module_settings.sleep_time = DEFAULT_SLEEPING_TIME;
 	module_settings.pump_enabled = true;
