@@ -54,6 +54,9 @@ eeprom_status_t eeprom_read(uint32_t addr, uint8_t* buf, uint16_t len)
     		break;
     	}
     }
+    if (status != HAL_OK) {
+    	return EEPROM_ERROR_BUSY;
+    }
 
     status = HAL_I2C_Mem_Read(&EEPROM_I2C, dev_addr, (uint16_t)(addr & 0xFFFF), I2C_MEMADD_SIZE_16BIT, buf, len, EEPROM_DELAY);
     if (status != HAL_OK) {
@@ -102,6 +105,9 @@ eeprom_status_t eeprom_write(uint32_t addr, uint8_t* buf, uint16_t len)
     	if (status == HAL_OK) {
     		break;
     	}
+    }
+    if (status != HAL_OK) {
+    	return EEPROM_ERROR_BUSY;
     }
 
     status = HAL_I2C_Mem_Write(&EEPROM_I2C, dev_addr, (uint16_t)(addr & 0xFFFF), I2C_MEMADD_SIZE_16BIT, buf, len, EEPROM_DELAY);

@@ -12,17 +12,17 @@
 #include "stm32f1xx_hal.h"
 
 
-enum {
+typedef enum _measurement_direction_t {
 	TO_MAX = 1,
 	TO_MIN
-};
+} measurement_direction_t;
 
 
 typedef struct _channel_measurement {
 	uint32_t shunt_buf_min;
 	uint32_t shunt_buf_max;
 	uint32_t shunt_val_max;
-	uint8_t  state;
+	measurement_direction_t  state;
 } channel_measurement;
 
 

@@ -61,12 +61,12 @@ int _write(int file, uint8_t *ptr, int len);
 /* Private defines -----------------------------------------------------------*/
 #define LIQUID_LEVEL_Pin GPIO_PIN_0
 #define LIQUID_LEVEL_GPIO_Port GPIOA
-#define LIQUID_PRESS1_Pin GPIO_PIN_1
-#define LIQUID_PRESS1_GPIO_Port GPIOA
 #define RS485_TX_Pin GPIO_PIN_2
 #define RS485_TX_GPIO_Port GPIOA
 #define RS485_RX_Pin GPIO_PIN_3
 #define RS485_RX_GPIO_Port GPIOA
+#define LIQUID_PRESS1_Pin GPIO_PIN_5
+#define LIQUID_PRESS1_GPIO_Port GPIOA
 #define SIM_RESET_Pin GPIO_PIN_8
 #define SIM_RESET_GPIO_Port GPIOA
 #define PUMP_LAMP_Pin GPIO_PIN_11

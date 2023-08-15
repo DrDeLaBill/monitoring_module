@@ -227,7 +227,7 @@ void _check_content_length_itr() {
 	if (!strnstr(ptr, LINE_BREAK, strlen(ptr))) {
 		return;
 	}
-	response_data_count = atoi(ptr);
+	response_data_count = atoi(ptr) + strlen(DOUBLE_LINE_BREAK);
 
 	memset(sim_response, 0, response_counter);
 	sim_state.check_http_header_itr = &_check_double_break_itr;
@@ -241,7 +241,6 @@ void _check_double_break_itr() {
 	}
 	memset(sim_response, 0, ptr - sim_response);
 	strncpy(sim_response, ptr, strlen(ptr));
-	memset(ptr, 0, strlen(ptr));
 	response_counter = strlen(ptr);
 	sim_state.check_http_header_itr = &_wait_data_itr;
 }

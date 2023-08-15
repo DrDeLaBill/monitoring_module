@@ -39,6 +39,9 @@ uint32_t _pressure_get_absolute_value();
 void pressure_sensor_begin()
 {
 	memset((uint8_t*)&measurement_buf, 0, sizeof(measurement_buf));
+	for (uint8_t i = 0; i < sizeof(measurement_buf) / sizeof(channel_measurement); i++) {
+		measurement_buf[i].state = TO_MIN;
+	}
 }
 
 uint32_t get_first_press()

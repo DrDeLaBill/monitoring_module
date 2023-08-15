@@ -31,7 +31,8 @@ typedef enum _storage_status_t {
 	STORAGE_ERROR_VER           = ((uint8_t)0x05),
 	STORAGE_ERROR_APPOINTMENT   = ((uint8_t)0x06),
 	STORAGE_ERROR_BITS          = ((uint8_t)0x07),
-	STORAGE_ERROR_OUT_OF_MEMORY = ((uint8_t)0x08)
+	STORAGE_ERROR_OUT_OF_MEMORY = ((uint8_t)0x08),
+	STORAGE_ERROR_BUSY          = ((uint8_t)0x09)
 } storage_status_t;
 
 typedef enum _storage_appointment_t {

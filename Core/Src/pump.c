@@ -16,6 +16,7 @@
 #include "utils.h"
 #include "settings_manager.h"
 #include "clock_service.h"
+#include "pressure_sensor.h"
 
 
 #define CYCLES_PER_HOUR    4
@@ -168,6 +169,10 @@ void pump_clear_log()
 
 void pump_show_status()
 {
+	int32_t liquid_val = get_liquid_liters();
+	uint16_t liquid_adc = get_liquid_adc();
+	uint16_t pressure_1 = get_first_press();
+
     LOG_MESSAGE(PUMP_TAG, "PUMP_STATUS: %s\n################################################\n", pump_state.enabled ? "ENABLED" : "DISABLED");
 
     uint16_t used_day_liquid = module_settings.pump_work_day_sec * module_settings.pump_speed / MILLIS_IN_SECOND;
@@ -205,8 +210,8 @@ void pump_show_status()
 
     LOG_MESSAGE(PUMP_TAG, "Internal clock: %lu ms\n", HAL_GetTick());
 
-	int32_t liquid_val = get_liquid_liters();
-	uint16_t liquid_adc = get_liquid_adc();
+    LOG_MESSAGE(PUMP_TAG, "Liquid pressure: %u.%02u MPa\n", pressure_1 / 100, pressure_1 % 100);
+
     if (liquid_val < 0) {
     	LOG_MESSAGE(PUMP_TAG, "Tank liquid value ERR (ADC=%d)\n################################################\n", liquid_adc);
     } else {
@@ -336,9 +341,15 @@ void _pump_fsm_state_stop()
 
 void _pump_fsm_state_work()
 {
+	if (is_liquid_tank_empty()) {
+		goto do_pump_stop;
+	}
+
 	if (util_is_timer_wait(&pump_state.wait_timer)) {
 		return;
 	}
+
+do_pump_stop:
 
 	_pump_log_work_time();
 

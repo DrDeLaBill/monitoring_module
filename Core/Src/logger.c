@@ -34,8 +34,8 @@ record_status_t _load_current_log();
 void _start_error_timer();
 void _start_settings_timer();
 
-bool _log_str_find_param(char* dst, const char* src, const char* param);
-bool _log_str_update_time(const char* data);
+bool _log_str_find_param(char** dst, const char* src, const char* param);
+bool _log_str_update_time(char* data);
 
 
 const char* LOG_TAG         = "LOG";
@@ -166,7 +166,7 @@ void _send_http_log()
 				"id=%lu;"
 				"t=20%02d-%02d-%02dT%02d:%02d:%02d;"
 				"level=%ld;"
-				"press_1=%lu.%02lu;"
+				"press_1=%u.%02u;"
 //				"press_2=%lu.%02lu;"
 				"pumpw=%lu;"
 				"pumpd=%lu\r\n",
@@ -241,16 +241,12 @@ void _show_measurements()
 	LOG_DEBUG(
 		LOG_TAG,
 		"\n"
-#if LOGGER_DEBUG
 		"ID:      %lu\n"
-#endif
 		"Time:    20%02u-%02u-%02uT%02u:%02u:%02u\n"
 		"Level:   %lu l\n"
-		"Press 1: %lu.%02lu MPa\n",
+		"Press 1: %u.%02u MPa\n",
 //		"Press 2: %d.%02d MPa\n",
-#if LOGGER_DEBUG
 		log_record.id,
-#endif
 		log_record.time[0], log_record.time[1], log_record.time[2], log_record.time[3], log_record.time[4], log_record.time[5],
 		log_record.level,
 		log_record.press_1 / 100, log_record.press_1 % 100
@@ -260,17 +256,19 @@ void _show_measurements()
 
 void _parse_response()
 {
+	uint32_t old_log_id = module_settings.server_log_id;
+
 	char* var_ptr = get_response();
 	char* data_ptr = var_ptr;
 	if (!var_ptr) {
 		goto do_error;
 	}
 
-	if (!_log_str_find_param(data_ptr, var_ptr, TIME_FIELD)) {
+	if (!_log_str_find_param(&data_ptr, var_ptr, TIME_FIELD)) {
 		goto do_error;
 	}
 
-	if (_log_str_update_time(var_ptr)) {
+	if (_log_str_update_time(data_ptr)) {
 #if LOGGER_DEBUG
 		LOG_DEBUG(LOG_TAG, "time updated\n");
 #endif
@@ -286,7 +284,7 @@ void _parse_response()
 	}
 
 	// Parse configuration:
-	if (!_log_str_find_param(data_ptr, var_ptr, CF_LOGID_FIELD)) {
+	if (!_log_str_find_param(&data_ptr, var_ptr, CF_LOGID_FIELD)) {
 		goto do_error;
 	}
 	module_settings.server_log_id = atoi(data_ptr);
@@ -294,7 +292,7 @@ void _parse_response()
 
 	LOG_MESSAGE(LOG_TAG, "Recieved response from the server\n");
 
-	if (!_log_str_find_param(data_ptr, var_ptr, CF_ID_FIELD)) {
+	if (!_log_str_find_param(&data_ptr, var_ptr, CF_ID_FIELD)) {
 		goto do_exit;
 	}
 	uint32_t new_cf_id = atoi(data_ptr);
@@ -303,41 +301,41 @@ void _parse_response()
 	}
 	module_settings.cf_id = new_cf_id;
 
-	if (!_log_str_find_param(data_ptr, var_ptr, CF_DATA_FIELD)) {
+	if (!_log_str_find_param(&data_ptr, var_ptr, CF_DATA_FIELD)) {
 		goto do_error;
 	}
 	data_ptr += strlen(CF_DATA_FIELD);
 	var_ptr = data_ptr;
 
-	if (_log_str_find_param(data_ptr, var_ptr, CF_PWR_FIELD)) {
+	if (_log_str_find_param(&data_ptr, var_ptr, CF_PWR_FIELD)) {
 		pump_update_enable_state(atoi(data_ptr));
 	}
 
-	if (_log_str_find_param(data_ptr, var_ptr, CF_LTRMIN_FIELD)) {
+	if (_log_str_find_param(&data_ptr, var_ptr, CF_LTRMIN_FIELD)) {
 		pump_update_ltrmin(atoi(data_ptr));
 	}
 
-	if (_log_str_find_param(data_ptr, var_ptr, CF_LTRMAX_FIELD)) {
+	if (_log_str_find_param(&data_ptr, var_ptr, CF_LTRMAX_FIELD)) {
 		pump_update_ltrmax(atoi(data_ptr));
 	}
 
-	if (_log_str_find_param(data_ptr, var_ptr, CF_TRGT_FIELD)) {
+	if (_log_str_find_param(&data_ptr, var_ptr, CF_TRGT_FIELD)) {
 		pump_update_target(atoi(data_ptr));
 	}
 
-	if (_log_str_find_param(data_ptr, var_ptr, CF_SLEEP_FIELD)) {
+	if (_log_str_find_param(&data_ptr, var_ptr, CF_SLEEP_FIELD)) {
 		log_update_sleep(atoi(data_ptr) * MILLIS_IN_SECOND);
 	}
 
-	if (_log_str_find_param(data_ptr, var_ptr, CF_SPEED_FIELD)) {
+	if (_log_str_find_param(&data_ptr, var_ptr, CF_SPEED_FIELD)) {
 		pump_update_speed(atoi(data_ptr));
 	}
 
-	if (_log_str_find_param(data_ptr, var_ptr, CF_DEV_ID_FIELD)) {
+	if (_log_str_find_param(&data_ptr, var_ptr, CF_DEV_ID_FIELD)) {
 		module_settings.id = atoi(data_ptr);
 	}
 
-	if (_log_str_find_param(data_ptr, var_ptr, CF_CLEAR_FIELD)) {
+	if (_log_str_find_param(&data_ptr, var_ptr, CF_CLEAR_FIELD)) {
 		if (atoi(data_ptr) == 1) clear_log();
 	}
 
@@ -353,6 +351,7 @@ do_error:
 #if LOGGER_DEBUG
 	LOG_DEBUG(LOG_TAG, "unable to parse response - %s\n", var_ptr);
 #endif
+	module_settings.server_log_id = old_log_id;
 	goto do_exit;
 
 do_success:
@@ -368,26 +367,29 @@ do_exit:
 	return;
 }
 
-bool _log_str_find_param(char* dst, const char* src, const char* param)
+bool _log_str_find_param(char** dst, const char* src, const char* param)
 {
 	char search_param[CHAR_PARAM_SIZE] = {0};
 	if (strlen(param) > sizeof(search_param) - 3) {
 		return false;
 	}
 
-	char* ptr = strnstr(src, search_param, strlen(src));
+	char* ptr = NULL;
 
 	snprintf(search_param, sizeof(search_param), "\n%s=", param);
+	ptr = strnstr(src, search_param, strlen(src));
 	if (ptr) {
 		goto do_success;
 	}
 
 	snprintf(search_param, sizeof(search_param), ";%s=", param);
+	ptr = strnstr(src, search_param, strlen(src));
 	if (ptr) {
 		goto do_success;
 	}
 
 	snprintf(search_param, sizeof(search_param), "=%s=", param);
+	ptr = strnstr(src, search_param, strlen(src));
 	if (ptr) {
 		goto do_success;
 	}
@@ -395,23 +397,22 @@ bool _log_str_find_param(char* dst, const char* src, const char* param)
 	goto do_error;
 
 do_success:
-	dst = ptr + strlen(param);
+	*dst = ptr + strlen(search_param);
 	return true;
 
 do_error:
 	return false;
 }
 
-bool _log_str_update_time(const char* data)
+bool _log_str_update_time(char* data)
 {
 	// Parse time
 	DateTime datetime = {0};
 
-	char* data_ptr = strnstr(data, TIME_FIELD, strlen(data));
+	char* data_ptr = data;
 	if (!data_ptr) {
 		return false;
 	}
-	data_ptr += strlen(TIME_FIELD);
 	datetime.year = atoi(data_ptr) % 100;
 
 	data_ptr = strnstr(data_ptr, T_DASH_FIELD, strlen(data_ptr));

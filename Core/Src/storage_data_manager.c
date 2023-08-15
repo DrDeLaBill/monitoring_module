@@ -215,6 +215,12 @@ storage_status_t _storage_write_page(uint32_t page_addr, uint8_t* buff, uint16_t
         _storage_set_page_blocked(page_addr / STORAGE_PAGE_SIZE, true);
         storage_status = _storage_write_errors_list_page();
     }
+    if (eeprom_status == EEPROM_ERROR_BUSY) {
+#if STORAGE_DEBUG
+		LOG_DEBUG(STORAGE_TAG, "write page (address=%lu): eeprom write error - eeprom busy\n", page_addr);
+#endif
+		return STORAGE_ERROR_BUSY;
+	}
     if (eeprom_status != EEPROM_OK) {
 #if STORAGE_DEBUG
         LOG_DEBUG(STORAGE_TAG, "write page (address=%lu): eeprom write error\n", page_addr);
@@ -230,6 +236,12 @@ storage_status_t _storage_write_page(uint32_t page_addr, uint8_t* buff, uint16_t
 
     memset((uint8_t*)&payload, 0, sizeof(payload));
     eeprom_status = eeprom_read(page_addr, (uint8_t*)&payload, sizeof(payload));
+    if (eeprom_status == EEPROM_ERROR_BUSY) {
+#if STORAGE_DEBUG
+		LOG_DEBUG(STORAGE_TAG, "write page (address=%lu): eeprom read error - eeprom busy\n", page_addr);
+#endif
+		return STORAGE_ERROR_BUSY;
+	}
     if (eeprom_status != EEPROM_OK) {
 #if STORAGE_DEBUG
 		LOG_DEBUG(STORAGE_TAG, "write page (address=%lu): error read record\n", page_addr);
@@ -276,7 +288,14 @@ storage_status_t _storage_read_page(uint32_t page_addr, uint8_t* buff, uint16_t 
         return STORAGE_ERROR_OUT_OF_MEMORY;
     }
 
-    if (eeprom_read(page_addr, (uint8_t*)&payload, sizeof(payload)) != EEPROM_OK) {
+    eeprom_status_t status = eeprom_read(page_addr, (uint8_t*)&payload, sizeof(payload));
+    if (status == EEPROM_ERROR_BUSY) {
+#if STORAGE_DEBUG
+        LOG_DEBUG(STORAGE_TAG, "read page (address=%lu): eeprom read error - eeprom busy\n", page_addr);
+#endif
+        return STORAGE_ERROR_BUSY;
+    }
+    if (status != EEPROM_OK) {
 #if STORAGE_DEBUG
         LOG_DEBUG(STORAGE_TAG, "read page (address=%lu): eeprom read error\n", page_addr);
 #endif
@@ -335,6 +354,9 @@ storage_status_t _storage_write_errors_list_page()
     uint32_t page_addr = STORAGE_START_ADDR;
 	while (status != STORAGE_ERROR_OUT_OF_MEMORY) {
 		status = _storage_write_page(page_addr, (uint8_t*)&storage_errors_page_list, sizeof(storage_errors_page_list), STORAGE_APPOINTMENT_ERRORS_LIST_PAGE);
+		if (status == STORAGE_ERROR_BUSY) {
+			continue;
+		}
 		if (status != STORAGE_OK) {
 #if STORAGE_DEBUG
 			LOG_DEBUG(STORAGE_TAG, "write errors list page: unable to write errors list page (address=%lu)\n", page_addr);
@@ -379,6 +401,9 @@ storage_status_t _storage_read_errors_list_page()
     memset((uint8_t*)&search_buf, 0, sizeof(search_buf));
     while (status != STORAGE_ERROR_OUT_OF_MEMORY) {
 		status = _storage_read_page(page_addr, (uint8_t*)&search_buf, sizeof(search_buf), STORAGE_APPOINTMENT_ERRORS_LIST_PAGE);
+		if (status == STORAGE_ERROR_BUSY) {
+			continue;
+		}
 		if (status != STORAGE_OK) {
 #if STORAGE_DEBUG
 			LOG_DEBUG(STORAGE_TAG, "read errors list page: unable to read\n");
@@ -415,6 +440,9 @@ storage_status_t _storage_get_errors_list_page_addr(uint32_t* addr)
 	memset((uint8_t*)&search_buf, 0, sizeof(search_buf));
 	while (status != STORAGE_ERROR_OUT_OF_MEMORY) {
 		status = _storage_read_page(page_addr, (uint8_t*)&search_buf, sizeof(search_buf), STORAGE_APPOINTMENT_ERRORS_LIST_PAGE);
+		if (status == STORAGE_ERROR_BUSY) {
+			continue;
+		}
 		if (status != STORAGE_OK) {
 #if STORAGE_DEBUG
 			LOG_DEBUG(STORAGE_TAG, "read errors list page: unable to read\n");

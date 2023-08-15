@@ -31,7 +31,7 @@ void cmd_proccess_input(const char input_chr);
 		"ADC level MAX:    %lu\n" \
 		"Liquid level MIN: %lu l\n" \
 		"Liquid level MAX: %lu l\n" \
-		"Target:           %lu ml/d\n" \
+		"Target:           %lu l/d\n" \
 		"Sleep time:       %lu sec\n" \
 		"Server log ID:    %lu\n" \
 		"Pump speed:       %lu ml/h\n" \

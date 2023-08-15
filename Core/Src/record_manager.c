@@ -13,7 +13,8 @@
 #include "utils.h"
 
 
-#define CLUSTERS_MIN 10
+#define RECORD_CLUSTERS_MIN    10
+#define RECORD_ERROR_COUNT_MAX 10
 
 
 const char* RECORD_TAG = "RCRD";;
@@ -83,6 +84,13 @@ record_status_t next_record_load() {
     	return RECORD_ERROR;
     }
 
+    if (buff.records[needed_record_num].id <= module_settings.server_log_id) {
+#if RECORD_DEBUG
+        LOG_DEBUG(RECORD_TAG, "next reccord load: error record id - needed > %lu, recieved %lu\n", module_settings.server_log_id, RECORDS_CLUST_SIZE);
+#endif
+    	return RECORD_NO_LOG;
+    }
+
     memcpy((uint8_t*)&log_record, (uint8_t*)&buff.records[needed_record_num], sizeof(log_record));
 
 #if RECORD_DEBUG
@@ -124,24 +132,28 @@ record_status_t record_save() {
 
     log_record_clust_t buff;
     memset((uint8_t*)&buff, 0 ,sizeof(buff));
-	memcpy((uint8_t*)&buff.records[needed_record_num], (uint8_t*)&log_record, sizeof(log_record_t));
-	buff.record_magic = RECORDS_CLUST_MAGIC;
-
-    storage_status_t storage_status = storage_save(needed_addr, (uint8_t*)&buff, sizeof(buff));
-	if (storage_status != STORAGE_OK) {
-#if RECORD_DEBUG
-        LOG_DEBUG(RECORD_TAG, "reccord save: storage save - storage_error=%i, needed_addr=%lu\n", storage_status, needed_addr);
-#endif
-        return RECORD_ERROR;
-    }
-
-    storage_status = storage_load(needed_addr, (uint8_t*)&buff, sizeof(buff));
+    storage_status_t storage_status = storage_load(needed_addr, (uint8_t*)&buff, sizeof(buff));
 	if (storage_status != STORAGE_OK) {
 #if RECORD_DEBUG
 		LOG_DEBUG(RECORD_TAG, "reccord save: storage load - storage_error=%i, needed_addr=%lu\n", storage_status, needed_addr);
 #endif
 		return RECORD_ERROR;
 	}
+
+	if (buff.record_magic != RECORDS_CLUST_MAGIC) {
+		memset((uint8_t*)&buff, 0, sizeof(buff));
+	}
+
+	memcpy((uint8_t*)&buff.records[needed_record_num], (uint8_t*)&log_record, sizeof(log_record_t));
+	buff.record_magic = RECORDS_CLUST_MAGIC;
+
+    storage_status = storage_save(needed_addr, (uint8_t*)&buff, sizeof(buff));
+	if (storage_status != STORAGE_OK) {
+#if RECORD_DEBUG
+        LOG_DEBUG(RECORD_TAG, "reccord save: storage save - storage_error=%i, needed_addr=%lu\n", storage_status, needed_addr);
+#endif
+        return RECORD_ERROR;
+    }
 
 #if RECORD_DEBUG
     LOG_DEBUG(RECORD_TAG, "reccord save: end, saved on page %lu (address=%lu)\n", needed_addr / STORAGE_PAGE_SIZE, needed_addr);
@@ -167,6 +179,10 @@ record_status_t record_get_new_id(uint32_t* new_id)
 	}
 
     _record_get_next_cache_id(new_id);
+
+    if (*new_id <= module_settings.server_log_id) {
+    	*new_id = module_settings.server_log_id + 1;
+    }
 
 #if RECORD_DEBUG
     LOG_DEBUG(RECORD_TAG, "get new id: end, got max id=%lu\n", *new_id);
@@ -260,6 +276,9 @@ record_status_t _record_cache_scan_storage_records()
 	}
 
     uint32_t next_addr = 0;
+    if (!log_ids_cache.cur_scan_address) {
+    	log_ids_cache.cur_scan_address = first_addr;
+    }
 	status = storage_get_next_available_addr(log_ids_cache.cur_scan_address, &next_addr);
 	if (status == STORAGE_ERROR_OUT_OF_MEMORY) {
 		goto do_next_addr;
@@ -275,6 +294,7 @@ record_status_t _record_cache_scan_storage_records()
 		log_ids_cache.first_record_addr = next_addr;
 	}
 
+	static uint8_t read_errors_count = 0;
     log_record_clust_t buff;
     memset((uint8_t*)&buff, 0 ,sizeof(buff));
 	status = storage_load(next_addr, (uint8_t*)&buff, sizeof(buff));
@@ -284,6 +304,14 @@ record_status_t _record_cache_scan_storage_records()
 		status == STORAGE_ERROR_VER ||
 		status == STORAGE_ERROR_APPOINTMENT
 	) {
+		read_errors_count = 0;
+		goto do_next_addr;
+	}
+	if (status != STORAGE_OK) {
+		read_errors_count++;
+	}
+	if (read_errors_count > RECORD_ERROR_COUNT_MAX) {
+		read_errors_count = 0;
 		goto do_next_addr;
 	}
 	if (status != STORAGE_OK) {
@@ -291,6 +319,13 @@ record_status_t _record_cache_scan_storage_records()
 		LOG_DEBUG(RECORD_TAG, "scan storage error (addr=%lu): read record error=%i, next-address=%lu\n", log_ids_cache.cur_scan_address, status, next_addr);
 #endif
 		return RECORD_ERROR;
+	}
+
+	if (buff.record_magic != RECORDS_CLUST_MAGIC) {
+#if RECORD_DEBUG
+		LOG_DEBUG(RECORD_TAG, "scan storage error (addr=%lu): records count - clust has %u records, but needed %u\n", log_ids_cache.cur_scan_address, buff.record_magic, RECORDS_CLUST_SIZE);
+#endif
+		goto do_next_addr;
 	}
 
 	for (uint16_t i = 0; i < RECORDS_CLUST_SIZE; i++) {
