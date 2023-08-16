@@ -119,8 +119,6 @@ int main(void)
 		settings_save();
 	}
 	show_settings();
-	// Shunt
-	pressure_sensor_begin();
 	// UART command manager
 	command_manager_begin();
 	// SIM module

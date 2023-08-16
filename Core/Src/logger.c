@@ -222,7 +222,7 @@ void _make_measurements()
 	log_record.cf_id   = module_settings.cf_id;
 	record_get_new_id(&log_record.id);
 	log_record.level   = get_liquid_liters() * 1000;
-	log_record.press_1 = get_first_press();
+	log_record.press_1 = get_press();
 //	cur_log_record.press_2 = get_second_press();
 
 	log_record.time[0] = get_year() % 100;

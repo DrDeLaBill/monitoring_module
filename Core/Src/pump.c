@@ -171,7 +171,7 @@ void pump_show_status()
 {
 	int32_t liquid_val = get_liquid_liters();
 	uint16_t liquid_adc = get_liquid_adc();
-	uint16_t pressure_1 = get_first_press();
+	uint16_t pressure_1 = get_press();
 
     LOG_MESSAGE(PUMP_TAG, "PUMP_STATUS: %s\n################################################\n", pump_state.enabled ? "ENABLED" : "DISABLED");
 
