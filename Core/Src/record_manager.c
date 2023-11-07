@@ -17,7 +17,7 @@
 #define RECORD_ERROR_COUNT_MAX 10
 
 
-const char* RECORD_TAG = "RCRD";;
+const char* RECORD_TAG = "RCRD";
 
 
 log_record_t log_record = {0};
@@ -50,19 +50,19 @@ record_status_t next_record_load() {
     }
 
 #if RECORD_DEBUG
-    LOG_DEBUG(RECORD_TAG, "reccord load: begin\n");
+    LOG_TAG_BEDUG(RECORD_TAG, "reccord load: begin\n");
 #endif
 
 	if (record_status != RECORD_OK) {
 #if RECORD_DEBUG
-        LOG_DEBUG(RECORD_TAG, "reccord load: error get available address by cache\n");
+        LOG_TAG_BEDUG(RECORD_TAG, "reccord load: error get available address by cache\n");
 #endif
         return record_status;
     }
 
     if (!needed_addr) {
 #if RECORD_DEBUG
-        LOG_DEBUG(RECORD_TAG, "reccord load: needed address - error=%i, needed_addr=%lu\n", record_status, needed_addr);
+        LOG_TAG_BEDUG(RECORD_TAG, "reccord load: needed address - error=%i, needed_addr=%lu\n", record_status, needed_addr);
 #endif
         return RECORD_ERROR;
     }
@@ -72,21 +72,21 @@ record_status_t next_record_load() {
     storage_status_t storage_status = storage_load(needed_addr, (uint8_t*)&buff, sizeof(buff));
     if (storage_status != STORAGE_OK) {
 #if RECORD_DEBUG
-        LOG_DEBUG(RECORD_TAG, "next reccord load: storage load - storage_error=%i\n", storage_status);
+        LOG_TAG_BEDUG(RECORD_TAG, "next reccord load: storage load - storage_error=%i\n", storage_status);
 #endif
         return RECORD_ERROR;
     }
 
     if (buff.record_magic != RECORDS_CLUST_MAGIC) {
 #if RECORD_DEBUG
-        LOG_DEBUG(RECORD_TAG, "next reccord load: records count - clust has %u records, but needed %u\n", buff.record_magic, RECORDS_CLUST_SIZE);
+        LOG_TAG_BEDUG(RECORD_TAG, "next reccord load: records count - clust has %u records, but needed %u\n", buff.record_magic, RECORDS_CLUST_SIZE);
 #endif
     	return RECORD_ERROR;
     }
 
     if (buff.records[needed_record_num].id <= module_settings.server_log_id) {
 #if RECORD_DEBUG
-        LOG_DEBUG(RECORD_TAG, "next reccord load: error record id - needed > %lu, recieved %lu\n", module_settings.server_log_id, RECORDS_CLUST_SIZE);
+        LOG_TAG_BEDUG(RECORD_TAG, "next reccord load: error record id - needed > %lu, recieved %lu\n", module_settings.server_log_id, RECORDS_CLUST_SIZE);
 #endif
     	return RECORD_NO_LOG;
     }
@@ -94,7 +94,7 @@ record_status_t next_record_load() {
     memcpy((uint8_t*)&log_record, (uint8_t*)&buff.records[needed_record_num], sizeof(log_record));
 
 #if RECORD_DEBUG
-    LOG_DEBUG(RECORD_TAG, "reccord load: end, loaded from page %lu (address=%lu)\n", needed_addr / STORAGE_PAGE_SIZE, needed_addr);
+    LOG_TAG_BEDUG(RECORD_TAG, "reccord load: end, loaded from page %lu (address=%lu)\n", needed_addr / STORAGE_PAGE_SIZE, needed_addr);
 #endif
 
     return RECORD_OK;
@@ -103,14 +103,14 @@ record_status_t next_record_load() {
 
 record_status_t record_save() {
 #if RECORD_DEBUG
-    LOG_DEBUG(RECORD_TAG, "reccord save: begin\n");
+    LOG_TAG_BEDUG(RECORD_TAG, "reccord save: begin\n");
 #endif
     uint32_t needed_addr = 0;
     uint16_t needed_record_num = 0;
 
     if (log_ids_cache.is_need_to_scan) {
 #if RECORD_DEBUG
-		LOG_DEBUG(RECORD_TAG, "reccord save: error - cache not loaded\n");
+		LOG_TAG_BEDUG(RECORD_TAG, "reccord save: error - cache not loaded\n");
 #endif
 		return RECORD_ERROR;
 	}
@@ -118,14 +118,14 @@ record_status_t record_save() {
     record_status_t record_status = _record_get_next_cache_available_address(&needed_addr, &needed_record_num);
     if (record_status != RECORD_OK) {
 #if RECORD_DEBUG
-        LOG_DEBUG(RECORD_TAG, "reccord save: error get available address by cache\n");
+        LOG_TAG_BEDUG(RECORD_TAG, "reccord save: error get available address by cache\n");
 #endif
         return RECORD_ERROR;
     }
 
     if (!needed_addr) {
 #if RECORD_DEBUG
-        LOG_DEBUG(RECORD_TAG, "reccord save: needed address - error=%i, needed_addr=%lu\n", record_status, needed_addr);
+        LOG_TAG_BEDUG(RECORD_TAG, "reccord save: needed address - error=%i, needed_addr=%lu\n", record_status, needed_addr);
 #endif
         return RECORD_ERROR;
     }
@@ -135,7 +135,7 @@ record_status_t record_save() {
     storage_status_t storage_status = storage_load(needed_addr, (uint8_t*)&buff, sizeof(buff));
 	if (storage_status != STORAGE_OK) {
 #if RECORD_DEBUG
-		LOG_DEBUG(RECORD_TAG, "reccord save: storage load - storage_error=%i, needed_addr=%lu\n", storage_status, needed_addr);
+		LOG_TAG_BEDUG(RECORD_TAG, "reccord save: storage load - storage_error=%i, needed_addr=%lu\n", storage_status, needed_addr);
 #endif
 		return RECORD_ERROR;
 	}
@@ -150,13 +150,13 @@ record_status_t record_save() {
     storage_status = storage_save(needed_addr, (uint8_t*)&buff, sizeof(buff));
 	if (storage_status != STORAGE_OK) {
 #if RECORD_DEBUG
-        LOG_DEBUG(RECORD_TAG, "reccord save: storage save - storage_error=%i, needed_addr=%lu\n", storage_status, needed_addr);
+        LOG_TAG_BEDUG(RECORD_TAG, "reccord save: storage save - storage_error=%i, needed_addr=%lu\n", storage_status, needed_addr);
 #endif
         return RECORD_ERROR;
     }
 
 #if RECORD_DEBUG
-    LOG_DEBUG(RECORD_TAG, "reccord save: end, saved on page %lu (address=%lu)\n", needed_addr / STORAGE_PAGE_SIZE, needed_addr);
+    LOG_TAG_BEDUG(RECORD_TAG, "reccord save: end, saved on page %lu (address=%lu)\n", needed_addr / STORAGE_PAGE_SIZE, needed_addr);
 #endif
 
     log_ids_cache.ids_cache[needed_addr / STORAGE_PAGE_SIZE][needed_record_num] = log_record.id;
@@ -167,13 +167,13 @@ record_status_t record_save() {
 record_status_t record_get_new_id(uint32_t* new_id)
 {
 #if RECORD_DEBUG
-    LOG_DEBUG(RECORD_TAG, "get new id: begin\n");
+    LOG_TAG_BEDUG(RECORD_TAG, "get new id: begin\n");
 #endif
     *new_id = RECORD_FIRST_ID;
 
     if (log_ids_cache.is_need_to_scan) {
 #if RECORD_DEBUG
-		LOG_DEBUG(RECORD_TAG, "get new id: error - cache not loaded\n");
+		LOG_TAG_BEDUG(RECORD_TAG, "get new id: error - cache not loaded\n");
 #endif
 		return RECORD_ERROR;
 	}
@@ -185,7 +185,7 @@ record_status_t record_get_new_id(uint32_t* new_id)
     }
 
 #if RECORD_DEBUG
-    LOG_DEBUG(RECORD_TAG, "get new id: end, got max id=%lu\n", *new_id);
+    LOG_TAG_BEDUG(RECORD_TAG, "get new id: end, got max id=%lu\n", *new_id);
 #endif
 
     return RECORD_OK;
@@ -194,11 +194,11 @@ record_status_t record_get_new_id(uint32_t* new_id)
 record_status_t record_delete_record(uint32_t id)
 {
 #if RECORD_DEBUG
-    LOG_DEBUG(RECORD_TAG, "delete record: begin\n");
+    LOG_TAG_BEDUG(RECORD_TAG, "delete record: begin\n");
 #endif
 	if (log_ids_cache.is_need_to_scan) {
 #if RECORD_DEBUG
-		LOG_DEBUG(RECORD_TAG, "delete record: error - cache not loaded\n");
+		LOG_TAG_BEDUG(RECORD_TAG, "delete record: error - cache not loaded\n");
 #endif
 		return RECORD_ERROR;
 	}
@@ -208,7 +208,7 @@ record_status_t record_delete_record(uint32_t id)
 	record_status_t record_status = _record_find_cache_address_by_id(&needed_addr, &needed_record_num, id);
 	if (record_status != RECORD_OK) {
 #if RECORD_DEBUG
-		LOG_DEBUG(RECORD_TAG, "delete record: find cache address - error=%d\n", record_status);
+		LOG_TAG_BEDUG(RECORD_TAG, "delete record: find cache address - error=%d\n", record_status);
 #endif
 		return record_status;
 	}
@@ -218,7 +218,7 @@ record_status_t record_delete_record(uint32_t id)
 	storage_status_t storage_status = storage_load(needed_addr, (uint8_t*)&buff, sizeof(buff));
 	if (storage_status != STORAGE_OK) {
 #if RECORD_DEBUG
-		LOG_DEBUG(RECORD_TAG, "delete record: storage not loaded - storage_error=%i, needed_addr=%lu\n", storage_status, needed_addr);
+		LOG_TAG_BEDUG(RECORD_TAG, "delete record: storage not loaded - storage_error=%i, needed_addr=%lu\n", storage_status, needed_addr);
 #endif
 		return RECORD_ERROR;
 	}
@@ -228,13 +228,13 @@ record_status_t record_delete_record(uint32_t id)
 	storage_status = storage_save(needed_addr, (uint8_t*)&buff, sizeof(buff));
 	if (storage_status != STORAGE_OK) {
 #if RECORD_DEBUG
-		LOG_DEBUG(RECORD_TAG, "delete record: storage save - storage_error=%i, needed_addr=%lu\n", storage_status, needed_addr);
+		LOG_TAG_BEDUG(RECORD_TAG, "delete record: storage save - storage_error=%i, needed_addr=%lu\n", storage_status, needed_addr);
 #endif
 		return RECORD_ERROR;
 	}
 
 #if RECORD_DEBUG
-    LOG_DEBUG(RECORD_TAG, "delete record: end, deleted on page %lu (address=%lu)\n", needed_addr / STORAGE_PAGE_SIZE, needed_addr);
+    LOG_TAG_BEDUG(RECORD_TAG, "delete record: end, deleted on page %lu (address=%lu)\n", needed_addr / STORAGE_PAGE_SIZE, needed_addr);
 #endif
 
     log_ids_cache.ids_cache[needed_addr / STORAGE_PAGE_SIZE][needed_record_num] = 0;
@@ -250,7 +250,7 @@ void record_cache_records_proccess()
 
 	record_status_t status = _record_cache_scan_storage_records();
 	if (status != RECORD_OK) {
-    	LOG_MESSAGE(RECORD_TAG, "scan storage (addr=%lu): fail, error=%02x\n", log_ids_cache.cur_scan_address, status);
+    	PRINT_MESSAGE(RECORD_TAG, "scan storage (addr=%lu): fail, error=%02x\n", log_ids_cache.cur_scan_address, status);
         log_ids_cache.is_need_to_scan = true;
 	}
 }
@@ -261,16 +261,16 @@ record_status_t _record_cache_scan_storage_records()
 	uint8_t current_scan_percent = ((log_ids_cache.cur_scan_address * 10) / (STORAGE_SIZE - STORAGE_PAGE_SIZE)) * 10;
 	if (last_scan_percent != current_scan_percent) {
 		last_scan_percent = current_scan_percent;
-		LOG_MESSAGE(RECORD_TAG, "Storage scanning proccess: %u%%\n", current_scan_percent);
+		PRINT_MESSAGE(RECORD_TAG, "Storage scanning proccess: %u%%\n", current_scan_percent);
 	}
 #if RECORD_DEBUG
-    LOG_DEBUG(RECORD_TAG, "scan storage (addr=%lu): begin\n", log_ids_cache.cur_scan_address);
+    LOG_TAG_BEDUG(RECORD_TAG, "scan storage (addr=%lu): begin\n", log_ids_cache.cur_scan_address);
 #endif
     uint32_t first_addr = 0;
 	storage_status_t status = storage_get_first_available_addr(&first_addr);
 	if (status != STORAGE_OK) {
 #if RECORD_DEBUG
-		LOG_DEBUG(RECORD_TAG, "scan storage error (addr=%lu): error get first address - status:=%d, first-address:=%lu\n", log_ids_cache.cur_scan_address, status, first_addr);
+		LOG_TAG_BEDUG(RECORD_TAG, "scan storage error (addr=%lu): error get first address - status:=%d, first-address:=%lu\n", log_ids_cache.cur_scan_address, status, first_addr);
 #endif
 		return RECORD_ERROR;
 	}
@@ -285,7 +285,7 @@ record_status_t _record_cache_scan_storage_records()
 	}
 	if (status != STORAGE_OK) {
 #if RECORD_DEBUG
-		LOG_DEBUG(RECORD_TAG, "scan storage error (addr=%lu): error get next address - status:=%d, next-address:=%lu\n", log_ids_cache.cur_scan_address, status, next_addr);
+		LOG_TAG_BEDUG(RECORD_TAG, "scan storage error (addr=%lu): error get next address - status:=%d, next-address:=%lu\n", log_ids_cache.cur_scan_address, status, next_addr);
 #endif
 		return RECORD_ERROR;
 	}
@@ -316,14 +316,14 @@ record_status_t _record_cache_scan_storage_records()
 	}
 	if (status != STORAGE_OK) {
 #if RECORD_DEBUG
-		LOG_DEBUG(RECORD_TAG, "scan storage error (addr=%lu): read record error=%i, next-address=%lu\n", log_ids_cache.cur_scan_address, status, next_addr);
+		LOG_TAG_BEDUG(RECORD_TAG, "scan storage error (addr=%lu): read record error=%i, next-address=%lu\n", log_ids_cache.cur_scan_address, status, next_addr);
 #endif
 		return RECORD_ERROR;
 	}
 
 	if (buff.record_magic != RECORDS_CLUST_MAGIC) {
 #if RECORD_DEBUG
-		LOG_DEBUG(RECORD_TAG, "scan storage error (addr=%lu): records count - clust has %u records, but needed %u\n", log_ids_cache.cur_scan_address, buff.record_magic, RECORDS_CLUST_SIZE);
+		LOG_TAG_BEDUG(RECORD_TAG, "scan storage error (addr=%lu): records count - clust has %u records, but needed %u\n", log_ids_cache.cur_scan_address, buff.record_magic, RECORDS_CLUST_SIZE);
 #endif
 		goto do_next_addr;
 	}
@@ -335,20 +335,20 @@ record_status_t _record_cache_scan_storage_records()
 do_next_addr:
 
 #if RECORD_DEBUG
-        LOG_DEBUG(RECORD_TAG, "scan storage (addr=%lu): end - OK\n", log_ids_cache.cur_scan_address);
+        LOG_TAG_BEDUG(RECORD_TAG, "scan storage (addr=%lu): end - OK\n", log_ids_cache.cur_scan_address);
 #endif
 
 	log_ids_cache.cur_scan_address = next_addr;
 
     if (status == STORAGE_ERROR_OUT_OF_MEMORY) {
 #if RECORD_DEBUG
-        LOG_DEBUG(RECORD_TAG, "scan storage: end - OK\n");
+        LOG_TAG_BEDUG(RECORD_TAG, "scan storage: end - OK\n");
 #endif
         log_ids_cache.is_need_to_scan = false;
     }
 
     if (current_scan_percent == 100) {
-		LOG_MESSAGE(RECORD_TAG, "Storage scanning proccess: done\n");
+    	PRINT_MESSAGE(RECORD_TAG, "Storage scanning proccess: done\n");
     }
 
 	return RECORD_OK;
@@ -373,7 +373,7 @@ void _record_get_next_cache_id(uint32_t* new_id)
     }
     *new_id += 1;
 #if RECORD_DEBUG
-    LOG_DEBUG(RECORD_TAG, "get new id: end, got max id from cache page %lu, new id=%lu\n", addr, *new_id);
+    LOG_TAG_BEDUG(RECORD_TAG, "get new id: end, got max id from cache page %lu, new id=%lu\n", addr, *new_id);
 #endif
 }
 

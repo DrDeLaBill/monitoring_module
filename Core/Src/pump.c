@@ -11,6 +11,7 @@
 #include <stdbool.h>
 #include <string.h>
 
+#include "main.h"
 #include "command_manager.h"
 #include "liquid_sensor.h"
 #include "utils.h"
@@ -69,13 +70,13 @@ void pump_init()
 	pump_update_enable_state(module_settings.pump_enabled);
 
     if (module_settings.pump_target == 0) {
-        LOG_MESSAGE(PUMP_TAG, "WWARNING - pump init - no setting milliliters_per_day\n");
+        PRINT_MESSAGE(PUMP_TAG, "WWARNING - pump init - no setting milliliters_per_day\n");
     }
     if (module_settings.pump_speed == 0) {
-        LOG_MESSAGE(PUMP_TAG, "WWARNING - pump init - no setting pump_speed\n");
+        PRINT_MESSAGE(PUMP_TAG, "WWARNING - pump init - no setting pump_speed\n");
     }
     if (is_liquid_tank_empty()) {
-        LOG_MESSAGE(PUMP_TAG, "WWARNING - pump init - liquid tank empty\n");
+        PRINT_MESSAGE(PUMP_TAG, "WWARNING - pump init - liquid tank empty\n");
     }
 }
 
@@ -105,6 +106,10 @@ void pump_update_enable_state(bool enabled)
 	}
 
 	pump_reset_work_state();
+
+	if (!enabled) {
+		_pump_set_state(_pump_fsm_state_stop);
+	}
 
 	pump_state.enabled = enabled;
 }
@@ -173,49 +178,49 @@ void pump_show_status()
 	uint16_t liquid_adc = get_liquid_adc();
 	uint16_t pressure_1 = get_press();
 
-    LOG_MESSAGE(PUMP_TAG, "PUMP_STATUS: %s\n################################################\n", pump_state.enabled ? "ENABLED" : "DISABLED");
+    PRINT_MESSAGE(PUMP_TAG, "PUMP_STATUS: %s\n################################################\n", pump_state.enabled ? "ENABLED" : "DISABLED");
 
     uint16_t used_day_liquid = module_settings.pump_work_day_sec * module_settings.pump_speed / MILLIS_IN_SECOND;
     if (module_settings.pump_target == 0) {
-		LOG_MESSAGE(PUMP_TAG, "Unable to calculate work time - no setting day liquid target\n");
+		PRINT_MESSAGE(PUMP_TAG, "Unable to calculate work time - no setting day liquid target\n");
 	} else if (module_settings.pump_speed == 0) {
-		LOG_MESSAGE(PUMP_TAG, "Unable to calculate work time - no setting pump speed\n");
+		PRINT_MESSAGE(PUMP_TAG, "Unable to calculate work time - no setting pump speed\n");
 	} else if (is_liquid_tank_empty()) {
-		LOG_MESSAGE(PUMP_TAG, "Unable to calculate work time - liquid tank empty\n");
+		PRINT_MESSAGE(PUMP_TAG, "Unable to calculate work time - liquid tank empty\n");
 	} else if (pump_state.needed_work_time < MIN_PUMP_WORK_TIME) {
-    	LOG_MESSAGE(PUMP_TAG, "Unable to calculate work time - needed work time less than %lu sec; set work time 0 sec\n", MIN_PUMP_WORK_TIME / 1000);
+    	PRINT_MESSAGE(PUMP_TAG, "Unable to calculate work time - needed work time less than %lu sec; set work time 0 sec\n", MIN_PUMP_WORK_TIME / 1000);
 	} else if (module_settings.pump_target <= used_day_liquid) {
-		LOG_MESSAGE(PUMP_TAG, "Unable to calculate work time - target liquid amount per day already used\n");
+		PRINT_MESSAGE(PUMP_TAG, "Unable to calculate work time - target liquid amount per day already used\n");
 	}
 
     uint32_t time_period = 0;
     if (!module_settings.pump_enabled || (!pump_state.needed_work_time && !pump_state.start_time)) {
-		LOG_MESSAGE(PUMP_TAG, "Pump will not start - unexceptable settings or sesnors values\n");
-		LOG_MESSAGE(PUMP_TAG, "Please check settings: target liters per day, tank ADC values, tank liters values or enable state\n");
+		PRINT_MESSAGE(PUMP_TAG, "Pump will not start - unexceptable settings or sesnors values\n");
+		PRINT_MESSAGE(PUMP_TAG, "Please check settings: target liters per day, tank ADC values, tank liters values or enable state\n");
 	} else if (pump_state.state_action == _pump_fsm_state_start || pump_state.state_action == _pump_fsm_state_work) {
         time_period = (pump_state.start_time + pump_state.needed_work_time) - HAL_GetTick();
-        LOG_MESSAGE(PUMP_TAG, "Pump work from %lu ms to %lu ms (internal)\n", pump_state.start_time, pump_state.start_time + pump_state.needed_work_time);
+        PRINT_MESSAGE(PUMP_TAG, "Pump work from %lu ms to %lu ms (internal)\n", pump_state.start_time, pump_state.start_time + pump_state.needed_work_time);
     } else if (pump_state.state_action == _pump_fsm_state_stop || pump_state.state_action == _pump_fsm_state_off) {
     	time_period = pump_state.start_time + PUMP_WORK_PERIOD - HAL_GetTick();
-        LOG_MESSAGE(PUMP_TAG, "Pump will start at %lu ms (internal)\n", HAL_GetTick() - pump_state.start_time + PUMP_WORK_PERIOD);
+        PRINT_MESSAGE(PUMP_TAG, "Pump will start at %lu ms (internal)\n", HAL_GetTick() - pump_state.start_time + PUMP_WORK_PERIOD);
     } else if (pump_state.state_action == _pump_fsm_state_check_downtime) {
-    	LOG_MESSAGE(PUMP_TAG, "Counting pump downtime period\n");
+    	PRINT_MESSAGE(PUMP_TAG, "Counting pump downtime period\n");
     } else {
-    	LOG_MESSAGE(PUMP_TAG, "Pump current day work time: %lu\n", module_settings.pump_work_day_sec);
+    	PRINT_MESSAGE(PUMP_TAG, "Pump current day work time: %lu\n", module_settings.pump_work_day_sec);
 	}
 
     if (time_period) {
-    	LOG_MESSAGE(PUMP_TAG, "Wait %lu min %lu sec\n", time_period / SECONDS_PER_MINUTE / MILLIS_IN_SECOND, (time_period / MILLIS_IN_SECOND) % SECONDS_PER_MINUTE);
+    	PRINT_MESSAGE(PUMP_TAG, "Wait %lu min %lu sec\n", time_period / SECONDS_PER_MINUTE / MILLIS_IN_SECOND, (time_period / MILLIS_IN_SECOND) % SECONDS_PER_MINUTE);
     }
 
-    LOG_MESSAGE(PUMP_TAG, "Internal clock: %lu ms\n", HAL_GetTick());
+    PRINT_MESSAGE(PUMP_TAG, "Internal clock: %lu ms\n", HAL_GetTick());
 
-    LOG_MESSAGE(PUMP_TAG, "Liquid pressure: %u.%02u MPa\n", pressure_1 / 100, pressure_1 % 100);
+    PRINT_MESSAGE(PUMP_TAG, "Liquid pressure: %u.%02u MPa\n", pressure_1 / 100, pressure_1 % 100);
 
     if (liquid_val < 0) {
-    	LOG_MESSAGE(PUMP_TAG, "Tank liquid value ERR (ADC=%d)\n################################################\n", liquid_adc);
+    	PRINT_MESSAGE(PUMP_TAG, "Tank liquid value ERR (ADC=%d)\n################################################\n", liquid_adc);
     } else {
-    	LOG_MESSAGE(PUMP_TAG, "Tank liquid value: %ld l (ADC=%d)\n################################################\n", liquid_val, liquid_adc);
+    	PRINT_MESSAGE(PUMP_TAG, "Tank liquid value: %ld l (ADC=%d)\n################################################\n", liquid_val, liquid_adc);
     }
 }
 
@@ -300,13 +305,13 @@ void _pump_fsm_state_start()
 	util_timer_start(&pump_state.wait_timer, pump_state.needed_work_time);
 
 	if (!module_settings.pump_enabled) {
-		LOG_DEBUG(PUMP_TAG, "PUMP COUNT DOWNTIME (wait %lu ms)\n", pump_state.needed_work_time);
+		LOG_TAG_BEDUG(PUMP_TAG, "PUMP COUNT DOWNTIME (wait %lu ms)\n", pump_state.needed_work_time);
 	    _pump_set_state(_pump_fsm_state_check_downtime);
 	    pump_show_status();
 	    return;
 	}
 
-	LOG_DEBUG(PUMP_TAG, "PUMP ON (will work %lu ms)\n", pump_state.needed_work_time);
+	LOG_TAG_BEDUG(PUMP_TAG, "PUMP ON (will work %lu ms)\n", pump_state.needed_work_time);
 	HAL_GPIO_WritePin(PUMP_GPIO_Port, PUMP_Pin, GPIO_PIN_SET);
 
     _pump_set_state(_pump_fsm_state_work);
@@ -329,7 +334,7 @@ void _pump_fsm_state_stop()
 		return;
 	}
 
-	LOG_DEBUG(PUMP_TAG, "PUMP OFF (%lu ms)\n", off_state_time);
+	LOG_TAG_BEDUG(PUMP_TAG, "PUMP OFF (%lu ms)\n", off_state_time);
 
 	util_timer_start(&pump_state.wait_timer, off_state_time);
 	HAL_GPIO_WritePin(PUMP_GPIO_Port, PUMP_Pin, GPIO_PIN_RESET);
@@ -398,7 +403,7 @@ void _pump_log_work_time()
 	uint32_t time = work_state_time / MILLIS_IN_SECOND;
 	module_settings.pump_work_day_sec += time;
 	module_settings.pump_work_sec += time;
-	LOG_DEBUG(PUMP_TAG, "update work log: time added (%lu s)\n", time);
+	LOG_TAG_BEDUG(PUMP_TAG, "update work log: time added (%lu s)\n", time);
 
     settings_save();
 }
@@ -417,7 +422,7 @@ void _pump_log_downtime()
 
 	uint32_t time = __abs_dif(HAL_GetTick(), pump_state.start_time) / MILLIS_IN_SECOND;
     module_settings.pump_downtime_sec += time;
-    LOG_DEBUG(PUMP_TAG, "update downtime log: time added (%ld s)\n", time);
+    LOG_TAG_BEDUG(PUMP_TAG, "update downtime log: time added (%ld s)\n", time);
 
     settings_save();
 }
@@ -426,7 +431,7 @@ void _pump_check_log_date()
 {
 	uint8_t cur_date = get_date();
 	if (module_settings.pump_log_date != cur_date) {
-		LOG_DEBUG(PUMP_TAG, "update pump log: day counter - %u -> %u\n", module_settings.pump_log_date, cur_date);
+		LOG_TAG_BEDUG(PUMP_TAG, "update pump log: day counter - %u -> %u\n", module_settings.pump_log_date, cur_date);
 		module_settings.pump_work_day_sec = 0;
 		module_settings.pump_log_date = cur_date;
 	}

@@ -12,6 +12,7 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include "main.h"
 #include "logger.h"
 #include "storage_data_manager.h"
 #include "settings_manager.h"
@@ -179,7 +180,7 @@ do_error:
 	goto do_show_end;
 
 do_show_end:
-	LOG_MESSAGE(COMMAND_TAG, LOG_DEBUG_SETTINGS_FORMAT);
+	PRINT_MESSAGE(COMMAND_TAG, LOG_BEDUG_SETTINGS_FORMAT);
 	goto do_clear;
 
 do_clear:
@@ -193,5 +194,5 @@ void _clear_command()
 
 void _show_error()
 {
-	LOG_MESSAGE(COMMAND_TAG, "invalid UART command\n");
+	PRINT_MESSAGE(COMMAND_TAG, "invalid UART command\n");
 }

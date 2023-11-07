@@ -73,11 +73,15 @@ int _write(int file, uint8_t *ptr, int len);
 #define PUMP_LAMP_GPIO_Port GPIOA
 #define PUMP_Pin GPIO_PIN_12
 #define PUMP_GPIO_Port GPIOA
-#define GREEN_LED_Pin GPIO_PIN_15
-#define GREEN_LED_GPIO_Port GPIOA
-#define RED_LED_Pin GPIO_PIN_5
-#define RED_LED_GPIO_Port GPIOB
+#define RED_LED_Pin GPIO_PIN_15
+#define RED_LED_GPIO_Port GPIOA
+#define GREEN_LED_Pin GPIO_PIN_5
+#define GREEN_LED_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
+
+// Watchdog
+extern IWDG_HandleTypeDef     hiwdg;
+#define DEVICE_IWDG           hiwdg
 // UART command manager
 extern UART_HandleTypeDef     huart3;
 #define COMMAND_UART          huart3

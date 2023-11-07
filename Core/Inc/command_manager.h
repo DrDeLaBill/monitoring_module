@@ -22,7 +22,7 @@ void command_manager_proccess();
 void cmd_proccess_input(const char input_chr);
 
 
-#define LOG_DEBUG_SETTINGS_FORMAT \
+#define LOG_BEDUG_SETTINGS_FORMAT \
 		"\n\n####################SETTINGS####################\n" \
 		"Time:             20%02u-%02u-%02uT%02u:%02u:%02u\n" \
 		"Device ID:        %lu\n" \

@@ -8,7 +8,7 @@
 #include "storage_data_manager.h"
 
 
-#define RECORD_DEBUG (false)
+#define RECORD_DEBUG (fasle)
 
 
 typedef enum _record_status_t {
