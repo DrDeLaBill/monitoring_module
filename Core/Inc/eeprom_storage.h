@@ -1,12 +1,7 @@
-/*
- * eeprom_storage.h
- *
- *  Created on: Jul 25, 2023
- *      Author: DrDeLaBill
- */
+/* Copyright © 2023 Georgy E. All rights reserved. */
 
-#ifndef INC_EEPROM_STORAGE_H_
-#define INC_EEPROM_STORAGE_H_
+#ifndef _EEPROM_STORAGE_H_
+#define _EEPROM_STORAGE_H_
 
 
 #ifdef __cplusplus
@@ -14,26 +9,27 @@ extern "C" {
 #endif
 
 
-#include <stm32f1xx_hal.h>
+#include <stdint.h>
 #include <stdbool.h>
 
 
-#define EEPROM_I2C_ADDR   ((uint8_t)0b10100000)
-#define EEPROM_PAGE_SIZE  (256)
-#define EEPROM_PAGE_COUNT (512)
-#define EEPROM_DEBUG      (false)
+#define EEPROM_I2C_ADDR    ((uint8_t)0b10100000)
+#define EEPROM_PAGE_SIZE   (256)
+#define EEPROM_PAGES_COUNT (512)
+#define EEPROM_DEBUG       (false)
 
 
 typedef enum _eeprom_status_t {
-	EEPROM_OK = 0x00,
-	EEPROM_ERROR,
-	EEPROM_ERROR_OOM,
-	EEPROM_ERROR_BUSY,
+    EEPROM_OK = 0x00,
+    EEPROM_ERROR,
+    EEPROM_ERROR_OOM,
+    EEPROM_ERROR_BUSY
 } eeprom_status_t;
 
 
 eeprom_status_t eeprom_read(uint32_t addr, uint8_t* buf, uint16_t len);
 eeprom_status_t eeprom_write(uint32_t addr, uint8_t* buf, uint16_t len);
+uint32_t        eeprom_get_size();
 
 
 #ifdef __cplusplus
@@ -41,4 +37,4 @@ eeprom_status_t eeprom_write(uint32_t addr, uint8_t* buf, uint16_t len);
 #endif
 
 
-#endif /* INC_EEPROM_STORAGE_H_ */
+#endif

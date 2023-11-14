@@ -13,10 +13,6 @@
 #include <stdlib.h>
 
 #include "main.h"
-#include "logger.h"
-#include "storage_data_manager.h"
-#include "settings_manager.h"
-#include "record_manager.h"
 #include "liquid_sensor.h"
 #include "utils.h"
 #include "pump.h"
