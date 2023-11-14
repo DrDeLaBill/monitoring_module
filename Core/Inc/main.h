@@ -77,6 +77,10 @@ int _write(int file, uint8_t *ptr, int len);
 #define RED_LED_GPIO_Port GPIOA
 #define GREEN_LED_Pin GPIO_PIN_5
 #define GREEN_LED_GPIO_Port GPIOB
+#define EEPROM_SCL_Pin GPIO_PIN_6
+#define EEPROM_SCL_GPIO_Port GPIOB
+#define EEPROM_SDA_Pin GPIO_PIN_7
+#define EEPROM_SDA_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
 
 // Watchdog

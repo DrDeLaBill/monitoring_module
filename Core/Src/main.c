@@ -64,6 +64,9 @@ const char *MAIN_TAG = "MAIN";
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
+
+void reset_eeprom_i2c();
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -93,7 +96,7 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-
+  reset_eeprom_i2c();
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -102,7 +105,7 @@ int main(void)
   MX_I2C1_Init();
   MX_USART1_UART_Init();
   MX_USART2_UART_Init();
-  MX_IWDG_Init();
+//  MX_IWDG_Init();
   MX_ADC1_Init();
   MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
@@ -141,7 +144,7 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 	  // Watchdog timer update
-	  HAL_IWDG_Refresh(&DEVICE_IWDG);
+//	  HAL_IWDG_Refresh(&DEVICE_IWDG);
 	  // Commands from UART
 	  command_manager_proccess();
 	  // Shunt sensor
@@ -206,6 +209,29 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+void reset_eeprom_i2c()
+{
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+    GPIO_InitStruct.Pin   = EEPROM_SDA_Pin | EEPROM_SCL_Pin;
+    GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_OD;
+    GPIO_InitStruct.Pull  = GPIO_PULLUP;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+    HAL_GPIO_WritePin(EEPROM_SDA_GPIO_Port, EEPROM_SDA_Pin, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(EEPROM_SCL_GPIO_Port, EEPROM_SCL_Pin, GPIO_PIN_RESET);
+    HAL_Delay(100);
+
+    HAL_GPIO_WritePin(EEPROM_SDA_GPIO_Port, EEPROM_SDA_Pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(EEPROM_SCL_GPIO_Port, EEPROM_SCL_Pin, GPIO_PIN_SET);
+    HAL_Delay(100);
+
+    HAL_GPIO_WritePin(EEPROM_SDA_GPIO_Port, EEPROM_SDA_Pin, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(EEPROM_SCL_GPIO_Port, EEPROM_SCL_Pin, GPIO_PIN_RESET);
+    HAL_Delay(100);
+}
 
 int _write(int file, uint8_t *ptr, int len) {
 	HAL_UART_Transmit(&COMMAND_UART, (uint8_t *) ptr, len, DEFAULT_UART_DELAY);

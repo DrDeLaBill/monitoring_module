@@ -74,39 +74,39 @@ void logger_manager_begin()
 
 void logger_proccess()
 {
-//	if (if_network_ready()) {
-//		_send_http_log();
-//	}
-//
-//	if (has_http_response()) {
-//		_parse_response();
-//	}
-//
-//	if (log_timer.delay != module_settings.sleep_time) {
-//		log_timer.delay = module_settings.sleep_time;
-//	}
-//
-//	if (util_is_timer_wait(&log_timer)) {
-//		return;
-//	}
-//
-//	if (!module_settings.sleep_time) {
-//		LOG_TAG_BEDUG(LOG_TAG, "no setting - sleep_time\n");
-//		module_settings.sleep_time = DEFAULT_SLEEPING_TIME;
-//		return;
-//	}
-//
-//	_make_measurements();
-//	_show_measurements();
-//	record_status_t status = record_save();
-//	if (status == RECORD_OK) {
-//		module_settings.pump_work_sec = 0;
-//		module_settings.pump_downtime_sec = 0;
-//		PRINT_MESSAGE(LOG_TAG, "saved new log\n");
-//	} else {
-//		PRINT_MESSAGE(LOG_TAG, "error saving new log\n");
-//	}
-//	update_log_timer();
+	if (if_network_ready()) {
+		_send_http_log();
+	}
+
+	if (has_http_response()) {
+		_parse_response();
+	}
+
+	if (log_timer.delay != module_settings.sleep_time) {
+		log_timer.delay = module_settings.sleep_time;
+	}
+
+	if (util_is_timer_wait(&log_timer)) {
+		return;
+	}
+
+	if (!module_settings.sleep_time) {
+		LOG_TAG_BEDUG(LOG_TAG, "no setting - sleep_time\n");
+		module_settings.sleep_time = DEFAULT_SLEEPING_TIME;
+		return;
+	}
+
+	_make_measurements();
+	_show_measurements();
+	record_status_t status = record_save();
+	if (status == RECORD_OK) {
+		module_settings.pump_work_sec = 0;
+		module_settings.pump_downtime_sec = 0;
+		PRINT_MESSAGE(LOG_TAG, "saved new log\n");
+	} else {
+		PRINT_MESSAGE(LOG_TAG, "error saving new log\n");
+	}
+	update_log_timer();
 }
 
 void update_log_timer()
@@ -146,7 +146,7 @@ void _send_http_log()
 		get_year(),
 		get_month(),
 		get_date(),
-		get_date(),
+		get_hour(),
 		get_minute(),
 		get_second()
 	);
@@ -256,206 +256,206 @@ void _show_measurements()
 
 void _parse_response()
 {
-//	uint32_t old_log_id = module_settings.server_log_id;
-//
-//	char* var_ptr = get_response();
-//	char* data_ptr = var_ptr;
-//	if (!var_ptr) {
-//		goto do_error;
-//	}
-//
-//	if (!_log_str_find_param(&data_ptr, var_ptr, TIME_FIELD)) {
-//		goto do_error;
-//	}
-//
-//	if (_log_str_update_time(data_ptr)) {
-//#if LOGGER_DEBUG
-//		LOG_TAG_BEDUG(LOG_TAG, "time updated\n");
-//#endif
-//	} else {
-//		goto do_error;
-//	}
-//
-//	if (module_settings.server_log_id < sended_log_id) {
-//		module_settings.server_log_id = sended_log_id;
-//#if LOGGER_DEBUG
-//		LOG_TAG_BEDUG(LOG_TAG, "server log id updated\n");
-//#endif
-//	}
-//
-//	// Parse configuration:
-//	if (!_log_str_find_param(&data_ptr, var_ptr, CF_LOGID_FIELD)) {
-//		goto do_error;
-//	}
-//	module_settings.server_log_id = atoi(data_ptr);
-//
-//
-//	PRINT_MESSAGE(LOG_TAG, "Recieved response from the server\n");
-//
-//	if (!_log_str_find_param(&data_ptr, var_ptr, CF_ID_FIELD)) {
-//		goto do_exit;
-//	}
-//	uint32_t new_cf_id = atoi(data_ptr);
-//	if (new_cf_id == module_settings.cf_id) {
-//		goto do_success;
-//	}
-//	module_settings.cf_id = new_cf_id;
-//
-//	if (!_log_str_find_param(&data_ptr, var_ptr, CF_DATA_FIELD)) {
-//		goto do_error;
-//	}
-//	data_ptr += strlen(CF_DATA_FIELD);
-//	var_ptr = data_ptr;
-//
-//	if (_log_str_find_param(&data_ptr, var_ptr, CF_PWR_FIELD)) {
-//		pump_update_enable_state(atoi(data_ptr));
-//	}
-//
-//	if (_log_str_find_param(&data_ptr, var_ptr, CF_LTRMIN_FIELD)) {
-//		pump_update_ltrmin(atoi(data_ptr));
-//	}
-//
-//	if (_log_str_find_param(&data_ptr, var_ptr, CF_LTRMAX_FIELD)) {
-//		pump_update_ltrmax(atoi(data_ptr));
-//	}
-//
-//	if (_log_str_find_param(&data_ptr, var_ptr, CF_TRGT_FIELD)) {
-//		pump_update_target(atoi(data_ptr));
-//	}
-//
-//	if (_log_str_find_param(&data_ptr, var_ptr, CF_SLEEP_FIELD)) {
-//		log_update_sleep(atoi(data_ptr) * MILLIS_IN_SECOND);
-//	}
-//
-//	if (_log_str_find_param(&data_ptr, var_ptr, CF_SPEED_FIELD)) {
-//		pump_update_speed(atoi(data_ptr));
-//	}
-//
-//	if (_log_str_find_param(&data_ptr, var_ptr, CF_DEV_ID_FIELD)) {
-//		module_settings.id = atoi(data_ptr);
-//	}
-//
-//	if (_log_str_find_param(&data_ptr, var_ptr, CF_CLEAR_FIELD)) {
-//		if (atoi(data_ptr) == 1) clear_log();
-//	}
-//
-//#if LOGGER_DEBUG
-//	LOG_TAG_BEDUG(LOG_TAG, "configuration updated\n");
-//#endif
-//	show_settings();
-//
-//	goto do_success;
-//
-//
-//do_error:
-//#if LOGGER_DEBUG
-//	LOG_TAG_BEDUG(LOG_TAG, "unable to parse response - %s\n", var_ptr);
-//#endif
-//	module_settings.server_log_id = old_log_id;
-//	goto do_exit;
-//
-//do_success:
-//	if (settings_save() == SETTINGS_OK) {
-//		PRINT_MESSAGE(LOG_TAG, "New settings have been received from the server\n");
-//	} else {
-//		PRINT_MESSAGE(LOG_TAG, "Unable to recieve new settings from the server\n");
-//		module_settings.cf_id = 0;
-//	}
-//	goto do_exit;
-//
-//do_exit:
-//	return;
-//}
-//
-//bool _log_str_find_param(char** dst, const char* src, const char* param)
-//{
-//	char search_param[CHAR_PARAM_SIZE] = {0};
-//	if (strlen(param) > sizeof(search_param) - 3) {
-//		return false;
-//	}
-//
-//	char* ptr = NULL;
-//
-//	snprintf(search_param, sizeof(search_param), "\n%s=", param);
-//	ptr = strnstr(src, search_param, strlen(src));
-//	if (ptr) {
-//		goto do_success;
-//	}
-//
-//	snprintf(search_param, sizeof(search_param), ";%s=", param);
-//	ptr = strnstr(src, search_param, strlen(src));
-//	if (ptr) {
-//		goto do_success;
-//	}
-//
-//	snprintf(search_param, sizeof(search_param), "=%s=", param);
-//	ptr = strnstr(src, search_param, strlen(src));
-//	if (ptr) {
-//		goto do_success;
-//	}
-//
-//	goto do_error;
-//
-//do_success:
-//	*dst = ptr + strlen(search_param);
-//	return true;
-//
-//do_error:
-//	return false;
-//}
-//
-//bool _log_str_update_time(char* data)
-//{
-//	// Parse time
-//	DateTime datetime = {0};
-//
-//	char* data_ptr = data;
-//	if (!data_ptr) {
-//		return false;
-//	}
-//	datetime.year = atoi(data_ptr) % 100;
-//
-//	data_ptr = strnstr(data_ptr, T_DASH_FIELD, strlen(data_ptr));
-//	if (!data_ptr) {
-//		return false;
-//	}
-//	data_ptr += strlen(T_DASH_FIELD);
-//	datetime.month = (uint8_t)atoi(data_ptr);
-//
-//	data_ptr = strnstr(data_ptr, T_DASH_FIELD, strlen(data_ptr));
-//	if (!data_ptr) {
-//		return false;
-//	}
-//	data_ptr += strlen(T_DASH_FIELD);
-//	datetime.date = atoi(data_ptr);
-//
-//	data_ptr = strnstr(data_ptr, T_TIME_FIELD, strlen(data_ptr));
-//	if (!data_ptr) {
-//		return false;
-//	}
-//	data_ptr += strlen(T_TIME_FIELD);
-//	datetime.hour = atoi(data_ptr);
-//
-//	data_ptr = strnstr(data_ptr, T_COLON_FIELD, strlen(data_ptr));
-//	if (!data_ptr) {
-//		return false;
-//	}
-//	data_ptr += strlen(T_COLON_FIELD);
-//	datetime.minute = atoi(data_ptr);
-//
-//	data_ptr = strnstr(data_ptr, T_COLON_FIELD, strlen(data_ptr));
-//	if (!data_ptr) {
-//		return false;
-//	}
-//	data_ptr += strlen(T_COLON_FIELD);
-//	datetime.second = atoi(data_ptr);
-//
-//	if(!save_datetime(&datetime)) {
-//#if LOGGER_DEBUG
-//		LOG_TAG_BEDUG(LOG_TAG, "parse error - unable to update datetime\n");
-//#endif
-//		return false;
-//	}
+	uint32_t old_log_id = module_settings.server_log_id;
+
+	char* var_ptr = get_response();
+	char* data_ptr = var_ptr;
+	if (!var_ptr) {
+		goto do_error;
+	}
+
+	if (!_log_str_find_param(&data_ptr, var_ptr, TIME_FIELD)) {
+		goto do_error;
+	}
+
+	if (_log_str_update_time(data_ptr)) {
+#if LOGGER_DEBUG
+		LOG_TAG_BEDUG(LOG_TAG, "time updated\n");
+#endif
+	} else {
+		goto do_error;
+	}
+
+	if (module_settings.server_log_id < sended_log_id) {
+		module_settings.server_log_id = sended_log_id;
+#if LOGGER_DEBUG
+		LOG_TAG_BEDUG(LOG_TAG, "server log id updated\n");
+#endif
+	}
+
+	// Parse configuration:
+	if (!_log_str_find_param(&data_ptr, var_ptr, CF_LOGID_FIELD)) {
+		goto do_error;
+	}
+	module_settings.server_log_id = atoi(data_ptr);
+
+
+	PRINT_MESSAGE(LOG_TAG, "Recieved response from the server\n");
+
+	if (!_log_str_find_param(&data_ptr, var_ptr, CF_ID_FIELD)) {
+		goto do_exit;
+	}
+	uint32_t new_cf_id = atoi(data_ptr);
+	if (new_cf_id == module_settings.cf_id) {
+		goto do_success;
+	}
+	module_settings.cf_id = new_cf_id;
+
+	if (!_log_str_find_param(&data_ptr, var_ptr, CF_DATA_FIELD)) {
+		goto do_error;
+	}
+	data_ptr += strlen(CF_DATA_FIELD);
+	var_ptr = data_ptr;
+
+	if (_log_str_find_param(&data_ptr, var_ptr, CF_PWR_FIELD)) {
+		pump_update_enable_state(atoi(data_ptr));
+	}
+
+	if (_log_str_find_param(&data_ptr, var_ptr, CF_LTRMIN_FIELD)) {
+		pump_update_ltrmin(atoi(data_ptr));
+	}
+
+	if (_log_str_find_param(&data_ptr, var_ptr, CF_LTRMAX_FIELD)) {
+		pump_update_ltrmax(atoi(data_ptr));
+	}
+
+	if (_log_str_find_param(&data_ptr, var_ptr, CF_TRGT_FIELD)) {
+		pump_update_target(atoi(data_ptr));
+	}
+
+	if (_log_str_find_param(&data_ptr, var_ptr, CF_SLEEP_FIELD)) {
+		log_update_sleep(atoi(data_ptr) * MILLIS_IN_SECOND);
+	}
+
+	if (_log_str_find_param(&data_ptr, var_ptr, CF_SPEED_FIELD)) {
+		pump_update_speed(atoi(data_ptr));
+	}
+
+	if (_log_str_find_param(&data_ptr, var_ptr, CF_DEV_ID_FIELD)) {
+		module_settings.id = atoi(data_ptr);
+	}
+
+	if (_log_str_find_param(&data_ptr, var_ptr, CF_CLEAR_FIELD)) {
+		if (atoi(data_ptr) == 1) clear_log();
+	}
+
+#if LOGGER_DEBUG
+	LOG_TAG_BEDUG(LOG_TAG, "configuration updated\n");
+#endif
+	show_settings();
+
+	goto do_success;
+
+
+do_error:
+#if LOGGER_DEBUG
+	LOG_TAG_BEDUG(LOG_TAG, "unable to parse response - %s\n", var_ptr);
+#endif
+	module_settings.server_log_id = old_log_id;
+	goto do_exit;
+
+do_success:
+	if (settings_save() == SETTINGS_OK) {
+		PRINT_MESSAGE(LOG_TAG, "New settings have been received from the server\n");
+	} else {
+		PRINT_MESSAGE(LOG_TAG, "Unable to recieve new settings from the server\n");
+		module_settings.cf_id = 0;
+	}
+	goto do_exit;
+
+do_exit:
+	return;
+}
+
+bool _log_str_find_param(char** dst, const char* src, const char* param)
+{
+	char search_param[CHAR_PARAM_SIZE] = {0};
+	if (strlen(param) > sizeof(search_param) - 3) {
+		return false;
+	}
+
+	char* ptr = NULL;
+
+	snprintf(search_param, sizeof(search_param), "\n%s=", param);
+	ptr = strnstr(src, search_param, strlen(src));
+	if (ptr) {
+		goto do_success;
+	}
+
+	snprintf(search_param, sizeof(search_param), ";%s=", param);
+	ptr = strnstr(src, search_param, strlen(src));
+	if (ptr) {
+		goto do_success;
+	}
+
+	snprintf(search_param, sizeof(search_param), "=%s=", param);
+	ptr = strnstr(src, search_param, strlen(src));
+	if (ptr) {
+		goto do_success;
+	}
+
+	goto do_error;
+
+do_success:
+	*dst = ptr + strlen(search_param);
+	return true;
+
+do_error:
+	return false;
+}
+
+bool _log_str_update_time(char* data)
+{
+	// Parse time
+	DateTime datetime = {0};
+
+	char* data_ptr = data;
+	if (!data_ptr) {
+		return false;
+	}
+	datetime.year = atoi(data_ptr) % 100;
+
+	data_ptr = strnstr(data_ptr, T_DASH_FIELD, strlen(data_ptr));
+	if (!data_ptr) {
+		return false;
+	}
+	data_ptr += strlen(T_DASH_FIELD);
+	datetime.month = (uint8_t)atoi(data_ptr);
+
+	data_ptr = strnstr(data_ptr, T_DASH_FIELD, strlen(data_ptr));
+	if (!data_ptr) {
+		return false;
+	}
+	data_ptr += strlen(T_DASH_FIELD);
+	datetime.date = atoi(data_ptr);
+
+	data_ptr = strnstr(data_ptr, T_TIME_FIELD, strlen(data_ptr));
+	if (!data_ptr) {
+		return false;
+	}
+	data_ptr += strlen(T_TIME_FIELD);
+	datetime.hour = atoi(data_ptr);
+
+	data_ptr = strnstr(data_ptr, T_COLON_FIELD, strlen(data_ptr));
+	if (!data_ptr) {
+		return false;
+	}
+	data_ptr += strlen(T_COLON_FIELD);
+	datetime.minute = atoi(data_ptr);
+
+	data_ptr = strnstr(data_ptr, T_COLON_FIELD, strlen(data_ptr));
+	if (!data_ptr) {
+		return false;
+	}
+	data_ptr += strlen(T_COLON_FIELD);
+	datetime.second = atoi(data_ptr);
+
+	if(!save_datetime(&datetime)) {
+#if LOGGER_DEBUG
+		LOG_TAG_BEDUG(LOG_TAG, "parse error - unable to update datetime\n");
+#endif
+		return false;
+	}
 
 	return true;
 }
