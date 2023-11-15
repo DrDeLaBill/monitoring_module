@@ -9,6 +9,11 @@
 #define INC_CLOCK_SERVICE_H_
 
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -24,6 +29,11 @@ uint8_t get_hour();
 uint8_t get_minute();
 uint8_t get_second();
 bool save_datetime(DateTime* datetime);
+
+
+#ifdef __cplusplus
+}
+#endif
 
 
 #endif /* INC_CLOCK_SERVICE_H_ */

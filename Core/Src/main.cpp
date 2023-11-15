@@ -26,8 +26,13 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "pump.h"
 #include "utils.h"
+#include "sim_module.h"
+#include "ds1307_driver.h"
 #include "eeprom_storage.h"
+#include "pressure_sensor.h"
+#include "command_manager.h"
 
 #include "RecordDB.h"
 #include "StorageAT.h"
@@ -118,7 +123,7 @@ int main(void)
   MX_USART1_UART_Init();
   MX_USART3_UART_Init();
   MX_ADC1_Init();
-//  MX_IWDG_Init();
+  MX_IWDG_Init();
   /* USER CODE BEGIN 2 */
     HAL_Delay(100);
 
@@ -134,13 +139,11 @@ int main(void)
       settings.reset();
     }
 
-    show_settings();
+    settings.show();
     // UART command manager
     command_manager_begin();
     // SIM module
     sim_module_begin();
-    //Log manager
-    logger_manager_begin();
     // Pump
     pump_init();
     // Clock
@@ -173,7 +176,7 @@ int main(void)
 	  // Sim module
 	  sim_module_proccess();
 	  // Logger
-	  logger_proccess();
+	  LogService::update();
   }
   /* USER CODE END 3 */
 }
@@ -294,12 +297,12 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 
 int _write(int file, uint8_t *ptr, int len) {
     HAL_UART_Transmit(&BEDUG_UART, (uint8_t *)ptr, len, GENERAL_BUS_TIMEOUT_MS);
-#ifdef DEBUG
+//#ifdef DEBUG
     for (int DataIdx = 0; DataIdx < len; DataIdx++) {
         ITM_SendChar(*ptr++);
     }
     return len;
-#endif
+//#endif
     return 0;
 }
 

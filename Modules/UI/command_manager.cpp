@@ -17,11 +17,19 @@
 #include "utils.h"
 #include "pump.h"
 
+#include "StorageAT.h"
+#include "SettingsDB.h"
+#include "LogService.h"
+
 
 bool _validate_command();
 void _execute_command();
 void _clear_command();
 void _show_error();
+
+
+extern SettingsDB settings;
+extern StorageAT storage;
 
 
 const char *COMMAND_TAG = "UART";
@@ -75,111 +83,109 @@ bool _validate_command()
 void _execute_command()
 {
 	char* command = strtok(command_buffer, " ");
+	bool isSuccess = false;
 	if (command == NULL) {
-		goto do_error;
+		_show_error();
+		return;
 	}
 
-	if (strncmp("status", command, CHAR_COMMAND_SIZE) == 0) {
-		goto do_show_end;
-	} else if (strncmp("saveadcmin", command, CHAR_COMMAND_SIZE) == 0) {
-		module_settings.tank_ADC_min = get_liquid_adc();
-		goto do_success;
+	if (strncmp("saveadcmin", command, CHAR_COMMAND_SIZE) == 0) {
+		settings.settings.tank_ADC_min = get_liquid_adc();
+		isSuccess = true;
 	} else if (strncmp("saveadcmax", command, CHAR_COMMAND_SIZE) == 0) {
-		module_settings.tank_ADC_max = get_liquid_adc();
-		goto do_success;
+		settings.settings.tank_ADC_max = get_liquid_adc();
+		isSuccess = true;
 	}  else if (strncmp("default", command, CHAR_COMMAND_SIZE) == 0) {
-		settings_reset();
+		settings.reset();
+		isSuccess = true;
 	} else if (strncmp("clearlog", command, CHAR_COMMAND_SIZE) == 0) {
-		clear_log();
-		goto do_show_end;
+		LogService::clear();
+		isSuccess = true;
 	} else if (strncmp("clearpump", command, CHAR_COMMAND_SIZE) == 0) {
 		pump_clear_log();
-		goto do_show_end;
+		isSuccess = true;
 	} else if (strncmp("pump", command, CHAR_COMMAND_SIZE) == 0) {
 		pump_show_status();
-		goto do_clear;
+		isSuccess = true;
 	} else if (strncmp("reset", command, CHAR_COMMAND_SIZE) == 0) {
 		// TODO: очистка EEPROM
-		goto do_clear;
+		isSuccess = false;
 	}
 #ifdef DEBUG
-	else if (strncmp("reseteepromerr", command, CHAR_COMMAND_SIZE) == 0) {
-		storage_reset_errors_list_page();
-		goto do_success;
+	else if (strncmp("format", command, CHAR_COMMAND_SIZE) == 0) {
+		storage.format();
+		isSuccess = true;
 	}
 #endif
 
+	if (isSuccess) {
+		settings.save();
+		_show_error();
+		_clear_command();
+		return;
+	}
 
 	char* value = strtok(NULL, " ");
 	if (value == NULL) {
-		goto do_error;
+		_show_error();
+		return;
 	}
 
 	if (strncmp("setid", command, CHAR_COMMAND_SIZE) == 0) {
-		module_settings.id = (uint32_t)atoi(value);
-		goto do_success;
+		settings.settings.id = (uint32_t)atoi(value);
+		isSuccess = true;
 	} else if (strncmp("setsleep", command, CHAR_COMMAND_SIZE) == 0) {
-		log_update_sleep(atoi(value) * MILLIS_IN_SECOND);
-		goto do_success;
+		LogService::updateSleep(atoi(value) * MILLIS_IN_SECOND);
+		isSuccess = true;
 	} else if (strncmp("seturl", command, CHAR_COMMAND_SIZE) == 0) {
-		strncpy(module_settings.server_url, value, sizeof(module_settings.server_url) - 1);
-		goto do_success;
+		strncpy(settings.settings.server_url, value, sizeof(settings.settings.server_url) - 1);
+		isSuccess = true;
 	} else if (strncmp("setport", command, CHAR_COMMAND_SIZE) == 0) {
-		strncpy(module_settings.server_port, value, sizeof(module_settings.server_port) - 1);
-		goto do_success;
+		strncpy(settings.settings.server_port, value, sizeof(settings.settings.server_port) - 1);
+		isSuccess = true;
 	} else if (strncmp("setlitersmin", command, CHAR_COMMAND_SIZE) == 0) {
 		pump_update_ltrmin(atoi(value));
-		goto do_success;
+		isSuccess = true;
 	} else if (strncmp("setlitersmax", command, CHAR_COMMAND_SIZE) == 0) {
 		pump_update_ltrmax(atoi(value));
-		goto do_success;
+		isSuccess = true;
 	} else if (strncmp("settarget", command, CHAR_COMMAND_SIZE) == 0) {
 		pump_update_target(atoi(value));
-		goto do_success;
+		isSuccess = true;
 	} else if (strncmp("setpumpspeed", command, CHAR_COMMAND_SIZE) == 0) {
 		pump_update_speed(atoi(value));
-		goto do_success;
+		isSuccess = true;
 	} else if (strncmp("setlogid", command, CHAR_COMMAND_SIZE) == 0) {
-		module_settings.server_log_id = (uint32_t)atoi(value);
-		goto do_success;
-	} else if (strncmp("delrecord", command, CHAR_COMMAND_SIZE) == 0) {
-		record_delete_record((uint32_t)atoi(value));
-		goto do_success;
+		settings.settings.server_log_id = (uint32_t)atoi(value);
+		isSuccess = true;
+//	} else if (strncmp("delrecord", command, CHAR_COMMAND_SIZE) == 0) {
+//		record_delete_record((uint32_t)atoi(value));
+//		isSuccess = true;
 	}  else if (strncmp("setpower", command, CHAR_COMMAND_SIZE) == 0) {
 		pump_update_enable_state(atoi(value));
-		goto do_success;
+		isSuccess = true;
 	}
 #ifdef DEBUG
 	else if (strncmp("setadcmin", command, CHAR_COMMAND_SIZE) == 0) {
-		module_settings.tank_ADC_min = (uint32_t)atoi(value);
+		settings.settings.tank_ADC_min = (uint32_t)atoi(value);
 	    pump_reset_work_state();
-		goto do_success;
+		isSuccess = true;
 	} else if (strncmp("setadcmax", command, CHAR_COMMAND_SIZE) == 0) {
-		module_settings.tank_ADC_max = (uint32_t)atoi(value);
+		settings.settings.tank_ADC_max = (uint32_t)atoi(value);
 	    pump_reset_work_state();
-		goto do_success;
+		isSuccess = true;
 	} else if (strncmp("setconfigver", command, CHAR_COMMAND_SIZE) == 0) {
-		module_settings.cf_id = (uint32_t)atoi(value);
-		goto do_success;
+		settings.settings.cf_id = (uint32_t)atoi(value);
+		isSuccess = true;
 	}
 #endif
 
-	goto do_error;
+	if (isSuccess) {
+		settings.save();
+		return;
+	}
 
-do_success:
-//	module_settings.cf_id = 1;
-	settings_save();
-	goto do_show_end;
-
-do_error:
 	_show_error();
-	goto do_show_end;
-
-do_show_end:
-	PRINT_MESSAGE(COMMAND_TAG, LOG_BEDUG_SETTINGS_FORMAT);
-	goto do_clear;
-
-do_clear:
 	_clear_command();
 }
 
@@ -190,5 +196,45 @@ void _clear_command()
 
 void _show_error()
 {
-	PRINT_MESSAGE(COMMAND_TAG, "invalid UART command\n");
+	PRINT_MESSAGE(
+		COMMAND_TAG,
+		"\n\n####################SETTINGS####################\n" \
+		"Time:             20%02u-%02u-%02uT%02u:%02u:%02u\n" \
+		"Device ID:        %lu\n" \
+		"Server URL:       %s:%s\n" \
+		"ADC level MIN:    %lu\n" \
+		"ADC level MAX:    %lu\n" \
+		"Liquid level MIN: %lu l\n" \
+		"Liquid level MAX: %lu l\n" \
+		"Target:           %lu l/d\n" \
+		"Sleep time:       %lu sec\n" \
+		"Server log ID:    %lu\n" \
+		"Pump speed:       %lu ml/h\n" \
+		"Pump work:        %lu sec\n" \
+		"Pump work day:    %lu sec\n" \
+		"Config ver:       %lu\n" \
+		"Pump              %s\n" \
+		"####################SETTINGS####################\n\n", \
+		get_year() % 100, \
+		get_month(), \
+		get_date(), \
+		get_hour(), \
+		get_minute(), \
+		get_second(), \
+		settings.settings.id, \
+		settings.settings.server_url, \
+		settings.settings.server_port, \
+		settings.settings.tank_ADC_min, \
+		settings.settings.tank_ADC_max, \
+		settings.settings.tank_liters_min / MILLILITERS_IN_LITER, \
+		settings.settings.tank_liters_max / MILLILITERS_IN_LITER, \
+		settings.settings.pump_target / MILLILITERS_IN_LITER, \
+		settings.settings.sleep_time / MILLIS_IN_SECOND, \
+		settings.settings.server_log_id, \
+		settings.settings.pump_speed, \
+		settings.settings.pump_work_sec, \
+		settings.settings.pump_work_day_sec, \
+		settings.settings.cf_id, \
+		settings.settings.pump_enabled ? "ON" : "OFF"
+	);
 }

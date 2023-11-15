@@ -71,6 +71,10 @@ void Error_Handler(void);
 #define RED_LED_GPIO_Port GPIOB
 #define GREEN_LED_Pin GPIO_PIN_5
 #define GREEN_LED_GPIO_Port GPIOB
+#define EEPROM_SCL_Pin GPIO_PIN_6
+#define EEPROM_SCL_GPIO_Port GPIOB
+#define EEPROM_SDA_Pin GPIO_PIN_7
+#define EEPROM_SDA_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
 
 // General settings
@@ -81,6 +85,7 @@ extern IWDG_HandleTypeDef      hiwdg;
 // UART command manager
 extern UART_HandleTypeDef      huart3;
 #define COMMAND_UART           (huart3)
+#define BEDUG_UART             (huart3)
 // Liquid sensor
 extern ADC_HandleTypeDef       hadc1;
 #define MEASURE_ADC            (hadc1)

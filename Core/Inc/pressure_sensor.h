@@ -4,6 +4,11 @@
 #define INC_PRESSURE_SENSOR_H_
 
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 #include "stm32f1xx_hal.h"
 
 #include <stdbool.h>
@@ -26,6 +31,11 @@ typedef struct _press_measure_t {
 
 void pressure_sensor_proccess();
 uint32_t get_press();
+
+
+#ifdef __cplusplus
+}
+#endif
 
 
 #endif /* INC_PRESSURE_SENSOR_H_ */

@@ -11,12 +11,15 @@
 #include <stdlib.h>
 #include <strings.h>
 #include <ctype.h>
+#include <algorithm>
 
-#include "settings_manager.h"
+#include "main.h"
+#include "pump.h"
 #include "utils.h"
 #include "liquid_sensor.h"
-#include "logger.h"
-#include "main.h"
+
+#include "SettingsDB.h"
+#include "LogService.h"
 
 
 #define LINE_BREAK_COUNT 2
@@ -27,6 +30,7 @@
 #define HTTP_ACT_WAIT    20000
 #define RESTART_WAIT     5000
 #define HTTP_ACT_SIZE    90
+#define LOG_SIZE         140
 
 
 void _execute_state(const char* cmd, uint16_t delay);
@@ -81,6 +85,10 @@ struct _sim_state {
     uint32_t content_length;
 } sim_state;
 
+
+extern SettingsDB settings;
+
+
 const char* SIM_TAG = "SIM";
 
 const char* SUCCESS_CMD_RESP  = "ok";
@@ -92,27 +100,32 @@ const char* LINE_BREAK        = "\r\n";
 const char* DOUBLE_LINE_BREAK = "\r\n\r\n";
 const char* SIM_ERR_RESPONSE  = "\r\nerror\r\n";
 
-typedef struct _sim_command_t {
+struct sim_command_t {
     char request [30];
     char response[20];
-} sim_command_t;
+    sim_command_t(const char* req, const char* resp)
+    {
+    	memcpy(request, req, std::min(sizeof(request), strlen(req)));
+    	memcpy(response, resp, std::min(sizeof(response), strlen(resp)));
+    }
+};
 
 sim_command_t commands[] = {
-    {.request="AT",              .response="ok"},
-    {.request="ATE0",            .response="ok"},
-    {.request="AT+CGMR",         .response="ok"},
-    {.request="AT+CSQ",          .response="ok"},
-    {.request="AT+CPIN?",        .response="+cpin: ready"},
-    {.request="AT+CGREG?",       .response="+cgreg: 0,1"},
-    {.request="AT+CPSI?",        .response="ok"},
-    {.request="AT+CGDCONT?",     .response="ok"},
-    {.request="AT+HTTPINIT",     .response="ok"}
+	sim_command_t{.request="AT",              .response="ok"},
+	sim_command_t{.request="ATE0",            .response="ok"},
+	sim_command_t{.request="AT+CGMR",         .response="ok"},
+	sim_command_t{.request="AT+CSQ",          .response="ok"},
+	sim_command_t{.request="AT+CPIN?",        .response="+cpin: ready"},
+	sim_command_t{.request="AT+CGREG?",       .response="+cgreg: 0,1"},
+	sim_command_t{.request="AT+CPSI?",        .response="ok"},
+	sim_command_t{.request="AT+CGDCONT?",     .response="ok"},
+	sim_command_t{.request="AT+HTTPINIT",     .response="ok"}
 };
 
 void sim_module_begin() {
     memset(&sim_state, 0, sizeof(sim_state));
-    strncpy(sim_state.session_server_url, module_settings.server_url, sizeof(sim_state.session_server_url));
-    strncpy(sim_state.session_server_port, module_settings.server_port, sizeof(sim_state.session_server_port));
+    strncpy(sim_state.session_server_url, settings.settings.server_url, sizeof(sim_state.session_server_url));
+    strncpy(sim_state.session_server_port, settings.settings.server_port, sizeof(sim_state.session_server_port));
     util_timer_start(&sim_state.start_timer, CNFG_WAIT);
     _start_module();
     _reset_http();
@@ -233,12 +246,12 @@ void _check_response_timer()
         return;
     }
 
-    if (strncmp(module_settings.server_url, default_server_url, sizeof(module_settings.server_url))) {
-        strncpy(sim_state.session_server_url, default_server_url, sizeof(sim_state.session_server_url));
-        strncpy(sim_state.session_server_port, default_server_port, sizeof(sim_state.session_server_port));
+    if (strncmp(settings.settings.server_url, SettingsDB::defaultUrl, sizeof(settings.settings.server_url))) {
+        strncpy(sim_state.session_server_url, SettingsDB::defaultUrl, sizeof(sim_state.session_server_url));
+        strncpy(sim_state.session_server_port, SettingsDB::defaultPort, sizeof(sim_state.session_server_port));
     } else {
-        strncpy(sim_state.session_server_url, module_settings.server_url, sizeof(sim_state.session_server_url));
-        strncpy(sim_state.session_server_port, module_settings.server_port, sizeof(sim_state.session_server_port));
+        strncpy(sim_state.session_server_url, settings.settings.server_url, sizeof(sim_state.session_server_url));
+        strncpy(sim_state.session_server_port, settings.settings.server_port, sizeof(sim_state.session_server_port));
     }
 }
 

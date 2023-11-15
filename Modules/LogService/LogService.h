@@ -8,30 +8,30 @@
 #include "utils.h"
 
 
-#define LOG_BEDUG (true)
+#define LOG_SERVICE_BEDUG (true)
 
 
 class LogService
 {
 private:
-	static constexpr char TAG[]             = "LOG";
+	static const char* TAG;
 
-	static constexpr char T_DASH_FIELD[]    = "-";
-	static constexpr char T_TIME_FIELD[]    = "t";
-	static constexpr char T_COLON_FIELD[]   = ":";
+	static const char* T_DASH_FIELD;
+	static const char* T_TIME_FIELD;
+	static const char* T_COLON_FIELD;
 
-	static constexpr char TIME_FIELD[]      = "t";
-	static constexpr char CF_ID_FIELD[]     = "cf_id";
-	static constexpr char CF_DATA_FIELD[]   = "cf";
-	static constexpr char CF_DEV_ID_FIELD[] = "id";
-	static constexpr char CF_PWR_FIELD[]    = "pwr";
-	static constexpr char CF_LTRMIN_FIELD[] = "ltrmin";
-	static constexpr char CF_LTRMAX_FIELD[] = "ltrmax";
-	static constexpr char CF_TRGT_FIELD[]   = "trgt";
-	static constexpr char CF_SLEEP_FIELD[]  = "sleep";
-	static constexpr char CF_SPEED_FIELD[]  = "speed";
-	static constexpr char CF_LOGID_FIELD[]  = "d_hwm";
-	static constexpr char CF_CLEAR_FIELD[]  = "clr";
+	static const char* TIME_FIELD;
+	static const char* CF_ID_FIELD;
+	static const char* CF_DATA_FIELD;
+	static const char* CF_DEV_ID_FIELD;
+	static const char* CF_PWR_FIELD;
+	static const char* CF_LTRMIN_FIELD;
+	static const char* CF_LTRMAX_FIELD;
+	static const char* CF_TRGT_FIELD;
+	static const char* CF_SLEEP_FIELD;
+	static const char* CF_SPEED_FIELD;
+	static const char* CF_LOGID_FIELD;
+	static const char* CF_CLEAR_FIELD;
 
 	static constexpr uint32_t LOG_SIZE = 370;
 
@@ -52,5 +52,8 @@ private:
 
 public:
 	static void update();
+	static void clear() {} // TODO
+
+	static void updateSleep(uint32_t time);
 
 };

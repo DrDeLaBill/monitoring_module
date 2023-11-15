@@ -9,6 +9,12 @@
 #define INC_DEFINES_H_
 
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
+
 #include <stdint.h>
 
 #include "stm32f1xx_hal.h"
@@ -43,5 +49,11 @@ typedef struct {
 	uint8_t minute;
 	uint8_t second;
 } DateTime;
+
+
+#ifdef __cplusplus
+}
+#endif
+
 
 #endif /* INC_DEFINES_H_ */

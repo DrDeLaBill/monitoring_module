@@ -9,11 +9,13 @@
 
 #include <stdbool.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "defines.h"
 #include "utils.h"
 #include "main.h"
-#include "settings_manager.h"
+
+#include "SettingsDB.h"
 
 
 #define LIQUID_ERROR         -1
@@ -22,6 +24,9 @@
 
 uint16_t _get_liquid_adc_value();
 float _get_liquid_in_liters();
+
+
+extern SettingsDB settings;
 
 
 const char* LIQUID_TAG = "LQID";
@@ -51,19 +56,19 @@ int32_t get_liquid_liters()
 		return LIQUID_ERROR;
 	}
 
-	if (liquid_ADC_value > module_settings.tank_ADC_min || liquid_ADC_value < module_settings.tank_ADC_max) {
-		LOG_TAG_BEDUG(LIQUID_TAG, "error liquid tank: settings error - liquid_ADC_valu=%u, tank_ADC_min=%lu, tank_ADC_max=%lu\n", liquid_ADC_value, module_settings.tank_ADC_min, module_settings.tank_ADC_max);
+	if (liquid_ADC_value > settings.settings.tank_ADC_min || liquid_ADC_value < settings.settings.tank_ADC_max) {
+		LOG_TAG_BEDUG(LIQUID_TAG, "error liquid tank: settings error - liquid_ADC_valu=%u, tank_ADC_min=%lu, tank_ADC_max=%lu\n", liquid_ADC_value, settings.settings.tank_ADC_min, settings.settings.tank_ADC_max);
 		return LIQUID_ERROR;
 	}
 
-	uint32_t liquid_ADC_range = __abs(module_settings.tank_ADC_min - module_settings.tank_ADC_max);
-	uint32_t liquid_liters_range = __abs(module_settings.tank_liters_max - module_settings.tank_liters_min) / MILLILITERS_IN_LITER;
+	uint32_t liquid_ADC_range = __abs(settings.settings.tank_ADC_min - settings.settings.tank_ADC_max);
+	uint32_t liquid_liters_range = __abs(settings.settings.tank_liters_max - settings.settings.tank_liters_min) / MILLILITERS_IN_LITER;
 	if (liquid_ADC_range == 0) {
 		LOG_TAG_BEDUG(LIQUID_TAG, "error liquid tank: settings error - tank_liters_range=%lu, liquid_ADC_range=%lu\n", liquid_liters_range, liquid_ADC_range);
 		return LIQUID_ERROR;
 	}
 
-	uint32_t min_in_liters = module_settings.tank_liters_min / MILLILITERS_IN_LITER;
+	uint32_t min_in_liters = settings.settings.tank_liters_min / MILLILITERS_IN_LITER;
 	int32_t liquid_in_liters = (liquid_liters_range - ((liquid_ADC_value * liquid_liters_range) / liquid_ADC_range)) + min_in_liters;
 	if (liquid_in_liters <= 0) {
 		LOG_TAG_BEDUG(LIQUID_TAG, "error liquid tank: get liquid liters - value less or equal to zero (val=%ld)\n", liquid_in_liters);
@@ -75,5 +80,5 @@ int32_t get_liquid_liters()
 
 bool is_liquid_tank_empty()
 {
-	return get_liquid_adc() > module_settings.tank_ADC_min;
+	return get_liquid_adc() > settings.settings.tank_ADC_min;
 }
