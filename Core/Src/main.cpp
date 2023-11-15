@@ -1,24 +1,25 @@
 /* USER CODE BEGIN Header */
 /**
-  ******************************************************************************
-  * @file           : main.c
-  * @brief          : Main program body
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2023 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-  */
+ ******************************************************************************
+ * @file           : main.c
+ * @brief          : Main program body
+ ******************************************************************************
+ * @attention
+ *
+ * Copyright (c) 2023 STMicroelectronics.
+ * All rights reserved.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
+ * If no LICENSE file comes with this software, it is provided AS-IS.
+ *
+ ******************************************************************************
+ */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "adc.h"
+#include "crc.h"
 #include "i2c.h"
 #include "iwdg.h"
 #include "usart.h"
@@ -26,6 +27,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <string.h>
+
 #include "pump.h"
 #include "utils.h"
 #include "sim_module.h"
@@ -47,12 +50,12 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-class StorageDriver: public IStorageDriver
-{
+class StorageDriver: public IStorageDriver {
 public:
-    StorageDriver() {}
-    StorageStatus read(uint32_t address, uint8_t* data, uint32_t len) override;
-    StorageStatus write(uint32_t address, uint8_t* data, uint32_t len) override;
+    StorageDriver() {
+    }
+    StorageStatus read(uint32_t address, uint8_t *data, uint32_t len) override;
+    StorageStatus write(uint32_t address, uint8_t *data, uint32_t len) override;
 };
 /* USER CODE END PD */
 
@@ -65,7 +68,7 @@ public:
 
 /* USER CODE BEGIN PV */
 
-const char* MAIN_TAG = "MAIN";
+const char *MAIN_TAG = "MAIN";
 
 SettingsDB settings;
 
@@ -82,10 +85,7 @@ void reset_eeprom_i2c();
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-StorageAT storage(
-    eeprom_get_size() / Page::PAGE_SIZE,
-    (new StorageDriver())
-);
+StorageAT storage(eeprom_get_size() / Page::PAGE_SIZE, (new StorageDriver()));
 
 char cmd_input_chr = 0;
 char sim_input_chr = 0;
@@ -114,7 +114,7 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-  reset_eeprom_i2c();
+    reset_eeprom_i2c();
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -123,23 +123,25 @@ int main(void)
   MX_USART1_UART_Init();
   MX_USART3_UART_Init();
   MX_ADC1_Init();
-  MX_IWDG_Init();
+//  MX_IWDG_Init();
+  MX_USART2_UART_Init();
+  MX_CRC_Init();
   /* USER CODE BEGIN 2 */
     HAL_Delay(100);
 
     if (__HAL_RCC_GET_FLAG(RCC_FLAG_IWDGRST)) {
-      LOG_TAG_BEDUG(MAIN_TAG, "IWDG just went off");
-      PRINT_MESSAGE(MAIN_TAG, "REBOOT DEVICE\n");
+        LOG_BEDUG("\n\n");
+        LOG_TAG_BEDUG(MAIN_TAG, "IWDG just went off");
+        PRINT_MESSAGE(MAIN_TAG, "REBOOT DEVICE\n");
     }
 
     PRINT_MESSAGE(MAIN_TAG, "The device is loading\n");
 
     // Settings
     while (settings.load() != SettingsDB::SETTINGS_OK) {
-      settings.reset();
+        settings.reset();
     }
 
-    settings.show();
     // UART command manager
     command_manager_begin();
     // SIM module
@@ -151,33 +153,32 @@ int main(void)
     // Measure ADC start
     HAL_ADCEx_Calibration_Start(&MEASURE_ADC);
     // Commands
-	HAL_UART_Receive_IT(&COMMAND_UART, (uint8_t*)&cmd_input_chr, sizeof(char));
-	// Sim module
-	HAL_UART_Receive_IT(&SIM_MODULE_UART, (uint8_t*)&sim_input_chr, sizeof(char));
+    HAL_UART_Receive_IT(&COMMAND_UART, (uint8_t*) &cmd_input_chr, sizeof(char));
+    // Sim module
+    HAL_UART_Receive_IT(&SIM_MODULE_UART, (uint8_t*) &sim_input_chr, sizeof(char));
 
     PRINT_MESSAGE(MAIN_TAG, "The device is loaded successfully\n");
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
-  {
+    while (1) {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  // Watchdog timer update
-//	  HAL_IWDG_Refresh(&DEVICE_IWDG);
-	  // Commands from UART
-	  command_manager_proccess();
-	  // Shunt sensor
-	  pressure_sensor_proccess();
-	  // Pump
-	  pump_proccess();
-	  // Sim module
-	  sim_module_proccess();
-	  // Logger
-	  LogService::update();
-  }
+        // Watchdog timer update
+//        HAL_IWDG_Refresh(&DEVICE_IWDG);
+        // Commands from UART
+        command_manager_proccess();
+        // Shunt sensor
+        pressure_sensor_proccess();
+        // Pump
+        pump_proccess();
+        // Sim module
+        sim_module_proccess();
+        // Logger
+        LogService::update();
+    }
   /* USER CODE END 3 */
 }
 
@@ -230,13 +231,12 @@ void SystemClock_Config(void)
 
 /* USER CODE BEGIN 4 */
 
-void reset_eeprom_i2c()
-{
-    GPIO_InitTypeDef GPIO_InitStruct = {0};
+void reset_eeprom_i2c() {
+    GPIO_InitTypeDef GPIO_InitStruct = { 0 };
 
-    GPIO_InitStruct.Pin   = EEPROM_SDA_Pin | EEPROM_SCL_Pin;
-    GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_OD;
-    GPIO_InitStruct.Pull  = GPIO_PULLUP;
+    GPIO_InitStruct.Pin = EEPROM_SDA_Pin | EEPROM_SCL_Pin;
+    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
+    GPIO_InitStruct.Pull = GPIO_PULLUP;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
@@ -253,8 +253,8 @@ void reset_eeprom_i2c()
     HAL_Delay(100);
 }
 
-StorageStatus StorageDriver::read(uint32_t address, uint8_t* data, uint32_t len)
-{
+StorageStatus StorageDriver::read(uint32_t address, uint8_t *data,
+        uint32_t len) {
     eeprom_status_t status = eeprom_read(address, data, len);
     if (status == EEPROM_ERROR_BUSY) {
         return STORAGE_BUSY;
@@ -266,10 +266,11 @@ StorageStatus StorageDriver::read(uint32_t address, uint8_t* data, uint32_t len)
         return STORAGE_ERROR;
     }
     return STORAGE_OK;
-};
+}
+;
 
-StorageStatus StorageDriver::write(uint32_t address, uint8_t* data, uint32_t len)
-{
+StorageStatus StorageDriver::write(uint32_t address, uint8_t *data,
+        uint32_t len) {
     eeprom_status_t status = eeprom_write(address, data, len);
     if (status == EEPROM_ERROR_BUSY) {
         return STORAGE_BUSY;
@@ -281,28 +282,28 @@ StorageStatus StorageDriver::write(uint32_t address, uint8_t* data, uint32_t len
         return STORAGE_ERROR;
     }
     return STORAGE_OK;
-};
+}
+;
 
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
-{
-	if (huart == &COMMAND_UART) {
-		cmd_proccess_input(cmd_input_chr);
-		HAL_UART_Receive_IT(&COMMAND_UART, (uint8_t*)&cmd_input_chr, 1);
-	}
-	if (huart == &SIM_MODULE_UART) {
-		sim_proccess_input(sim_input_chr);
-		HAL_UART_Receive_IT(&SIM_MODULE_UART, (uint8_t*)&sim_input_chr, 1);
-	}
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
+    if (huart == &COMMAND_UART) {
+        cmd_proccess_input(cmd_input_chr);
+        HAL_UART_Receive_IT(&COMMAND_UART, (uint8_t*) &cmd_input_chr, 1);
+    }
+    if (huart == &SIM_MODULE_UART) {
+        sim_proccess_input(sim_input_chr);
+        HAL_UART_Receive_IT(&SIM_MODULE_UART, (uint8_t*) &sim_input_chr, 1);
+    }
 }
 
 int _write(int file, uint8_t *ptr, int len) {
-    HAL_UART_Transmit(&BEDUG_UART, (uint8_t *)ptr, len, GENERAL_BUS_TIMEOUT_MS);
-//#ifdef DEBUG
+    HAL_UART_Transmit(&BEDUG_UART, (uint8_t*) ptr, len, GENERAL_BUS_TIMEOUT_MS);
+#ifdef DEBUG
     for (int DataIdx = 0; DataIdx < len; DataIdx++) {
         ITM_SendChar(*ptr++);
     }
     return len;
-//#endif
+#endif
     return 0;
 }
 
@@ -315,11 +316,10 @@ int _write(int file, uint8_t *ptr, int len) {
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
-  /* User can add his own implementation to report the HAL error return state */
-  __disable_irq();
-  while (1)
-  {
-  }
+    /* User can add his own implementation to report the HAL error return state */
+    __disable_irq();
+    while (1) {
+    }
   /* USER CODE END Error_Handler_Debug */
 }
 

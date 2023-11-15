@@ -77,7 +77,7 @@ public:
 
     typedef struct _DeviceInfo {
         bool settings_loaded;
-        bool saved_new_data;
+        bool saved_new_log;
     } DeviceInfo;
 
     DeviceInfo info;
@@ -90,5 +90,5 @@ private:
     static const uint8_t DEVICE_ID_SIZE  = ((uint8_t)16);
     static const uint32_t DEFAULT_ID     = ((uint32_t)1);
 
-    bool check();
+    bool check(Settings* settings);
 };

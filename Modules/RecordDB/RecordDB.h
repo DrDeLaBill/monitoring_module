@@ -58,6 +58,7 @@ private:
     uint32_t m_clustId;
     RecordClust m_clust;
 
+
     RecordDB() {}
 
     RecordStatus loadClust(uint32_t address);

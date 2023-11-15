@@ -3,3 +3,5 @@
 *.map
 Debug*
 Release*
+*Debug.launch
+*Realise.launch

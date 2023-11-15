@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdlib.h>
 
+
 #include "RecordDB.h"
 #include "SettingsDB.h"
 
@@ -23,6 +24,9 @@ extern SettingsDB settings;
 util_timer_t LogService::logTimer = {};
 util_timer_t LogService::settingsTimer = {};
 uint32_t LogService::logId = 0;
+std::unique_ptr<RecordDB> LogService::nextRecord = std::make_unique<RecordDB>(0);
+bool LogService::newRecordLoaded = false;
+
 
 const char* LogService::TAG               = "LOG";
 
@@ -105,8 +109,14 @@ void LogService::sendRequest()
 		get_second()
 	);
 
-	RecordDB record(settings.settings.server_log_id);
-	RecordDB::RecordStatus recordStatus = record.loadNext();
+	RecordDB::RecordStatus recordStatus = RecordDB::RECORD_NO_LOG;
+	if (!newRecordLoaded && settings.info.saved_new_log) {
+		nextRecord   = std::make_unique<RecordDB>(static_cast<uint32_t>(settings.settings.server_log_id));
+		recordStatus = nextRecord->loadNext();
+	}
+	if (recordStatus == RecordDB::RECORD_NO_LOG) {
+		settings.info.saved_new_log = false;
+	}
 	if (recordStatus == RecordDB::RECORD_OK) {
 		snprintf(
 			data + strlen(data),
@@ -119,23 +129,25 @@ void LogService::sendRequest()
 //				"press_2=%lu.%02lu;"
 				"pumpw=%lu;"
 				"pumpd=%lu\r\n",
-			record.record.id,
-			record.record.time[0], record.record.time[1], record.record.time[2], record.record.time[3], record.record.time[4], record.record.time[5],
-			record.record.level / 1000,
-			record.record.press_1 / 100, record.record.press_1 % 100,
-//			record.record.press_2 / 100, record.record.press_2 % 100,
-			record.record.pump_wok_time,
-			record.record.pump_downtime
+			nextRecord->record.id,
+			nextRecord->record.time[0], nextRecord->record.time[1], nextRecord->record.time[2], nextRecord->record.time[3], nextRecord->record.time[4], nextRecord->record.time[5],
+			nextRecord->record.level / 1000,
+			nextRecord->record.press_1 / 100, nextRecord->record.press_1 % 100,
+//			nextRecord->record.press_2 / 100, record.record.press_2 % 100,
+			nextRecord->record.pump_wok_time,
+			nextRecord->record.pump_downtime
 		);
+		newRecordLoaded = true;
 	}
 
-	if (util_is_timer_wait(&LogService::settingsTimer)) {
+	if (recordStatus != RecordDB::RECORD_OK && util_is_timer_wait(&LogService::settingsTimer)) {
 		return;
 	}
 
+	newRecordLoaded = false;
 	send_http_post(data);
 	util_timer_start(&settingsTimer, settingsDelayMs);
-	LogService::logId = record.record.id;
+	LogService::logId = nextRecord->record.id;
 }
 
 void LogService::parse()

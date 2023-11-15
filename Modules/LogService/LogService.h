@@ -3,9 +3,12 @@
 #pragma once
 
 
+#include <memory>
 #include <stdint.h>
 
 #include "utils.h"
+
+#include "RecordDB.h"
 
 
 #define LOG_SERVICE_BEDUG (true)
@@ -39,6 +42,9 @@ private:
 	static util_timer_t settingsTimer;
 
 	static uint32_t logId;
+
+	static std::unique_ptr<RecordDB> nextRecord;
+	static bool newRecordLoaded;
 
 	static constexpr uint32_t settingsDelayMs = 60000;
 

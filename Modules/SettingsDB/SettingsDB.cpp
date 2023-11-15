@@ -29,7 +29,7 @@ SettingsDB::SettingsDB()
     memset(reinterpret_cast<void*>(&(this->settings)), 0, sizeof(this->settings));
     memset(reinterpret_cast<void*>(&(this->info)), 0, sizeof(this->info));
     this->info.settings_loaded = false;
-    this->info.saved_new_data = true;
+    this->info.saved_new_log = true;
 }
 
 SettingsDB::SettingsStatus SettingsDB::load()
@@ -54,7 +54,8 @@ SettingsDB::SettingsStatus SettingsDB::load()
         EXIT_CODE(SETTINGS_ERROR);
     }
 
-    if (!this->check()) {
+    if (!this->check(&tmpSettings)) {
+    	this->show();
 #if SETTINGS_BEDUG
         LOG_TAG_BEDUG(SettingsDB::TAG, "error settings check");
 #endif
@@ -111,12 +112,10 @@ SettingsDB::SettingsStatus SettingsDB::save()
         EXIT_CODE(SETTINGS_ERROR);
     }
 
-    info.saved_new_data = true;
     info.settings_loaded = false;
 
 #if SETTINGS_BEDUG
     LOG_TAG_BEDUG(SettingsDB::TAG, "settings saved (address=%lu)", address);
-    this->show();
 #endif
 
     EXIT_CODE(this->load());
@@ -157,9 +156,9 @@ bool SettingsDB::isLoaded()
     return this->info.settings_loaded;
 }
 
-bool SettingsDB::check()
+bool SettingsDB::check(Settings* settings)
 {
-	return settings.sleep_time;
+	return settings->sleep_time;
 }
 
 void SettingsDB::show()

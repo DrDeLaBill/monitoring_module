@@ -37,7 +37,7 @@ RecordDB::RecordStatus RecordDB::load()
 #if RECORD_BEDUG
         LOG_TAG_BEDUG(RecordDB::TAG, "error load: find clust");
 #endif
-        return RECORD_ERROR;
+        return (storageStatus == STORAGE_NOT_FOUND) ? RECORD_NO_LOG : RECORD_ERROR;
     }
 
     RecordStatus recordStatus = this->loadClust(address);
@@ -45,7 +45,7 @@ RecordDB::RecordStatus RecordDB::load()
 #if RECORD_BEDUG
         LOG_TAG_BEDUG(RecordDB::TAG, "error load: load clust");
 #endif
-        return RECORD_ERROR;
+        return (storageStatus == STORAGE_NOT_FOUND) ? RECORD_NO_LOG : RECORD_ERROR;
     }
 
     bool recordFound = false;
@@ -61,7 +61,7 @@ RecordDB::RecordStatus RecordDB::load()
 #if RECORD_BEDUG
         LOG_TAG_BEDUG(RecordDB::TAG, "error load: find record");
 #endif
-        return RECORD_ERROR;
+        return RECORD_NO_LOG;
     }
 
     memcpy(reinterpret_cast<void*>(&(this->record)), reinterpret_cast<void*>(&(this->m_clust.records[id])), sizeof(this->record));
@@ -82,7 +82,7 @@ RecordDB::RecordStatus RecordDB::loadNext()
 #if RECORD_BEDUG
         LOG_TAG_BEDUG(RecordDB::TAG, "error load next: find next record");
 #endif
-        return RECORD_ERROR;
+        return (storageStatus == STORAGE_NOT_FOUND) ? RECORD_NO_LOG : RECORD_ERROR;
     }
 
     RecordStatus recordStatus = this->loadClust(address);
@@ -90,7 +90,7 @@ RecordDB::RecordStatus RecordDB::loadNext()
 #if RECORD_BEDUG
         LOG_TAG_BEDUG(RecordDB::TAG, "error load next: load clust");
 #endif
-        return RECORD_ERROR;
+        return (storageStatus == STORAGE_NOT_FOUND) ? RECORD_NO_LOG : RECORD_ERROR;
     }
 
     bool recordFound = false;
@@ -108,7 +108,7 @@ RecordDB::RecordStatus RecordDB::loadNext()
 #if RECORD_BEDUG
         LOG_TAG_BEDUG(RecordDB::TAG, "error load next: find record");
 #endif
-        return RECORD_ERROR;
+        return RECORD_NO_LOG;
     }
 
     memcpy(
@@ -215,7 +215,7 @@ RecordDB::RecordStatus RecordDB::save()
         return RECORD_ERROR;
     }
 
-    settings.info.saved_new_data = true;
+    settings.info.saved_new_log = true;
 
 #if RECORD_BEDUG
     LOG_TAG_BEDUG(RecordDB::TAG, "record saved on address=%08X", (unsigned int)address);
