@@ -50,7 +50,7 @@ private:
 
 	static void sendRequest();
 	static void parse();
-	static bool saveNewLog();
+	static void saveNewLog();
 	static bool findParam(char** dst, const char* src, const char* param);
 	static bool updateTime(char* data);
 	static void clearLog();

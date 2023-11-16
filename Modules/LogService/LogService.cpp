@@ -74,10 +74,7 @@ void LogService::update()
 		return;
 	}
 
-	if (LogService::saveNewLog()) {
-		settings.settings.pump_work_sec = 0;
-		settings.settings.pump_downtime_sec = 0;
-	}
+	LogService::saveNewLog();
 
 	util_timer_start(&logTimer, settings.settings.sleep_time);
 }
@@ -109,7 +106,7 @@ void LogService::sendRequest()
 		get_second()
 	);
 
-	RecordDB::RecordStatus recordStatus = RecordDB::RECORD_NO_LOG;
+	RecordDB::RecordStatus recordStatus = RecordDB::RECORD_ERROR;
 	if (!newRecordLoaded && settings.info.saved_new_log) {
 		nextRecord   = std::make_unique<RecordDB>(static_cast<uint32_t>(settings.settings.server_log_id));
 		recordStatus = nextRecord->loadNext();
@@ -144,7 +141,9 @@ void LogService::sendRequest()
 		return;
 	}
 
-	newRecordLoaded = false;
+	if (recordStatus == RecordDB::RECORD_OK) {
+		newRecordLoaded = false;
+	}
 	send_http_post(data);
 	util_timer_start(&settingsTimer, settingsDelayMs);
 	LogService::logId = nextRecord->record.id;
@@ -152,15 +151,12 @@ void LogService::sendRequest()
 
 void LogService::parse()
 {
-	uint32_t old_log_id = settings.settings.server_log_id;
-
 	char* var_ptr = get_response();
 	char* data_ptr = var_ptr;
 	if (!var_ptr) {
 #if LOG_SERVICE_BEDUG
 		LOG_TAG_BEDUG(LogService::TAG, "unable to parse response (no response) - [%s]\n", var_ptr);
 #endif
-		settings.settings.server_log_id = old_log_id;
 		return;
 	}
 
@@ -168,7 +164,6 @@ void LogService::parse()
 #if LOG_SERVICE_BEDUG
 		LOG_TAG_BEDUG(LogService::TAG, "unable to parse response (no time) - [%s]\n", var_ptr);
 #endif
-		settings.settings.server_log_id = old_log_id;
 		return;
 	}
 
@@ -180,7 +175,6 @@ void LogService::parse()
 #if LOG_SERVICE_BEDUG
 		LOG_TAG_BEDUG(LogService::TAG, "unable to parse response (unable to update time) - [%s]\n", var_ptr);
 #endif
-		settings.settings.server_log_id = old_log_id;
 		return;
 	}
 
@@ -196,7 +190,6 @@ void LogService::parse()
 #if LOG_SERVICE_BEDUG
 		LOG_TAG_BEDUG(LogService::TAG, "unable to parse response (log_id not found) - %s\n", var_ptr);
 #endif
-		settings.settings.server_log_id = old_log_id;
 		return;
 	}
 	settings.settings.server_log_id = atoi(data_ptr);
@@ -208,7 +201,7 @@ void LogService::parse()
 #if LOG_SERVICE_BEDUG
 		LOG_TAG_BEDUG(LogService::TAG, "unable to parse response (cf_id not found) - %s\n", var_ptr);
 #endif
-		settings.settings.server_log_id = old_log_id;
+		LogService::saveResponse();
 		return;
 	}
 	uint32_t new_cf_id = atoi(data_ptr);
@@ -222,7 +215,6 @@ void LogService::parse()
 #if LOG_SERVICE_BEDUG
 		LOG_TAG_BEDUG(LogService::TAG, "unable to parse response (no data) - [%s]\n", var_ptr);
 #endif
-		settings.settings.server_log_id = old_log_id;
 		return;
 	}
 	data_ptr += strlen(CF_DATA_FIELD);
@@ -263,7 +255,7 @@ void LogService::parse()
 	LogService::saveResponse();
 }
 
-bool LogService::saveNewLog()
+void LogService::saveNewLog()
 {
 	RecordDB record(0);
 //	cur_record.record.fw_id   = FW_VERSION;
@@ -282,7 +274,11 @@ bool LogService::saveNewLog()
 	record.record.pump_wok_time = settings.settings.pump_work_sec;
 	record.record.pump_downtime = settings.settings.pump_downtime_sec;
 
-	return record.save() == RecordDB::RECORD_OK;
+	if (record.save() == RecordDB::RECORD_OK) {
+		settings.settings.pump_work_sec = 0;
+		settings.settings.pump_downtime_sec = 0;
+		settings.save();
+	}
 }
 
 bool LogService::findParam(char** dst, const char* src, const char* param)

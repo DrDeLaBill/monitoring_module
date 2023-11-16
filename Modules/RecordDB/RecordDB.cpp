@@ -50,7 +50,7 @@ RecordDB::RecordStatus RecordDB::load()
 
     bool recordFound = false;
     unsigned id;
-    for (unsigned i = 0; i < sizeof(CLUST_SIZE); i++) {
+    for (unsigned i = 0; i < CLUST_SIZE; i++) {
     	if (this->m_clust.records[i].id == this->m_recordId) {
     		recordFound = true;
     		id = i;
@@ -96,7 +96,7 @@ RecordDB::RecordStatus RecordDB::loadNext()
     bool recordFound = false;
 	unsigned idx;
 	uint32_t curId = 0xFFFFFFFF;
-	for (unsigned i = 0; i < sizeof(CLUST_SIZE); i++) {
+	for (unsigned i = 0; i < CLUST_SIZE; i++) {
 		if (this->m_clust.records[i].id > this->m_recordId && curId > this->m_clust.records[i].id) {
 			curId =this->m_clust.records[i].id;
 			recordFound = true;
@@ -143,43 +143,59 @@ RecordDB::RecordStatus RecordDB::save()
     if (storageStatus == STORAGE_BUSY) {
     	return RECORD_ERROR;
     }
-    if (storageStatus != STORAGE_OK) {
-    	findMode = FIND_MODE_EMPTY;
-    	storageStatus = storage.find(findMode, &address, RECORD_PREFIX);
-    }
-    if (storageStatus != STORAGE_OK) {
-    	findMode = FIND_MODE_MIN;
-    	storageStatus = storage.find(findMode, &address, RECORD_PREFIX);
-    }
-    if (storageStatus != STORAGE_OK) {
+
+	bool idFound = false;
+	uint32_t idx;
+    while (storageStatus != STORAGE_OOM) {
+		if (storageStatus != STORAGE_OK) {
+			findMode = FIND_MODE_EMPTY;
+			storageStatus = storage.find(findMode, &address, RECORD_PREFIX);
+		}
+		if (storageStatus != STORAGE_OK) {
+			findMode = FIND_MODE_MIN;
+			storageStatus = storage.find(findMode, &address, RECORD_PREFIX);
+		}
+		if (storageStatus == STORAGE_BUSY) {
 #if RECORD_BEDUG
-        LOG_TAG_BEDUG(RecordDB::TAG, "error save: find address for save record");
+			LOG_TAG_BEDUG(RecordDB::TAG, "error save: find address for save record (storage busy)");
 #endif
-        return RECORD_ERROR;
+			return RECORD_ERROR;
+		}
+		if (storageStatus != STORAGE_OK) {
+#if RECORD_BEDUG
+			LOG_TAG_BEDUG(RecordDB::TAG, "error save: find address for save record");
+#endif
+			return RECORD_ERROR;
+		}
+
+		if (findMode != FIND_MODE_EMPTY) {
+			recordStatus = this->loadClust(address);
+		}
+		if (recordStatus != RECORD_OK) {
+#if RECORD_BEDUG
+			LOG_TAG_BEDUG(RecordDB::TAG, "error save: load clust");
+#endif
+			return RECORD_ERROR;
+		}
+		if (findMode == FIND_MODE_MIN || findMode == FIND_MODE_EMPTY) {
+			memset(reinterpret_cast<void*>(&(this->m_clust)), 0, sizeof(this->m_clust));
+		}
+
+		idFound = false;
+		for (unsigned i = 0; i < __arr_len(this->m_clust.records); i++) {
+			if (this->m_clust.records[i].id == 0) {
+				idFound = true;
+				idx = i;
+				break;
+			}
+		}
+		if (idFound) {
+			break;
+		}
+
+		storageStatus = STORAGE_ERROR;
     }
 
-    if (findMode != FIND_MODE_EMPTY) {
-    	recordStatus = this->loadClust(address);
-    }
-    if (recordStatus != RECORD_OK) {
-#if RECORD_BEDUG
-        LOG_TAG_BEDUG(RecordDB::TAG, "error save: load clust");
-#endif
-        return RECORD_ERROR;
-    }
-    if (findMode == FIND_MODE_MIN) {
-    	memset(reinterpret_cast<void*>(&(this->m_clust)), 0, sizeof(this->m_clust));
-    }
-
-    bool idFound = false;
-    uint32_t idx;
-    for (unsigned i = 0; i < __arr_len(this->m_clust.records); i++) {
-    	if (this->m_clust.records[i].id == 0) {
-    		idFound = true;
-    		idx = i;
-    		break;
-    	}
-    }
     if (!idFound) {
 #if RECORD_BEDUG
         LOG_TAG_BEDUG(RecordDB::TAG, "error save: find record id in clust");
@@ -199,6 +215,13 @@ RecordDB::RecordStatus RecordDB::save()
 			0,
 			((CLUST_SIZE - idx - 1) * sizeof(struct _Record))
 		);
+    }
+
+    storageStatus = storage.deleteData(address);
+    if (storageStatus != STORAGE_OK) {
+#if RECORD_BEDUG
+        LOG_TAG_BEDUG(RecordDB::TAG, "record save: unable delete clust");
+#endif
     }
 
     storageStatus = storage.save(

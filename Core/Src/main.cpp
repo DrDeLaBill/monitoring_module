@@ -123,7 +123,7 @@ int main(void)
   MX_USART1_UART_Init();
   MX_USART3_UART_Init();
   MX_ADC1_Init();
-//  MX_IWDG_Init();
+  MX_IWDG_Init();
   MX_USART2_UART_Init();
   MX_CRC_Init();
   /* USER CODE BEGIN 2 */
@@ -167,7 +167,7 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
         // Watchdog timer update
-//        HAL_IWDG_Refresh(&DEVICE_IWDG);
+        HAL_IWDG_Refresh(&DEVICE_IWDG);
         // Commands from UART
         command_manager_proccess();
         // Shunt sensor
