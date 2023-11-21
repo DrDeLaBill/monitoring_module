@@ -17,8 +17,8 @@
 extern StorageAT storage;
 
 
-const char SettingsDB::SETTINGS_PREFIX[Page::PREFIX_SIZE] = "STG";
-const char SettingsDB::TAG[] = "STG";
+const char* SettingsDB::SETTINGS_PREFIX = "STG";
+const char* SettingsDB::TAG = "STG";
 
 const char SettingsDB::defaultUrl[CHAR_SETIINGS_SIZE] = "urv.a.izhpt.com";
 const char SettingsDB::defaultPort[CHAR_SETIINGS_SIZE] = "80";

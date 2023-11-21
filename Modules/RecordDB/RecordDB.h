@@ -41,7 +41,7 @@ public:
     Record record = { 0 };
 
 private:
-    static const char RECORD_PREFIX[Page::PREFIX_SIZE];
+    static const char* RECORD_PREFIX;
     static const char* TAG;
 
     static const uint32_t CLUST_SIZE  = ((Page::PAYLOAD_SIZE - sizeof(uint8_t)) / sizeof(struct _Record));

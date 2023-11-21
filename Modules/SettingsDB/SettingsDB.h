@@ -83,8 +83,8 @@ public:
     DeviceInfo info;
 
 private:
-    static const char SETTINGS_PREFIX[Page::PREFIX_SIZE];
-    static const char TAG[];
+    static const char* SETTINGS_PREFIX;
+    static const char* TAG;
 
     static const uint8_t DEFAULT_VERSION = ((uint8_t)0x01);
     static const uint8_t DEVICE_ID_SIZE  = ((uint8_t)16);

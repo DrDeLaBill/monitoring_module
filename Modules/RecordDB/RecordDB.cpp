@@ -16,7 +16,7 @@ extern StorageAT storage;
 extern SettingsDB settings;
 
 
-const char RecordDB::RECORD_PREFIX[Page::PREFIX_SIZE] = "RCR";
+const char* RecordDB::RECORD_PREFIX = "RCR";
 const char* RecordDB::TAG = "RCR";
 
 
@@ -217,14 +217,7 @@ RecordDB::RecordStatus RecordDB::save()
 		);
     }
 
-    storageStatus = storage.deleteData(address);
-    if (storageStatus != STORAGE_OK) {
-#if RECORD_BEDUG
-        LOG_TAG_BEDUG(RecordDB::TAG, "record save: unable delete clust");
-#endif
-    }
-
-    storageStatus = storage.save(
+    storageStatus = storage.rewrite(
         address,
         RECORD_PREFIX,
         this->record.id,
