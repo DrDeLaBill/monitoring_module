@@ -49,7 +49,7 @@
 #define HAL_I2C_MODULE_ENABLED
 /*#define HAL_I2S_MODULE_ENABLED   */
 /*#define HAL_IRDA_MODULE_ENABLED   */
-/*#define HAL_IWDG_MODULE_ENABLED   */
+#define HAL_IWDG_MODULE_ENABLED
 /*#define HAL_NOR_MODULE_ENABLED   */
 /*#define HAL_NAND_MODULE_ENABLED   */
 /*#define HAL_PCCARD_MODULE_ENABLED   */
@@ -62,7 +62,7 @@
 /*#define HAL_MMC_MODULE_ENABLED   */
 /*#define HAL_SDRAM_MODULE_ENABLED   */
 /*#define HAL_SMARTCARD_MODULE_ENABLED   */
-#define HAL_SPI_MODULE_ENABLED
+/*#define HAL_SPI_MODULE_ENABLED   */
 /*#define HAL_SRAM_MODULE_ENABLED   */
 /*#define HAL_TIM_MODULE_ENABLED   */
 #define HAL_UART_MODULE_ENABLED
@@ -114,7 +114,7 @@
   *        This value is used by the UART, RTC HAL module to compute the system frequency
   */
 #if !defined  (LSE_VALUE)
-  #define LSE_VALUE    32768U /*!< Value of the External oscillator in Hz*/
+  #define LSE_VALUE    32U /*!< Value of the External oscillator in Hz*/
 #endif /* LSE_VALUE */
 
 #if !defined  (LSE_STARTUP_TIMEOUT)

@@ -1,34 +1,41 @@
-/*
- * pressure_sensor.h
- *
- *  Created on: Jan 30, 2023
- *      Author: georg
- */
+/* Copyright © 2023 Georgy E. All rights reserved. */
 
 #ifndef INC_PRESSURE_SENSOR_H_
 #define INC_PRESSURE_SENSOR_H_
 
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 #include "stm32f1xx_hal.h"
 
+#include <stdbool.h>
+#include <stdint.h>
 
-enum {
-	TO_MAX = 1,
-	TO_MIN
-};
-
-typedef struct _channel_measurement {
-	float shunt_buf_min;
-	float shunt_buf_max;
-	float shunt_val_max;
-	uint8_t state;
-} channel_measurement;
+#include "utils.h"
 
 
-void pressure_sensor_begin();
-float get_first_press();
-float get_second_press();
+#define PRESS_MEASURE_COUNT 30
+
+
+typedef struct _press_measure_t {
+	bool         measure_ready;
+	uint32_t     value;
+	uint8_t      measure_values_idx;
+	uint16_t     measure_values[PRESS_MEASURE_COUNT];
+	util_timer_t wait_timer;
+} press_measure_t;
+
+
 void pressure_sensor_proccess();
+uint32_t get_press();
+
+
+#ifdef __cplusplus
+}
+#endif
 
 
 #endif /* INC_PRESSURE_SENSOR_H_ */
