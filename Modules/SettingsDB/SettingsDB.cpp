@@ -84,8 +84,13 @@ SettingsDB::SettingsStatus SettingsDB::save()
     	mode = FIND_MODE_EMPTY;
         status = storage.find(mode, &address, SETTINGS_PREFIX, 1);
     }
-    if (status == STORAGE_NOT_FOUND) {
-        //TODO: save on first page
+    while (status == STORAGE_NOT_FOUND) {
+        // Search for any address
+        mode = FIND_MODE_NEXT;
+    	status = storage.find(mode, &address, "", 1);
+    	if (status != STORAGE_OK) {
+    		continue;
+    	}
     }
     if (status != STORAGE_OK) {
 #if SETTINGS_BEDUG

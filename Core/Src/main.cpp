@@ -283,7 +283,6 @@ StorageStatus StorageDriver::write(uint32_t address, uint8_t *data,
     }
     return STORAGE_OK;
 }
-;
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
     if (huart == &COMMAND_UART) {

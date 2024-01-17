@@ -111,15 +111,15 @@ struct sim_command_t {
 };
 
 sim_command_t commands[] = {
-	sim_command_t{.request="AT",              .response="ok"},
-	sim_command_t{.request="ATE0",            .response="ok"},
-	sim_command_t{.request="AT+CGMR",         .response="ok"},
-	sim_command_t{.request="AT+CSQ",          .response="ok"},
-	sim_command_t{.request="AT+CPIN?",        .response="+cpin: ready"},
-	sim_command_t{.request="AT+CGREG?",       .response="+cgreg: 0,1"},
-	sim_command_t{.request="AT+CPSI?",        .response="ok"},
-	sim_command_t{.request="AT+CGDCONT?",     .response="ok"},
-	sim_command_t{.request="AT+HTTPINIT",     .response="ok"}
+	sim_command_t{"AT",          "ok"},
+	sim_command_t{"ATE0",        "ok"},
+	sim_command_t{"AT+CGMR",     "ok"},
+	sim_command_t{"AT+CSQ",      "ok"},
+	sim_command_t{"AT+CPIN?",    "+cpin: ready"},
+	sim_command_t{"AT+CGREG?",   "+cgreg: 0,1"},
+	sim_command_t{"AT+CPSI?",    "ok"},
+	sim_command_t{"AT+CGDCONT?", "ok"},
+	sim_command_t{"AT+HTTPINIT", "ok"}
 };
 
 void sim_module_begin() {

@@ -86,7 +86,7 @@ private:
     static const char* SETTINGS_PREFIX;
     static const char* TAG;
 
-    static const uint8_t DEFAULT_VERSION = ((uint8_t)0x01);
+    static const uint8_t VERSION = ((uint8_t)0x01);
     static const uint8_t DEVICE_ID_SIZE  = ((uint8_t)16);
     static const uint32_t DEFAULT_ID     = ((uint32_t)1);
 
