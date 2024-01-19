@@ -144,6 +144,12 @@ void LogService::sendRequest()
 	if (recordStatus == RecordDB::RECORD_OK) {
 		newRecordLoaded = false;
 	}
+
+
+#if LOG_SERVICE_BEDUG
+	LOG_TAG_BEDUG(TAG, "request: %s\n", data);
+#endif
+
 	send_http_post(data);
 	util_timer_start(&settingsTimer, settingsDelayMs);
 	LogService::logId = nextRecord->record.id;
@@ -153,6 +159,11 @@ void LogService::parse()
 {
 	char* var_ptr = get_response();
 	char* data_ptr = var_ptr;
+
+#if LOG_SERVICE_BEDUG
+	LOG_TAG_BEDUG(TAG, "response: %s\n", var_ptr);
+#endif
+
 	if (!var_ptr) {
 #if LOG_SERVICE_BEDUG
 		LOG_TAG_BEDUG(LogService::TAG, "unable to parse response (no response) - [%s]\n", var_ptr);

@@ -20,7 +20,7 @@ extern StorageAT storage;
 const char* SettingsDB::SETTINGS_PREFIX = "STG";
 const char* SettingsDB::TAG = "STG";
 
-const char SettingsDB::defaultUrl[CHAR_SETIINGS_SIZE] = "urv.a.izhpt.com";
+const char SettingsDB::defaultUrl[CHAR_SETIINGS_SIZE] = "urv.iot.turtton.ru";
 const char SettingsDB::defaultPort[CHAR_SETIINGS_SIZE] = "80";
 
 

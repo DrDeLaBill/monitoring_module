@@ -157,20 +157,8 @@ void send_http_post(const char* data)
     snprintf(
 		sim_state.sim_request,
         sizeof(sim_state.sim_request),
-//        "POST /api/log/ep HTTP/1.1\r\n"
-//        "User-Agent: monitor\r\n"
-//        "Connection: close\r\n"
-//        "Accept-Charset: utf-8, us-ascii\r\n"
-//        "Content-Type: text/plain\r\n"
-//        "Content-Length: %u\r\n"
-//		  "Accept: */*\r\n"
-//        "Host: %s\r\n"
-//		  "Accept-Encoding: gzip, deflate, br\r\n"
-//        "\r\n"
         "%s"
         "%c",
-//        strlen(data),
-//        sim_state.session_server_url,
         data,
         END_OF_STRING
     );
@@ -249,9 +237,11 @@ void _check_response_timer()
     if (strncmp(settings.settings.server_url, SettingsDB::defaultUrl, sizeof(settings.settings.server_url))) {
         strncpy(sim_state.session_server_url, SettingsDB::defaultUrl, sizeof(sim_state.session_server_url));
         strncpy(sim_state.session_server_port, SettingsDB::defaultPort, sizeof(sim_state.session_server_port));
+        LOG_TAG_BEDUG(SIM_TAG, "Change server url to: %s", SettingsDB::defaultPort);
     } else {
         strncpy(sim_state.session_server_url, settings.settings.server_url, sizeof(sim_state.session_server_url));
         strncpy(sim_state.session_server_port, settings.settings.server_port, sizeof(sim_state.session_server_port));
+        LOG_TAG_BEDUG(SIM_TAG, "Change server url to: %s", settings.settings.server_url);
     }
 }
 
