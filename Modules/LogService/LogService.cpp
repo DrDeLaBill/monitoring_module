@@ -271,7 +271,7 @@ void LogService::saveNewLog()
 	RecordDB record(0);
 //	cur_record.record.fw_id   = FW_VERSION;
 	record.record.cf_id   = settings.settings.cf_id;
-	record.record.level   = get_liquid_liters() * 1000;
+	record.record.level   = get_liquid_level() * 1000;
 	record.record.press_1 = get_press();
 //	cur_record.record.press_2 = get_second_press();
 
@@ -332,7 +332,7 @@ do_error:
 bool LogService::updateTime(char* data)
 {
 	// Parse time
-	DateTime datetime = {0};
+	DateTime datetime = {};
 
 	char* data_ptr = data;
 	if (!data_ptr) {
