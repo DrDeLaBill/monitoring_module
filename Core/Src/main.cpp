@@ -33,6 +33,7 @@
 #include "utils.h"
 #include "sim_module.h"
 #include "ds1307_driver.h"
+#include "liquid_sensor.h"
 #include "eeprom_storage.h"
 #include "pressure_sensor.h"
 #include "command_manager.h"
@@ -178,6 +179,8 @@ int main(void)
         sim_module_proccess();
         // Logger
         LogService::update();
+        // Liquid level measurements
+        liquid_sensor_tick();
     }
   /* USER CODE END 3 */
 }
@@ -188,9 +191,9 @@ int main(void)
   */
 void SystemClock_Config(void)
 {
-  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
-  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
-  RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
+  RCC_OscInitTypeDef RCC_OscInitStruct = {};
+  RCC_ClkInitTypeDef RCC_ClkInitStruct = {};
+  RCC_PeriphCLKInitTypeDef PeriphClkInit = {};
 
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
@@ -232,7 +235,7 @@ void SystemClock_Config(void)
 /* USER CODE BEGIN 4 */
 
 void reset_eeprom_i2c() {
-    GPIO_InitTypeDef GPIO_InitStruct = { 0 };
+    GPIO_InitTypeDef GPIO_InitStruct = {};
 
     GPIO_InitStruct.Pin = EEPROM_SDA_Pin | EEPROM_SCL_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
@@ -283,7 +286,6 @@ StorageStatus StorageDriver::write(uint32_t address, uint8_t *data,
     }
     return STORAGE_OK;
 }
-;
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
     if (huart == &COMMAND_UART) {
@@ -296,7 +298,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
     }
 }
 
-int _write(int file, uint8_t *ptr, int len) {
+int _write(int, uint8_t *ptr, int len) {
     HAL_UART_Transmit(&BEDUG_UART, (uint8_t*) ptr, len, GENERAL_BUS_TIMEOUT_MS);
 #ifdef DEBUG
     for (int DataIdx = 0; DataIdx < len; DataIdx++) {

@@ -20,7 +20,7 @@ extern StorageAT storage;
 const char* SettingsDB::SETTINGS_PREFIX = "STG";
 const char* SettingsDB::TAG = "STG";
 
-const char SettingsDB::defaultUrl[CHAR_SETIINGS_SIZE] = "urv.a.izhpt.com";
+const char SettingsDB::defaultUrl[CHAR_SETIINGS_SIZE] = "urv.iot.turtton.ru";
 const char SettingsDB::defaultPort[CHAR_SETIINGS_SIZE] = "80";
 
 
@@ -84,8 +84,13 @@ SettingsDB::SettingsStatus SettingsDB::save()
     	mode = FIND_MODE_EMPTY;
         status = storage.find(mode, &address, SETTINGS_PREFIX, 1);
     }
-    if (status == STORAGE_NOT_FOUND) {
-        //TODO: save on first page
+    while (status == STORAGE_NOT_FOUND) {
+        // Search for any address
+        mode = FIND_MODE_NEXT;
+    	status = storage.find(mode, &address, "", 1);
+    	if (status != STORAGE_OK) {
+    		continue;
+    	}
     }
     if (status != STORAGE_OK) {
 #if SETTINGS_BEDUG

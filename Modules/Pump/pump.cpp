@@ -177,7 +177,7 @@ void pump_clear_log()
 
 void pump_show_status()
 {
-	int32_t liquid_val = get_liquid_liters();
+	int32_t liquid_val  = get_liquid_level();
 	uint16_t liquid_adc = get_liquid_adc();
 	uint16_t pressure_1 = get_press();
 

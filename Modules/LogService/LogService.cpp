@@ -144,6 +144,12 @@ void LogService::sendRequest()
 	if (recordStatus == RecordDB::RECORD_OK) {
 		newRecordLoaded = false;
 	}
+
+
+#if LOG_SERVICE_BEDUG
+	LOG_TAG_BEDUG(TAG, "request: %s\n", data);
+#endif
+
 	send_http_post(data);
 	util_timer_start(&settingsTimer, settingsDelayMs);
 	LogService::logId = nextRecord->record.id;
@@ -153,6 +159,11 @@ void LogService::parse()
 {
 	char* var_ptr = get_response();
 	char* data_ptr = var_ptr;
+
+#if LOG_SERVICE_BEDUG
+	LOG_TAG_BEDUG(TAG, "response: %s\n", var_ptr);
+#endif
+
 	if (!var_ptr) {
 #if LOG_SERVICE_BEDUG
 		LOG_TAG_BEDUG(LogService::TAG, "unable to parse response (no response) - [%s]\n", var_ptr);
@@ -260,7 +271,7 @@ void LogService::saveNewLog()
 	RecordDB record(0);
 //	cur_record.record.fw_id   = FW_VERSION;
 	record.record.cf_id   = settings.settings.cf_id;
-	record.record.level   = get_liquid_liters() * 1000;
+	record.record.level   = get_liquid_level() * 1000;
 	record.record.press_1 = get_press();
 //	cur_record.record.press_2 = get_second_press();
 
@@ -321,7 +332,7 @@ do_error:
 bool LogService::updateTime(char* data)
 {
 	// Parse time
-	DateTime datetime = {0};
+	DateTime datetime = {};
 
 	char* data_ptr = data;
 	if (!data_ptr) {
