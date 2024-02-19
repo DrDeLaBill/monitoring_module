@@ -1,7 +1,43 @@
-.idea*
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
 *.o
-*.map
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# STM32CubeIDE
 Debug*
 Release*
-*Debug.launch
-*Realise.launch
+*language.settings.xml
+*.map
+Core/Inc/Backup*
+Core/Src/Backup*
+
+# Custom
+.idea*

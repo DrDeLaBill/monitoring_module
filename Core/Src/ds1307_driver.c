@@ -23,7 +23,7 @@ void DS1307_Init() {
  */
 void DS1307_SetClockHalt(uint8_t halt) {
 	uint8_t ch = (halt ? 1 << 7 : 0);
-	DS1307_SetRegByte(DS1307_REG_SECOND, ch | (DS1307_GetRegByte(DS1307_REG_SECOND) & 0x7f));
+	DS1307_SetRegByte((uint8_t)DS1307_REG_SECOND, ch | (DS1307_GetRegByte((uint8_t)DS1307_REG_SECOND) & 0x7f));
 }
 
 /**
@@ -49,8 +49,8 @@ void DS1307_SetRegByte(uint8_t regAddr, uint8_t val) {
  * @param regAddr Register address to read.
  * @return Value stored in the register, 0 to 255.
  */
-uint8_t DS1307_GetRegByte(uint8_t regAddr) {
-	uint8_t val;
+int8_t DS1307_GetRegByte(uint8_t regAddr) {
+	int8_t val;
 	HAL_I2C_Master_Transmit(&CLOCK_I2C, DS1307_I2C_ADDR << 1, &regAddr, 1, DS1307_TIMEOUT);
 	HAL_I2C_Master_Receive(&CLOCK_I2C, DS1307_I2C_ADDR << 1, &val, 1, DS1307_TIMEOUT);
 	return val;
@@ -61,9 +61,9 @@ uint8_t DS1307_GetRegByte(uint8_t regAddr) {
  * @param mode DS1307_ENABLED (1) or DS1307_DISABLED (0);
  */
 void DS1307_SetEnableSquareWave(DS1307_SquareWaveEnable mode){
-	uint8_t controlReg = DS1307_GetRegByte(DS1307_REG_CONTROL);
-	uint8_t newControlReg = (controlReg & ~(1 << 4)) | ((mode & 1) << 4);
-	DS1307_SetRegByte(DS1307_REG_CONTROL, newControlReg);
+	uint8_t controlReg = (uint8_t)DS1307_GetRegByte(DS1307_REG_CONTROL);
+	uint8_t newControlReg = (uint8_t)(controlReg & ~(1 << 4)) | ((mode & 1) << 4);
+	DS1307_SetRegByte((uint8_t)DS1307_REG_CONTROL, newControlReg);
 }
 
 /**
@@ -71,9 +71,9 @@ void DS1307_SetEnableSquareWave(DS1307_SquareWaveEnable mode){
  * @param rate DS1307_1HZ (0b00), DS1307_4096HZ (0b01), DS1307_8192HZ (0b10) or DS1307_32768HZ (0b11).
  */
 void DS1307_SetInterruptRate(DS1307_Rate rate){
-	uint8_t controlReg = DS1307_GetRegByte(DS1307_REG_CONTROL);
-	uint8_t newControlReg = (controlReg & ~0x03) | rate;
-	DS1307_SetRegByte(DS1307_REG_CONTROL, newControlReg);
+	uint8_t controlReg = DS1307_GetRegByte((uint8_t)DS1307_REG_CONTROL);
+	uint8_t newControlReg = (uint8_t)(controlReg & ~0x03) | rate;
+	DS1307_SetRegByte((uint8_t)DS1307_REG_CONTROL, newControlReg);
 }
 
 /**
@@ -81,7 +81,7 @@ void DS1307_SetInterruptRate(DS1307_Rate rate){
  * @return Days from last Sunday, 0 to 6.
  */
 uint8_t DS1307_GetDayOfWeek(void) {
-	return DS1307_DecodeBCD(DS1307_GetRegByte(DS1307_REG_DOW));
+	return DS1307_DecodeBCD(DS1307_GetRegByte((uint8_t)DS1307_REG_DOW));
 }
 
 /**
@@ -89,7 +89,7 @@ uint8_t DS1307_GetDayOfWeek(void) {
  * @return Day of month, 1 to 31.
  */
 uint8_t DS1307_GetDate(void) {
-	return DS1307_DecodeBCD(DS1307_GetRegByte(DS1307_REG_DATE));
+	return DS1307_DecodeBCD(DS1307_GetRegByte((uint8_t)DS1307_REG_DATE));
 }
 
 /**
@@ -97,7 +97,7 @@ uint8_t DS1307_GetDate(void) {
  * @return Month, 1 to 12.
  */
 uint8_t DS1307_GetMonth(void) {
-	return DS1307_DecodeBCD(DS1307_GetRegByte(DS1307_REG_MONTH));
+	return DS1307_DecodeBCD(DS1307_GetRegByte((uint8_t)DS1307_REG_MONTH));
 }
 
 /**
@@ -105,8 +105,8 @@ uint8_t DS1307_GetMonth(void) {
  * @return Year, 2000 to 2099.
  */
 uint16_t DS1307_GetYear(void) {
-	uint16_t cen = DS1307_GetRegByte(DS1307_REG_CENT) * 100;
-	return DS1307_DecodeBCD(DS1307_GetRegByte(DS1307_REG_YEAR)) + cen;
+	uint16_t cen = DS1307_GetRegByte((uint8_t)DS1307_REG_CENT) * 100;
+	return DS1307_DecodeBCD(DS1307_GetRegByte((uint8_t)DS1307_REG_YEAR)) + cen;
 }
 
 /**
@@ -114,7 +114,7 @@ uint16_t DS1307_GetYear(void) {
  * @return Hour in 24h format, 0 to 23.
  */
 uint8_t DS1307_GetHour(void) {
-	return DS1307_DecodeBCD(DS1307_GetRegByte(DS1307_REG_HOUR) & 0x3f);
+	return DS1307_DecodeBCD(DS1307_GetRegByte((uint8_t)DS1307_REG_HOUR) & 0x3f);
 }
 
 /**
@@ -122,7 +122,7 @@ uint8_t DS1307_GetHour(void) {
  * @return Minute, 0 to 59.
  */
 uint8_t DS1307_GetMinute(void) {
-	return DS1307_DecodeBCD(DS1307_GetRegByte(DS1307_REG_MINUTE));
+	return DS1307_DecodeBCD(DS1307_GetRegByte((uint8_t)DS1307_REG_MINUTE));
 }
 
 /**
@@ -130,7 +130,7 @@ uint8_t DS1307_GetMinute(void) {
  * @return Second, 0 to 59.
  */
 uint8_t DS1307_GetSecond(void) {
-	return DS1307_DecodeBCD(DS1307_GetRegByte(DS1307_REG_SECOND) & 0x7f);
+	return DS1307_DecodeBCD(DS1307_GetRegByte((uint8_t)DS1307_REG_SECOND) & 0x7f);
 }
 
 /**
@@ -139,7 +139,7 @@ uint8_t DS1307_GetSecond(void) {
  * @return UTC hour offset, -12 to 12.
  */
 int8_t DS1307_GetTimeZoneHour(void) {
-	return DS1307_GetRegByte(DS1307_REG_UTC_HR);
+	return DS1307_GetRegByte((uint8_t)DS1307_REG_UTC_HR);
 }
 
 /**
@@ -147,8 +147,8 @@ int8_t DS1307_GetTimeZoneHour(void) {
  * @note  UTC offset is not updated automatically.
  * @return UTC time zone, 0 to 59.
  */
-uint8_t DS1307_GetTimeZoneMin(void) {
-	return DS1307_GetRegByte(DS1307_REG_UTC_MIN);
+int8_t DS1307_GetTimeZoneMin(void) {
+	return DS1307_GetRegByte((uint8_t)DS1307_REG_UTC_MIN);
 }
 
 /**
@@ -156,7 +156,7 @@ uint8_t DS1307_GetTimeZoneMin(void) {
  * @param dayOfWeek Days since last Sunday, 0 to 6.
  */
 void DS1307_SetDayOfWeek(uint8_t dayOfWeek) {
-	DS1307_SetRegByte(DS1307_REG_DOW, DS1307_EncodeBCD(dayOfWeek));
+	DS1307_SetRegByte((uint8_t)DS1307_REG_DOW, DS1307_EncodeBCD(dayOfWeek));
 }
 
 /**
@@ -164,7 +164,7 @@ void DS1307_SetDayOfWeek(uint8_t dayOfWeek) {
  * @param date Day of month, 1 to 31.
  */
 void DS1307_SetDate(uint8_t date) {
-	DS1307_SetRegByte(DS1307_REG_DATE, DS1307_EncodeBCD(date));
+	DS1307_SetRegByte((uint8_t)DS1307_REG_DATE, DS1307_EncodeBCD(date));
 }
 
 /**
@@ -180,8 +180,8 @@ void DS1307_SetMonth(uint8_t month) {
  * @param year Year, 2000 to 2099.
  */
 void DS1307_SetYear(uint16_t year) {
-	DS1307_SetRegByte(DS1307_REG_CENT, year / 100);
-	DS1307_SetRegByte(DS1307_REG_YEAR, DS1307_EncodeBCD(year % 100));
+	DS1307_SetRegByte((uint8_t)DS1307_REG_CENT, (uint8_t)year / 100);
+	DS1307_SetRegByte((uint8_t)DS1307_REG_YEAR, DS1307_EncodeBCD((uint8_t)year % 100));
 }
 
 /**
@@ -189,7 +189,7 @@ void DS1307_SetYear(uint16_t year) {
  * @param hour_24mode Hour in 24h format, 0 to 23.
  */
 void DS1307_SetHour(uint8_t hour_24mode) {
-	DS1307_SetRegByte(DS1307_REG_HOUR, DS1307_EncodeBCD(hour_24mode & 0x3f));
+	DS1307_SetRegByte((uint8_t)DS1307_REG_HOUR, DS1307_EncodeBCD((uint8_t)hour_24mode & 0x3f));
 }
 
 /**
@@ -197,7 +197,7 @@ void DS1307_SetHour(uint8_t hour_24mode) {
  * @param minute Minute, 0 to 59.
  */
 void DS1307_SetMinute(uint8_t minute) {
-	DS1307_SetRegByte(DS1307_REG_MINUTE, DS1307_EncodeBCD(minute));
+	DS1307_SetRegByte((uint8_t)DS1307_REG_MINUTE, DS1307_EncodeBCD(minute));
 }
 
 /**
@@ -206,7 +206,7 @@ void DS1307_SetMinute(uint8_t minute) {
  */
 void DS1307_SetSecond(uint8_t second) {
 	uint8_t ch = DS1307_GetClockHalt();
-	DS1307_SetRegByte(DS1307_REG_SECOND, DS1307_EncodeBCD(second | ch));
+	DS1307_SetRegByte((uint8_t)DS1307_REG_SECOND, DS1307_EncodeBCD(second | ch));
 }
 
 /**
@@ -216,8 +216,8 @@ void DS1307_SetSecond(uint8_t second) {
  * @param min UTC minute offset, 0 to 59.
  */
 void DS1307_SetTimeZone(int8_t hr, uint8_t min) {
-	DS1307_SetRegByte(DS1307_REG_UTC_HR, hr);
-	DS1307_SetRegByte(DS1307_REG_UTC_MIN, min);
+	DS1307_SetRegByte((uint8_t)DS1307_REG_UTC_HR, (uint8_t)hr);
+	DS1307_SetRegByte((uint8_t)DS1307_REG_UTC_MIN, (uint8_t)min);
 }
 
 /**
@@ -226,7 +226,7 @@ void DS1307_SetTimeZone(int8_t hr, uint8_t min) {
  * @return Decoded decimal value.
  */
 uint8_t DS1307_DecodeBCD(uint8_t bin) {
-	return (((bin & 0xf0) >> 4) * 10) + (bin & 0x0f);
+	return (uint8_t)(((bin & 0xf0) >> 4) * 10) + (bin & 0x0f);
 }
 
 /**
@@ -235,5 +235,5 @@ uint8_t DS1307_DecodeBCD(uint8_t bin) {
  * @return Encoded binary-coded decimal value.
  */
 uint8_t DS1307_EncodeBCD(uint8_t dec) {
-	return (dec % 10 + ((dec / 10) << 4));
+	return (uint8_t)(dec % 10 + ((dec / 10) << 4));
 }

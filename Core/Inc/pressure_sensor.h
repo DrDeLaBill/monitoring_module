@@ -21,11 +21,11 @@ extern "C" {
 
 
 typedef struct _press_measure_t {
-	bool         measure_ready;
-	uint32_t     value;
-	uint8_t      measure_values_idx;
-	uint16_t     measure_values[PRESS_MEASURE_COUNT];
-	util_timer_t wait_timer;
+	bool             measure_ready;
+	uint32_t         value;
+	uint8_t          measure_values_idx;
+	uint16_t         measure_values[PRESS_MEASURE_COUNT];
+	util_old_timer_t wait_timer;
 } press_measure_t;
 
 
