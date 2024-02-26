@@ -29,19 +29,23 @@
 /* USER CODE BEGIN Includes */
 #include <string.h>
 
+#include "log.h"
 #include "pump.h"
+#include "soul.h"
 #include "utils.h"
+#include "settings.h"
 #include "sim_module.h"
 #include "ds1307_driver.h"
 #include "liquid_sensor.h"
-#include "eeprom_storage.h"
 #include "pressure_sensor.h"
 #include "command_manager.h"
+#include "eeprom_at24cm01_storage.h"
 
 #include "RecordDB.h"
 #include "StorageAT.h"
-#include "SettingsDB.h"
+#include "SoulGuard.h"
 #include "LogService.h"
+#include "StorageDriver.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -51,13 +55,6 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-class StorageDriver: public IStorageDriver {
-public:
-    StorageDriver() {
-    }
-    StorageStatus read(uint32_t address, uint8_t *data, uint32_t len) override;
-    StorageStatus write(uint32_t address, uint8_t *data, uint32_t len) override;
-};
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -69,24 +66,23 @@ public:
 
 /* USER CODE BEGIN PV */
 
-const char *MAIN_TAG = "MAIN";
-
-SettingsDB settings;
+static constexpr char MAIN_TAG[] = "MAIN";
 
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-
-void reset_eeprom_i2c();
-
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-StorageAT storage(eeprom_get_size() / Page::PAGE_SIZE, (new StorageDriver()));
+StorageDriver storageDriver;
+StorageAT storage(
+	eeprom_get_size() / Page::PAGE_SIZE,
+	&storageDriver
+);
 
 char cmd_input_chr = 0;
 char sim_input_chr = 0;
@@ -115,7 +111,6 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-    reset_eeprom_i2c();
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -128,25 +123,16 @@ int main(void)
   MX_USART2_UART_Init();
   MX_CRC_Init();
   /* USER CODE BEGIN 2 */
+
+    set_status(WAIT_LOAD);
+
     HAL_Delay(100);
 
-    if (__HAL_RCC_GET_FLAG(RCC_FLAG_IWDGRST)) {
-        LOG_BEDUG("\n\n");
-        LOG_TAG_BEDUG(MAIN_TAG, "IWDG just went off");
-        PRINT_MESSAGE(MAIN_TAG, "REBOOT DEVICE\n");
-    }
-
-    PRINT_MESSAGE(MAIN_TAG, "The device is loading\n");
-
-    // Settings
-    while (settings.load() != SettingsDB::SETTINGS_OK) {
-        settings.reset();
-    }
+    gprint("\n\n\n");
+    printTagLog(MAIN_TAG, "The device is loading");
 
     // UART command manager
     command_manager_begin();
-    // SIM module
-    sim_module_begin();
     // Pump
     pump_init();
     // Clock
@@ -157,28 +143,52 @@ int main(void)
     HAL_UART_Receive_IT(&COMMAND_UART, (uint8_t*) &cmd_input_chr, sizeof(char));
     // Sim module
     HAL_UART_Receive_IT(&SIM_MODULE_UART, (uint8_t*) &sim_input_chr, sizeof(char));
-
-    PRINT_MESSAGE(MAIN_TAG, "The device is loaded successfully\n");
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+	SoulGuard<
+		RestartWatchdog,
+		MemoryWatchdog,
+		StackWatchdog,
+		SettingsWatchdog,
+		RTCWatchdog
+	> soulGuard;
+
+	while (is_status(WAIT_LOAD)) soulGuard.defend();
+
+    printTagLog(MAIN_TAG, "The device has been loaded\n");
+
+    // SIM module
+    sim_module_begin();
+
     while (1) {
+		soulGuard.defend();
+
+		if (has_errors()) {
+			continue;
+		}
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
         // Watchdog timer update
         HAL_IWDG_Refresh(&DEVICE_IWDG);
+
         // Commands from UART
         command_manager_proccess();
+
         // Shunt sensor
         pressure_sensor_proccess();
+
         // Pump
         pump_proccess();
+
         // Sim module
         sim_module_proccess();
+
         // Logger
         LogService::update();
+
         // Liquid level measurements
         liquid_sensor_tick();
     }
@@ -234,59 +244,6 @@ void SystemClock_Config(void)
 
 /* USER CODE BEGIN 4 */
 
-void reset_eeprom_i2c() {
-    GPIO_InitTypeDef GPIO_InitStruct = {};
-
-    GPIO_InitStruct.Pin = EEPROM_SDA_Pin | EEPROM_SCL_Pin;
-    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
-    GPIO_InitStruct.Pull = GPIO_PULLUP;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-    HAL_GPIO_WritePin(EEPROM_SDA_GPIO_Port, EEPROM_SDA_Pin, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(EEPROM_SCL_GPIO_Port, EEPROM_SCL_Pin, GPIO_PIN_RESET);
-    HAL_Delay(100);
-
-    HAL_GPIO_WritePin(EEPROM_SDA_GPIO_Port, EEPROM_SDA_Pin, GPIO_PIN_SET);
-    HAL_GPIO_WritePin(EEPROM_SCL_GPIO_Port, EEPROM_SCL_Pin, GPIO_PIN_SET);
-    HAL_Delay(100);
-
-    HAL_GPIO_WritePin(EEPROM_SDA_GPIO_Port, EEPROM_SDA_Pin, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(EEPROM_SCL_GPIO_Port, EEPROM_SCL_Pin, GPIO_PIN_RESET);
-    HAL_Delay(100);
-}
-
-StorageStatus StorageDriver::read(uint32_t address, uint8_t *data,
-        uint32_t len) {
-    eeprom_status_t status = eeprom_read(address, data, len);
-    if (status == EEPROM_ERROR_BUSY) {
-        return STORAGE_BUSY;
-    }
-    if (status == EEPROM_ERROR_OOM) {
-        return STORAGE_OOM;
-    }
-    if (status != EEPROM_OK) {
-        return STORAGE_ERROR;
-    }
-    return STORAGE_OK;
-}
-;
-
-StorageStatus StorageDriver::write(uint32_t address, uint8_t *data,
-        uint32_t len) {
-    eeprom_status_t status = eeprom_write(address, data, len);
-    if (status == EEPROM_ERROR_BUSY) {
-        return STORAGE_BUSY;
-    }
-    if (status == EEPROM_ERROR_OOM) {
-        return STORAGE_OOM;
-    }
-    if (status != EEPROM_OK) {
-        return STORAGE_ERROR;
-    }
-    return STORAGE_OK;
-}
-
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
     if (huart == &COMMAND_UART) {
         cmd_proccess_input(cmd_input_chr);
@@ -299,7 +256,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 }
 
 int _write(int, uint8_t *ptr, int len) {
-    HAL_UART_Transmit(&BEDUG_UART, (uint8_t*) ptr, len, GENERAL_BUS_TIMEOUT_MS);
+    HAL_UART_Transmit(&BEDUG_UART, (uint8_t*)ptr, static_cast<uint16_t>(len), GENERAL_TIMEOUT_MS);
 #ifdef DEBUG
     for (int DataIdx = 0; DataIdx < len; DataIdx++) {
         ITM_SendChar(*ptr++);
@@ -338,6 +295,9 @@ void assert_failed(uint8_t *file, uint32_t line)
   /* USER CODE BEGIN 6 */
   /* User can add his own implementation to report the file name and line number,
      ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
+#ifdef DEBUG
+	b_assert((char*)file, line, "Wrong parameters value");
+#endif
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */

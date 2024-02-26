@@ -7,12 +7,14 @@
 
 #include "sim_module.h"
 
+#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <strings.h>
 #include <ctype.h>
 #include <algorithm>
 
+#include "log.h"
 #include "main.h"
 #include "pump.h"
 #include "utils.h"
@@ -70,9 +72,9 @@ enum {
 
 struct _sim_state {
     void (*http_fsm) (void);
-    util_timer_t start_timer;
-    util_timer_t delay_timer;
-    util_timer_t restart_timer;
+    util_old_timer_t start_timer;
+    util_old_timer_t delay_timer;
+    util_old_timer_t restart_timer;
     uint8_t state;
     uint8_t error_count;
     char session_server_url[CHAR_SETIINGS_SIZE];
@@ -86,7 +88,7 @@ struct _sim_state {
 } sim_state;
 
 
-extern SettingsDB settings;
+extern settings_t settings;
 
 
 const char* SIM_TAG = "SIM";
@@ -124,16 +126,16 @@ sim_command_t commands[] = {
 
 void sim_module_begin() {
     memset(&sim_state, 0, sizeof(sim_state));
-    strncpy(sim_state.session_server_url, settings.settings.server_url, sizeof(sim_state.session_server_url));
-    strncpy(sim_state.session_server_port, settings.settings.server_port, sizeof(sim_state.session_server_port));
-    util_timer_start(&sim_state.start_timer, CNFG_WAIT);
+    strncpy(sim_state.session_server_url, settings.server_url, sizeof(sim_state.session_server_url));
+    strncpy(sim_state.session_server_port, settings.server_port, sizeof(sim_state.session_server_port));
+    util_old_timer_start(&sim_state.start_timer, CNFG_WAIT);
     _start_module();
     _reset_http();
 }
 
 void sim_module_proccess()
 {
-    if (util_is_timer_wait(&sim_state.start_timer)) {
+    if (util_old_timer_wait(&sim_state.start_timer)) {
         return;
     }
 
@@ -142,7 +144,7 @@ void sim_module_proccess()
 
 void sim_proccess_input(const char input_chr)
 {
-    sim_state.sim_response[sim_state.response_counter++] = tolower(input_chr);
+    sim_state.sim_response[sim_state.response_counter++] = (uint8_t)tolower(input_chr);
     if (sim_state.response_counter >= sizeof(sim_state.sim_response) - 1) {
         _clear_http();
     }
@@ -199,15 +201,15 @@ void _execute_state(const char* cmd, uint16_t delay)
     _clear_http();
     _send_AT_command(cmd);
     sim_state.state = WAIT;
-    util_timer_start(&sim_state.delay_timer, delay);
+    util_old_timer_start(&sim_state.delay_timer, delay);
 }
 
 void _send_AT_command(const char* cmd)
 {
-    HAL_UART_Transmit(&SIM_MODULE_UART, (uint8_t*)cmd, strlen(cmd), UART_TIMEOUT);
-    HAL_UART_Transmit(&SIM_MODULE_UART, (uint8_t*)LINE_BREAK, strlen(LINE_BREAK), UART_TIMEOUT);
+    HAL_UART_Transmit(&SIM_MODULE_UART, (uint8_t*)cmd, (uint16_t)strlen(cmd), UART_TIMEOUT);
+    HAL_UART_Transmit(&SIM_MODULE_UART, (uint8_t*)LINE_BREAK, (uint16_t)strlen(LINE_BREAK), UART_TIMEOUT);
 #if SIM_MODULE_DEBUG
-    LOG_TAG_BEDUG(SIM_TAG, "send - %s\r\n", cmd);
+    printTagLog(SIM_TAG, "send - %s\r\n", cmd);
 #endif
 }
 
@@ -220,7 +222,7 @@ void _check_response(const char* needed_resp)
 
 void _check_response_timer()
 {
-    if (util_is_timer_wait(&sim_state.delay_timer)) {
+    if (util_old_timer_wait(&sim_state.delay_timer)) {
         return;
     }
 
@@ -234,14 +236,14 @@ void _check_response_timer()
         return;
     }
 
-    if (strncmp(settings.settings.server_url, SettingsDB::defaultUrl, sizeof(settings.settings.server_url))) {
-        strncpy(sim_state.session_server_url, SettingsDB::defaultUrl, sizeof(sim_state.session_server_url));
-        strncpy(sim_state.session_server_port, SettingsDB::defaultPort, sizeof(sim_state.session_server_port));
-        LOG_TAG_BEDUG(SIM_TAG, "Change server url to: %s", SettingsDB::defaultPort);
+    if (strncmp(settings.server_url, defaultUrl, sizeof(settings.server_url))) {
+        strncpy(sim_state.session_server_url, defaultUrl, sizeof(sim_state.session_server_url));
+        strncpy(sim_state.session_server_port,defaultPort, sizeof(sim_state.session_server_port));
+        printTagLog(SIM_TAG, "Change server url to: %s", defaultPort);
     } else {
-        strncpy(sim_state.session_server_url, settings.settings.server_url, sizeof(sim_state.session_server_url));
-        strncpy(sim_state.session_server_port, settings.settings.server_port, sizeof(sim_state.session_server_port));
-        LOG_TAG_BEDUG(SIM_TAG, "Change server url to: %s", settings.settings.server_url);
+        strncpy(sim_state.session_server_url, settings.server_url, sizeof(sim_state.session_server_url));
+        strncpy(sim_state.session_server_port, settings.server_port, sizeof(sim_state.session_server_port));
+        printTagLog(SIM_TAG, "Change server url to: %s", settings.server_url);
     }
 }
 
@@ -249,7 +251,7 @@ void _validate_response(const char* needed_resp)
 {
     if (strnstr(sim_state.sim_response, needed_resp, sizeof(sim_state.sim_response))) {
 #if SIM_MODULE_DEBUG
-        LOG_TAG_BEDUG(SIM_TAG, "success - [%s]\n", sim_state.sim_response);
+        printTagLog(SIM_TAG, "success - [%s]\n", sim_state.sim_response);
 #endif
         sim_state.state       = SIM_SUCCESS;
         sim_state.error_count = 0;
@@ -261,7 +263,7 @@ void _validate_response(const char* needed_resp)
 void _sim_set_error_response_state()
 {
 #if SIM_MODULE_DEBUG
-    LOG_TAG_BEDUG(SIM_TAG, "error - [%s]\n", strlen(sim_state.sim_response) ? sim_state.sim_response : "empty answer");
+    printTagLog(SIM_TAG, "error - [%s]\n", strlen(sim_state.sim_response) ? sim_state.sim_response : "empty answer");
 #endif
     sim_state.state = SIM_ERROR;
     sim_state.error_count++;
@@ -269,19 +271,19 @@ void _sim_set_error_response_state()
 
 void _do_error(uint8_t attempts)
 {
-    if (util_is_timer_wait(&sim_state.restart_timer)) {
+    if (util_old_timer_wait(&sim_state.restart_timer)) {
         sim_state.sim_command_idx = 0;
         sim_state.state           = READY;
         sim_state.error_count     = 0;
         sim_state.http_fsm        = _http_HTTPTERM_fsm;
         sim_state.state = SIM_ERROR;
-        util_timer_start(&sim_state.start_timer, RESTART_WAIT);
+        util_old_timer_start(&sim_state.start_timer, RESTART_WAIT);
         return;
     }
 
     if (sim_state.error_count < attempts) {
 #if SIM_MODULE_DEBUG
-        LOG_TAG_BEDUG(SIM_TAG, "retry command, attempt number %d\n", sim_state.error_count + 1);
+        printTagLog(SIM_TAG, "retry command, attempt number %d\n", sim_state.error_count + 1);
 #endif
         sim_state.state = READY;
         _reset_http();
@@ -291,10 +293,10 @@ void _do_error(uint8_t attempts)
 
     if (sim_state.error_count >= attempts) {
 #if SIM_MODULE_DEBUG
-        LOG_TAG_BEDUG(SIM_TAG, "too many errors\n");
+        printTagLog(SIM_TAG, "too many errors\n");
 #endif
         _reset_module();
-        util_timer_start(&sim_state.restart_timer, RESTART_WAIT);
+        util_old_timer_start(&sim_state.restart_timer, RESTART_WAIT);
         return;
     }
 }
@@ -317,21 +319,21 @@ void _reset_http()
 
 void _reset_module()
 {
-    if (util_is_timer_wait(&sim_state.restart_timer)) {
+    if (util_old_timer_wait(&sim_state.restart_timer)) {
         return;
     }
 #if SIM_MODULE_DEBUG
-    LOG_TAG_BEDUG(SIM_TAG, "sim module RESTART\n");
+    printTagLog(SIM_TAG, "sim module RESTART\n");
 #endif
     HAL_GPIO_WritePin(SIM_MODULE_RESET_PORT, SIM_MODULE_RESET_PIN, GPIO_PIN_RESET);
 }
 
 void _start_module()
 {
-    if (util_is_timer_wait(&sim_state.restart_timer)) {
+    if (util_old_timer_wait(&sim_state.restart_timer)) {
         return;
     }
-    util_timer_start(&sim_state.start_timer, CNFG_WAIT);
+    util_old_timer_start(&sim_state.start_timer, CNFG_WAIT);
     HAL_GPIO_WritePin(SIM_MODULE_RESET_PORT, SIM_MODULE_RESET_PIN, GPIO_PIN_SET);
 }
 
@@ -481,7 +483,7 @@ void _http_HTTPREAD_fsm()
 		sim_state.http_fsm    = &_http_wait_fsm;
         sim_state.state       = READY;
         sim_state.error_count = 0;
-        util_timer_start(&sim_state.delay_timer, HTTP_ACT_WAIT);
+        util_old_timer_start(&sim_state.delay_timer, HTTP_ACT_WAIT);
 	}
 	if (sim_state.state == SIM_ERROR) {
 		_do_error(MAX_ERRORS);
@@ -490,7 +492,7 @@ void _http_HTTPREAD_fsm()
 
 void _http_wait_fsm()
 {
-	if (util_is_timer_wait(&sim_state.delay_timer)) {
+	if (util_old_timer_wait(&sim_state.delay_timer)) {
 		return;
 	}
 	sim_state.http_fsm    = &_http_HTTPTERM_fsm;

@@ -38,8 +38,8 @@ private:
 
 	static constexpr uint32_t LOG_SIZE = 370;
 
-	static util_timer_t logTimer;
-	static util_timer_t settingsTimer;
+	static util_old_timer_t logTimer;
+	static util_old_timer_t settingsTimer;
 
 	static uint32_t logId;
 

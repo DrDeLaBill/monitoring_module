@@ -12,10 +12,11 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include "Log.h"
 #include "main.h"
-#include "liquid_sensor.h"
-#include "utils.h"
 #include "pump.h"
+#include "clock.h"
+#include "liquid_sensor.h"
 
 #include "StorageAT.h"
 #include "SettingsDB.h"
@@ -28,7 +29,7 @@ void _clear_command();
 void _show_error();
 
 
-extern SettingsDB settings;
+extern settings_t settings;
 extern StorageAT storage;
 
 
@@ -90,13 +91,13 @@ void _execute_command()
 	}
 
 	if (strncmp("saveadcmin", command, CHAR_COMMAND_SIZE) == 0) {
-		settings.settings.tank_ADC_min = get_liquid_adc();
+		settings.tank_ADC_min = get_liquid_adc();
 		isSuccess = true;
 	} else if (strncmp("saveadcmax", command, CHAR_COMMAND_SIZE) == 0) {
-		settings.settings.tank_ADC_max = get_liquid_adc();
+		settings.tank_ADC_max = get_liquid_adc();
 		isSuccess = true;
 	}  else if (strncmp("default", command, CHAR_COMMAND_SIZE) == 0) {
-		settings.reset();
+		settings_reset(&settings);
 		isSuccess = true;
 	} else if (strncmp("clearlog", command, CHAR_COMMAND_SIZE) == 0) {
 		LogService::clear();
@@ -119,7 +120,7 @@ void _execute_command()
 #endif
 
 	if (isSuccess) {
-		settings.save();
+		set_settings_update_status(true);
 		_show_error();
 		_clear_command();
 		return;
@@ -132,16 +133,16 @@ void _execute_command()
 	}
 
 	if (strncmp("setid", command, CHAR_COMMAND_SIZE) == 0) {
-		settings.settings.id = (uint32_t)atoi(value);
+		settings.id = (uint32_t)atoi(value);
 		isSuccess = true;
 	} else if (strncmp("setsleep", command, CHAR_COMMAND_SIZE) == 0) {
 		LogService::updateSleep(atoi(value) * MILLIS_IN_SECOND);
 		isSuccess = true;
 	} else if (strncmp("seturl", command, CHAR_COMMAND_SIZE) == 0) {
-		strncpy(settings.settings.server_url, value, sizeof(settings.settings.server_url) - 1);
+		strncpy(settings.server_url, value, sizeof(settings.server_url) - 1);
 		isSuccess = true;
 	} else if (strncmp("setport", command, CHAR_COMMAND_SIZE) == 0) {
-		strncpy(settings.settings.server_port, value, sizeof(settings.settings.server_port) - 1);
+		strncpy(settings.server_port, value, sizeof(settings.server_port) - 1);
 		isSuccess = true;
 	} else if (strncmp("setlitersmin", command, CHAR_COMMAND_SIZE) == 0) {
 		pump_update_ltrmin(atoi(value));
@@ -156,7 +157,7 @@ void _execute_command()
 		pump_update_speed(atoi(value));
 		isSuccess = true;
 	} else if (strncmp("setlogid", command, CHAR_COMMAND_SIZE) == 0) {
-		settings.settings.server_log_id = (uint32_t)atoi(value);
+		settings.server_log_id = (uint32_t)atoi(value);
 		isSuccess = true;
 //	} else if (strncmp("delrecord", command, CHAR_COMMAND_SIZE) == 0) {
 //		record_delete_record((uint32_t)atoi(value));
@@ -167,21 +168,21 @@ void _execute_command()
 	}
 #ifdef DEBUG
 	else if (strncmp("setadcmin", command, CHAR_COMMAND_SIZE) == 0) {
-		settings.settings.tank_ADC_min = (uint32_t)atoi(value);
+		settings.tank_ADC_min = (uint32_t)atoi(value);
 	    pump_reset_work_state();
 		isSuccess = true;
 	} else if (strncmp("setadcmax", command, CHAR_COMMAND_SIZE) == 0) {
-		settings.settings.tank_ADC_max = (uint32_t)atoi(value);
+		settings.tank_ADC_max = (uint32_t)atoi(value);
 	    pump_reset_work_state();
 		isSuccess = true;
 	} else if (strncmp("setconfigver", command, CHAR_COMMAND_SIZE) == 0) {
-		settings.settings.cf_id = (uint32_t)atoi(value);
+		settings.cf_id = (uint32_t)atoi(value);
 		isSuccess = true;
 	}
 #endif
 
 	if (isSuccess) {
-		settings.save();
+		set_settings_update_status(true);
 		return;
 	}
 
@@ -196,8 +197,7 @@ void _clear_command()
 
 void _show_error()
 {
-	PRINT_MESSAGE(
-		COMMAND_TAG,
+	printPretty(
 		"\n\n####################SETTINGS####################\n" \
 		"Time:             20%02u-%02u-%02uT%02u:%02u:%02u\n" \
 		"Device ID:        %lu\n" \
@@ -215,26 +215,26 @@ void _show_error()
 		"Config ver:       %lu\n" \
 		"Pump              %s\n" \
 		"####################SETTINGS####################\n\n", \
-		get_year() % 100, \
-		get_month(), \
-		get_date(), \
-		get_hour(), \
-		get_minute(), \
-		get_second(), \
-		settings.settings.id, \
-		settings.settings.server_url, \
-		settings.settings.server_port, \
-		settings.settings.tank_ADC_min, \
-		settings.settings.tank_ADC_max, \
-		settings.settings.tank_liters_min / MILLILITERS_IN_LITER, \
-		settings.settings.tank_liters_max / MILLILITERS_IN_LITER, \
-		settings.settings.pump_target / MILLILITERS_IN_LITER, \
-		settings.settings.sleep_time / MILLIS_IN_SECOND, \
-		settings.settings.server_log_id, \
-		settings.settings.pump_speed, \
-		settings.settings.pump_work_sec, \
-		settings.settings.pump_work_day_sec, \
-		settings.settings.cf_id, \
-		settings.settings.pump_enabled ? "ON" : "OFF"
+		clock_get_year() % 100, \
+		clock_get_month(), \
+		clock_get_date(), \
+		clock_get_hour(), \
+		clock_get_minute(), \
+		clock_get_second(), \
+		settings.id, \
+		settings.server_url, \
+		settings.server_port, \
+		settings.tank_ADC_min, \
+		settings.tank_ADC_max, \
+		settings.tank_liters_min / MILLILITERS_IN_LITER, \
+		settings.tank_liters_max / MILLILITERS_IN_LITER, \
+		settings.pump_target / MILLILITERS_IN_LITER, \
+		settings.sleep_time / MILLIS_IN_SECOND, \
+		settings.server_log_id, \
+		settings.pump_speed, \
+		settings.pump_work_sec, \
+		settings.pump_work_day_sec, \
+		settings.cf_id, \
+		settings.pump_enabled ? "ON" : "OFF"
 	);
 }

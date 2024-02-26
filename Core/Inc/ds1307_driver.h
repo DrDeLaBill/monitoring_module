@@ -45,7 +45,7 @@ uint8_t DS1307_GetClockHalt(void);
 
 
 void DS1307_SetRegByte(uint8_t regAddr, uint8_t val);
-uint8_t DS1307_GetRegByte(uint8_t regAddr);
+int8_t DS1307_GetRegByte(uint8_t regAddr);
 
 void DS1307_SetEnableSquareWave(DS1307_SquareWaveEnable mode);
 void DS1307_SetInterruptRate(DS1307_Rate rate);
@@ -59,7 +59,7 @@ uint8_t DS1307_GetHour(void);
 uint8_t DS1307_GetMinute(void);
 uint8_t DS1307_GetSecond(void);
 int8_t DS1307_GetTimeZoneHour(void);
-uint8_t DS1307_GetTimeZoneMin(void);
+int8_t DS1307_GetTimeZoneMin(void);
 
 void DS1307_SetDayOfWeek(uint8_t dow);
 void DS1307_SetDate(uint8_t date);

@@ -5,7 +5,7 @@
 #include <stdbool.h>
 
 
-#define SIM_MODULE_DEBUG (false)
+#define SIM_MODULE_DEBUG (true)
 
 #define RESPONSE_SIZE 430
 #define END_OF_STRING 0x1a

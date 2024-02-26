@@ -81,10 +81,11 @@ int _write(int file, uint8_t *ptr, int len);
 #define EEPROM_SCL_GPIO_Port GPIOB
 #define EEPROM_SDA_Pin GPIO_PIN_7
 #define EEPROM_SDA_GPIO_Port GPIOB
+
 /* USER CODE BEGIN Private defines */
 
 // General settings
-#define GENERAL_BUS_TIMEOUT_MS ((uint32_t)100)
+#define GENERAL_TIMEOUT_MS     ((uint32_t)100)
 // Watchdog
 extern IWDG_HandleTypeDef      hiwdg;
 #define DEVICE_IWDG            (hiwdg)

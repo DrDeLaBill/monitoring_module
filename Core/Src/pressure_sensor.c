@@ -34,11 +34,11 @@ uint16_t _pressure_get_adc_value();
 
 void pressure_sensor_proccess()
 {
-	if (util_is_timer_wait(&press_measure.wait_timer)) {
+	if (util_old_timer_wait(&press_measure.wait_timer)) {
 		return;
 	}
 
-	util_timer_start(&press_measure.wait_timer, PRESS_WAIT_TIME_MS);
+	util_old_timer_start(&press_measure.wait_timer, PRESS_WAIT_TIME_MS);
 
 	uint8_t measure_values_len = sizeof(press_measure.measure_values) / sizeof(*press_measure.measure_values);
 
@@ -62,10 +62,10 @@ void pressure_sensor_proccess()
 		return;
 	}
 
-	press_measure.value = util_convert_range(adc_value, PRESS_ADC_VAL_MIN, PRESS_ADC_VAL_MAX, PRESS_MPA_x100_MIN, PRESS_MPA_x100_MAX);
+	press_measure.value = (uint16_t)util_convert_range(adc_value, PRESS_ADC_VAL_MIN, PRESS_ADC_VAL_MAX, PRESS_MPA_x100_MIN, PRESS_MPA_x100_MAX);
 }
 
-uint32_t get_press()
+uint16_t get_press()
 {
 	if (!press_measure.measure_ready) {
 		return 0;

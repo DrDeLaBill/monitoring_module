@@ -11,7 +11,7 @@
 #include <stdbool.h>
 
 #include "defines.h"
-#include "clock_service.h"
+
 
 #define CHAR_COMMAND_SIZE  40
 #define UART_RESPONSE_SIZE 40

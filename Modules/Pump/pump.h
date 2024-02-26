@@ -15,12 +15,12 @@
 
 
 typedef struct _pump_state_t {
-	void        (*state_action) (void);
-	bool        enabled;
-	uint32_t    start_time;
-	uint32_t    needed_work_time;
-	util_timer_t wait_timer;
-	util_timer_t indication_timer;
+	void             (*state_action) (void);
+	bool             enabled;
+	uint32_t         start_time;
+	uint32_t         needed_work_time;
+	util_old_timer_t wait_timer;
+	util_old_timer_t indication_timer;
 } pump_state_t;
 
 
