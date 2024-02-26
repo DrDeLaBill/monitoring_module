@@ -1,10 +1,10 @@
 /* Copyright © 2024 Georgy E. All rights reserved. */
 
-#include <log.h>
-#include "StackWatchdog.h"
+#include "Watchdogs.h"
 
 #include <cstring>
 
+#include "log.h"
 #include "main.h"
 #include "soul.h"
 #include "main.h"
@@ -65,18 +65,8 @@ void StackWatchdog::check()
 		extern unsigned _sdata;
 		extern unsigned _estack;
 		printTagLog(TAG, "-----ATTENTION! INDIRECT DATA BEGIN:-----");
-		printTagLog(
-			TAG,
-			"RAM occupied MAX: %u bytes",
-			(unsigned)(__abs_dif((unsigned)&_sdata, (unsigned)&_estack) - freeRamBytes)
-		);
-		printTagLog(
-			TAG,
-			"RAM free  MIN:    %u bytes [0x%08X->0x%08X]",
-			(unsigned)freeRamBytes,
-			(unsigned)(stack_end - freeRamBytes),
-			(unsigned)stack_end
-		);
+		printTagLog(TAG, "RAM occupied MAX: %u bytes", (unsigned)(__abs_dif((unsigned)&_sdata, (unsigned)&_estack) - freeRamBytes));
+		printTagLog(TAG, "RAM free  MIN:    %u bytes [0x%08X->0x%08X]", (unsigned)freeRamBytes, (unsigned)(stack_end - freeRamBytes), (unsigned)stack_end);
 		printTagLog(TAG, "------ATTENTION! INDIRECT DATA END-------");
 	}
 

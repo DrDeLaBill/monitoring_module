@@ -22,7 +22,7 @@ extern "C" {
 
 typedef struct _press_measure_t {
 	bool             measure_ready;
-	uint32_t         value;
+	uint16_t         value;
 	uint8_t          measure_values_idx;
 	uint16_t         measure_values[PRESS_MEASURE_COUNT];
 	util_old_timer_t wait_timer;
@@ -30,7 +30,7 @@ typedef struct _press_measure_t {
 
 
 void pressure_sensor_proccess();
-uint32_t get_press();
+uint16_t get_press();
 
 
 #ifdef __cplusplus

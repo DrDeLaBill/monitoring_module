@@ -16,6 +16,16 @@ void _set_status(SOUL_STATUS status);
 void _reset_status(SOUL_STATUS status);
 
 
+bool has_errors()
+{
+	for (unsigned i = ERRORS_START + 1; i < ERRORS_END; i++) {
+		if (is_error((SOUL_STATUS)(i + 1))) {
+			return true;
+		}
+	}
+	return false;
+}
+
 bool is_error(SOUL_STATUS error)
 {
 	if (error > ERRORS_START && error < ERRORS_END) {

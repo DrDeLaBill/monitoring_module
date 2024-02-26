@@ -31,6 +31,7 @@
 
 #include "log.h"
 #include "pump.h"
+#include "soul.h"
 #include "utils.h"
 #include "settings.h"
 #include "sim_module.h"
@@ -122,11 +123,16 @@ int main(void)
   MX_USART2_UART_Init();
   MX_CRC_Init();
   /* USER CODE BEGIN 2 */
-    printTagLog(MAIN_TAG, "The device is loading\n");
+
+    set_status(WAIT_LOAD);
+
+    HAL_Delay(100);
+
+    gprint("\n\n\n");
+    printTagLog(MAIN_TAG, "The device is loading");
+
     // UART command manager
     command_manager_begin();
-    // SIM module
-    sim_module_begin();
     // Pump
     pump_init();
     // Clock
@@ -137,8 +143,6 @@ int main(void)
     HAL_UART_Receive_IT(&COMMAND_UART, (uint8_t*) &cmd_input_chr, sizeof(char));
     // Sim module
     HAL_UART_Receive_IT(&SIM_MODULE_UART, (uint8_t*) &sim_input_chr, sizeof(char));
-
-    printTagLog(MAIN_TAG, "The device has been loaded\n");
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -150,10 +154,18 @@ int main(void)
 		SettingsWatchdog,
 		RTCWatchdog
 	> soulGuard;
+
+	while (is_status(WAIT_LOAD)) soulGuard.defend();
+
+    printTagLog(MAIN_TAG, "The device has been loaded\n");
+
+    // SIM module
+    sim_module_begin();
+
     while (1) {
 		soulGuard.defend();
 
-		if (soulGuard.hasErrors()) {
+		if (has_errors()) {
 			continue;
 		}
     /* USER CODE END WHILE */

@@ -1,6 +1,6 @@
 /* Copyright © 2024 Georgy E. All rights reserved. */
 
-#include "MemoryWatchdog.h"
+#include "Watchdogs.h"
 
 #include "main.h"
 

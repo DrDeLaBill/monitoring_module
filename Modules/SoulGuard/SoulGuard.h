@@ -4,7 +4,9 @@
 
 
 #include <variant>
+#include <unordered_map>
 
+#include "log.h"
 #include "main.h"
 #include "soul.h"
 #include "settings.h"
@@ -25,6 +27,10 @@ private:
 		>,
 		"Soul guard repeated units"
 	);
+	static_assert(!utl::empty(typename utl::typelist_t<Watchdogs...>::RESULT{}), "Watchdogs list must not be empty");
+
+
+	static constexpr char TAG[] = "SGRD";
 
 	using watchdog_v = std::variant<Watchdogs...>;
 
@@ -37,20 +43,42 @@ private:
 		std::visit(lambda, watchdog);
 	}
 
-public:
-	void defend()
+	using watchdogs_pack = utl::simple_list_t<Watchdogs...>;
+
+	std::unordered_map<unsigned, watchdog_v> watchdogs;
+	unsigned index;
+
+	template<class... WList>
+	void set_watchdogs(utl::simple_list_t<WList...>)
 	{
-		(this->check(Watchdogs{}), ...);
+		(set_watchdog(utl::getType<WList>{}), ...);
 	}
 
-	bool hasErrors()
+	template<class Watchdog>
+	void set_watchdog(utl::getType<Watchdog>)
 	{
-		utl::CodeStopwatch stopwatch("GRD", GENERAL_TIMEOUT_MS);
-		for (unsigned i = ERRORS_START + 1; i < ERRORS_END; i++) {
-			if (is_error(static_cast<SOUL_STATUS>(i + 1))) {
-				return true;
-			}
+		watchdogs.insert({index++, Watchdog{}});
+	}
+
+public:
+	SoulGuard()
+	{
+		index = 0;
+		set_watchdogs(watchdogs_pack{});
+	}
+
+	void defend()
+	{
+		auto it = watchdogs.find(index++);
+		if (it == watchdogs.end()) {
+			index = 0;
+			return;
 		}
-		return false;
+
+		auto lambda = [] (auto& watchdog) {
+			watchdog.check();
+		};
+
+		std::visit(lambda, it->second);
 	}
 };

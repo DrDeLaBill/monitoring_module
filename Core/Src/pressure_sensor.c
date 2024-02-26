@@ -62,10 +62,10 @@ void pressure_sensor_proccess()
 		return;
 	}
 
-	press_measure.value = util_convert_range(adc_value, PRESS_ADC_VAL_MIN, PRESS_ADC_VAL_MAX, PRESS_MPA_x100_MIN, PRESS_MPA_x100_MAX);
+	press_measure.value = (uint16_t)util_convert_range(adc_value, PRESS_ADC_VAL_MIN, PRESS_ADC_VAL_MAX, PRESS_MPA_x100_MIN, PRESS_MPA_x100_MAX);
 }
 
-uint32_t get_press()
+uint16_t get_press()
 {
 	if (!press_measure.measure_ready) {
 		return 0;

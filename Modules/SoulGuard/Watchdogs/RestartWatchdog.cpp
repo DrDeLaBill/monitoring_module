@@ -1,6 +1,6 @@
 /* Copyright © 2024 Georgy E. All rights reserved. */
 
-#include "RestartWatchdog.h"
+#include "Watchdogs.h"
 
 #include "log.h"
 #include "main.h"
@@ -50,6 +50,12 @@ void RestartWatchdog::check()
 
 void RestartWatchdog::reset_i2c_errata()
 {
+	printTagLog(TAG, "RESET I2C (ERRATA)");
+
+//	EEPROM_I2C.Instance->CR1 |= I2C_CR1_SWRST;
+//	HAL_Delay(GENERAL_TIMEOUT_MS);
+//	EEPROM_I2C.Instance->CR1 &= ~I2C_CR1_SWRST;
+
 	HAL_I2C_DeInit(&EEPROM_I2C);
 
 	GPIO_TypeDef* I2C_PORT = GPIOB;

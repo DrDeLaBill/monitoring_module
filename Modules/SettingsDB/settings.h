@@ -15,7 +15,6 @@ extern "C" {
 #include "main.h"
 
 
-#define CF_VERSION            ((uint8_t)0x02\1)
 #define DEFAULT_ID            ((uint8_t)0x01)
 #define CHAR_SETIINGS_SIZE    (30)
 #define DEVICE_ID_SIZE        ((uint8_t)16)
