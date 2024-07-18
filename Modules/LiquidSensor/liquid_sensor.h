@@ -11,7 +11,7 @@
 #include "stm32f1xx_hal.h"
 #include <stdbool.h>
 
-void     liquid_sensor_tick();
+void     level_tick();
 int32_t  get_liquid_level();
 uint16_t get_liquid_adc();
 bool     is_liquid_tank_empty();

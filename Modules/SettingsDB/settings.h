@@ -15,6 +15,16 @@ extern "C" {
 #include "main.h"
 
 
+/*
+ * Device types:
+ * 0x0001 - Dispenser
+ * 0x0002 - Gas station
+ * 0x0003 - Logger
+ * 0x0004 - B.O.B.A.
+ * 0x0005 - Calibrate station
+ * 0x0006 - Dispenser-mini
+ */
+#define DEVICE_TYPE           ((uint16_t)0x0001)
 #define DEFAULT_ID            ((uint8_t)0x01)
 #define CHAR_SETIINGS_SIZE    (30)
 #define DEVICE_ID_SIZE        ((uint8_t)16)

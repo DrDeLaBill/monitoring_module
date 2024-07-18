@@ -190,7 +190,7 @@ int main(void)
         LogService::update();
 
         // Liquid level measurements
-        liquid_sensor_tick();
+        level_tick();
     }
   /* USER CODE END 3 */
 }
