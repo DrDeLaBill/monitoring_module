@@ -332,14 +332,14 @@ do_error:
 bool LogService::updateTime(char* data)
 {
 	// Parse time
-	DateTypeDef date = {};
-	TimeTypeDef time = {};
+	RTC_DateTypeDef date = {};
+	RTC_TimeTypeDef time = {};
 
 	char* data_ptr = data;
 	if (!data_ptr) {
 		return false;
 	}
-	date.Year = (uint8_t)atoi(data_ptr) % 100;
+	date.Year = (uint8_t)(atoi(data_ptr) % 100);
 
 	data_ptr = strnstr(data_ptr, T_DASH_FIELD, strlen(data_ptr));
 	if (!data_ptr) {

@@ -2,6 +2,11 @@
 #define INC_SIM_MODULE_H_
 
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 #include <stdbool.h>
 
 
@@ -21,5 +26,11 @@ void send_http_post(const char* data);
 bool has_http_response();
 bool if_network_ready();
 char* get_response();
+
+
+#ifdef __cplusplus
+}
+#endif
+
 
 #endif

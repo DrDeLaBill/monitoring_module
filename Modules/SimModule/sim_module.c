@@ -12,16 +12,13 @@
 #include <stdlib.h>
 #include <strings.h>
 #include <ctype.h>
-#include <algorithm>
 
 #include "log.h"
 #include "main.h"
 #include "pump.h"
 #include "utils.h"
+#include "settings.h"
 #include "liquid_sensor.h"
-
-#include "SettingsDB.h"
-#include "LogService.h"
 
 
 #define LINE_BREAK_COUNT 2
@@ -102,26 +99,23 @@ const char* LINE_BREAK        = "\r\n";
 const char* DOUBLE_LINE_BREAK = "\r\n\r\n";
 const char* SIM_ERR_RESPONSE  = "\r\nerror\r\n";
 
-struct sim_command_t {
+
+typedef struct _sim_command_t {
     char request [30];
     char response[20];
-    sim_command_t(const char* req, const char* resp)
-    {
-    	memcpy(request, req, std::min(sizeof(request), strlen(req)));
-    	memcpy(response, resp, std::min(sizeof(response), strlen(resp)));
-    }
-};
+} sim_command_t;
+
 
 sim_command_t commands[] = {
-	sim_command_t{"AT",          "ok"},
-	sim_command_t{"ATE0",        "ok"},
-	sim_command_t{"AT+CGMR",     "ok"},
-	sim_command_t{"AT+CSQ",      "ok"},
-	sim_command_t{"AT+CPIN?",    "+cpin: ready"},
-	sim_command_t{"AT+CGREG?",   "+cgreg: 0,1"},
-	sim_command_t{"AT+CPSI?",    "ok"},
-	sim_command_t{"AT+CGDCONT?", "ok"},
-	sim_command_t{"AT+HTTPINIT", "ok"}
+	{"AT",          "ok"},
+	{"ATE0",        "ok"},
+	{"AT+CGMR",     "ok"},
+	{"AT+CSQ",      "ok"},
+	{"AT+CPIN?",    "+cpin: ready"},
+	{"AT+CGREG?",   "+cgreg: 0,1"},
+	{"AT+CPSI?",    "ok"},
+	{"AT+CGDCONT?", "ok"},
+	{"AT+HTTPINIT", "ok"}
 };
 
 void sim_module_begin() {

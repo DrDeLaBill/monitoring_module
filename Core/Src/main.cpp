@@ -19,9 +19,9 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "adc.h"
-#include "crc.h"
 #include "i2c.h"
 #include "iwdg.h"
+#include "rtc.h"
 #include "usart.h"
 #include "gpio.h"
 
@@ -111,6 +111,7 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
+#ifndef DEBUG
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -120,9 +121,16 @@ int main(void)
   MX_USART3_UART_Init();
   MX_ADC1_Init();
   MX_IWDG_Init();
-  MX_USART2_UART_Init();
-  MX_CRC_Init();
+  MX_RTC_Init();
   /* USER CODE BEGIN 2 */
+#else
+  MX_GPIO_Init();
+  MX_I2C1_Init();
+  MX_USART1_UART_Init();
+  MX_USART3_UART_Init();
+  MX_ADC1_Init();
+  MX_RTC_Init();
+#endif
 
     set_status(WAIT_LOAD);
 
@@ -171,8 +179,10 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+#ifndef DEBUG
         // Watchdog timer update
         HAL_IWDG_Refresh(&DEVICE_IWDG);
+#endif
 
         // Commands from UART
         command_manager_proccess();
@@ -234,7 +244,8 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_ADC;
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_RTC|RCC_PERIPHCLK_ADC;
+  PeriphClkInit.RTCClockSelection = RCC_RTCCLKSOURCE_LSI;
   PeriphClkInit.AdcClockSelection = RCC_ADCPCLK2_DIV6;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
