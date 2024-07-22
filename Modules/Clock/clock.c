@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "log.h"
+#include "glog.h"
 #include "bmacro.h"
 #include "hal_defs.h"
 #include "ds1307_driver.h"
@@ -173,6 +173,42 @@ void clock_seconds_to_datetime(const uint32_t seconds, RTC_DateTypeDef* date, RT
 		date->Date = (uint8_t)days;
 		break;
 	}
+}
+
+char* get_clock_time_format()
+{
+	static char format_time[30] = "";
+	memset(format_time, '-', sizeof(format_time) - 1);
+	format_time[sizeof(format_time) - 1] = 0;
+
+	RTC_DateTypeDef date = {0};
+	RTC_TimeTypeDef time = {0};
+
+	if (!clock_get_rtc_date(&date)) {
+		BEDUG_ASSERT(false, "Unable to get current date");
+		memset((void*)&date, 0, sizeof(date));
+		return format_time;
+	}
+
+	if (!clock_get_rtc_time(&time)) {
+		BEDUG_ASSERT(false, "Unable to get current time");
+		memset((void*)&time, 0, sizeof(time));
+		return format_time;
+	}
+
+	snprintf(
+		format_time,
+		sizeof(format_time) - 1,
+		"20%02u-%02u-%02uT%02u:%02u:%02u",
+		date.Year,
+		date.Month,
+		date.Date,
+		time.Hours,
+		time.Minutes,
+		time.Seconds
+	);
+
+	return format_time;
 }
 
 uint8_t _get_days_in_month(uint8_t year, Months month)

@@ -8,10 +8,16 @@
 #ifndef INC_PUMP_H_
 #define INC_PUMP_H_
 
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "utils.h"
+#include "gutils.h"
 
 
 typedef struct _pump_state_t {
@@ -34,5 +40,11 @@ void pump_update_target(uint32_t target);
 void pump_reset_work_state();
 void pump_show_status();
 void pump_clear_log();
+
+
+#ifdef __cplusplus
+}
+#endif
+
 
 #endif /* INC_PUMP_H_ */

@@ -105,8 +105,8 @@ uint8_t DS1307_GetMonth(void) {
  * @return Year, 2000 to 2099.
  */
 uint16_t DS1307_GetYear(void) {
-	uint16_t cen = DS1307_GetRegByte((uint8_t)DS1307_REG_CENT) * 100;
-	return DS1307_DecodeBCD(DS1307_GetRegByte((uint8_t)DS1307_REG_YEAR)) + cen;
+	uint16_t cen = (uint16_t)DS1307_GetRegByte((uint8_t)DS1307_REG_CENT) * 100;
+	return (uint16_t)(DS1307_DecodeBCD(DS1307_GetRegByte((uint8_t)DS1307_REG_YEAR)) + cen);
 }
 
 /**

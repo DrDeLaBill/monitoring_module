@@ -11,9 +11,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "log.h"
+#include "glog.h"
 #include "main.h"
-#include "utils.h"
+#include "gutils.h"
 #include "defines.h"
 #include "settings.h"
 
@@ -34,7 +34,7 @@ typedef struct _sens_state_t {
 
 uint16_t _get_liquid_adc_value();
 int32_t  _get_liquid_liters();
-uint16_t _get_cur_liquid_adc();
+uint32_t _get_cur_liquid_adc();
 int32_t  _get_liquid_liters();
 
 
@@ -44,7 +44,7 @@ extern settings_t settings;
 const char* LIQUID_TAG = "LQID";
 
 
-sens_state_t sens_state = { };
+sens_state_t sens_state = {0};
 
 
 void level_tick()
@@ -53,7 +53,7 @@ void level_tick()
 		return;
 	}
 
-	sens_state.measures_adc[sens_state.counter]   = _get_cur_liquid_adc();
+	sens_state.measures_adc[sens_state.counter]   = (int32_t)_get_cur_liquid_adc();
 	sens_state.measures_val[sens_state.counter++] = _get_liquid_liters();
 	if (sens_state.counter >= __arr_len(sens_state.measures_val)) {
 		sens_state.counter = 0;
@@ -67,20 +67,20 @@ int32_t get_liquid_level()
 	for (unsigned i = 0; i < __arr_len(sens_state.measures_val); i++) {
 		result += sens_state.measures_val[i];
 	}
-	return result / __arr_len(sens_state.measures_val);
+	return result / (int32_t)__arr_len(sens_state.measures_val);
 }
 
 uint16_t get_liquid_adc()
 {
 	uint16_t result = 0;
 	for (unsigned i = 0; i < __arr_len(sens_state.measures_adc); i++) {
-		result += sens_state.measures_adc[i];
+		result += (uint16_t)sens_state.measures_adc[i];
 	}
 	return result / __arr_len(sens_state.measures_adc);
 }
 
-uint16_t _get_cur_liquid_adc() {
-	ADC_ChannelConfTypeDef conf = { };
+uint32_t _get_cur_liquid_adc() {
+	ADC_ChannelConfTypeDef conf = {0};
 	conf.Channel = LIQUID_ADC_CHANNEL;
 	conf.Rank = 1;
 	conf.SamplingTime = ADC_SAMPLETIME_28CYCLES_5;
@@ -90,14 +90,14 @@ uint16_t _get_cur_liquid_adc() {
 	}
 	HAL_ADC_Start(&MEASURE_ADC);
 	HAL_ADC_PollForConversion(&MEASURE_ADC, ADC_READ_TIMEOUT);
-	uint16_t liquid_ADC_value = HAL_ADC_GetValue(&MEASURE_ADC);
+	uint32_t liquid_ADC_value = HAL_ADC_GetValue(&MEASURE_ADC);
 	HAL_ADC_Stop(&MEASURE_ADC);
 	return liquid_ADC_value;
 }
 
 int32_t _get_liquid_liters()
 {
-	uint16_t liquid_ADC_value = _get_cur_liquid_adc();
+	uint32_t liquid_ADC_value = _get_cur_liquid_adc();
 	if (liquid_ADC_value >= MAX_ADC_VALUE) {
 		printTagLog(LIQUID_TAG, "error liquid tank: get liquid ADC value - value more than MAX=%d (ADC=%d)\n", MAX_ADC_VALUE, liquid_ADC_value);
 		return LEVEL_ERROR;
@@ -116,7 +116,7 @@ int32_t _get_liquid_liters()
 	}
 
 	uint32_t min_in_liters = settings.tank_liters_min / MILLILITERS_IN_LITER;
-	int32_t liquid_in_liters = (liquid_liters_range - ((liquid_ADC_value * liquid_liters_range) / liquid_ADC_range)) + min_in_liters;
+	int32_t liquid_in_liters = (int32_t)((liquid_liters_range - ((liquid_ADC_value * liquid_liters_range) / liquid_ADC_range)) + min_in_liters);
 	if (liquid_in_liters <= 0) {
 		printTagLog(LIQUID_TAG, "error liquid tank: get liquid liters - value less or equal to zero (val=%ld)\n", liquid_in_liters);
 		return LEVEL_ERROR;

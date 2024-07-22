@@ -13,10 +13,10 @@
 #include <strings.h>
 #include <ctype.h>
 
-#include "log.h"
+#include "glog.h"
 #include "main.h"
 #include "pump.h"
-#include "utils.h"
+#include "gutils.h"
 #include "settings.h"
 #include "liquid_sensor.h"
 
@@ -75,7 +75,6 @@ struct _sim_state {
     uint8_t state;
     uint8_t error_count;
     char session_server_url[CHAR_SETIINGS_SIZE];
-    char session_server_port[CHAR_SETIINGS_SIZE];
     uint8_t sim_command_idx;
 
     char sim_request[LOG_SIZE];
@@ -111,7 +110,7 @@ sim_command_t commands[] = {
 	{"ATE0",        "ok"},
 	{"AT+CGMR",     "ok"},
 	{"AT+CSQ",      "ok"},
-	{"AT+CPIN?",    "+cpin: ready"},
+//	{"AT+CPIN?",    "+cpin: ready"},
 	{"AT+CGREG?",   "+cgreg: 0,1"},
 	{"AT+CPSI?",    "ok"},
 	{"AT+CGDCONT?", "ok"},
@@ -120,8 +119,7 @@ sim_command_t commands[] = {
 
 void sim_module_begin() {
     memset(&sim_state, 0, sizeof(sim_state));
-    strncpy(sim_state.session_server_url, settings.server_url, sizeof(sim_state.session_server_url));
-    strncpy(sim_state.session_server_port, settings.server_port, sizeof(sim_state.session_server_port));
+    strncpy(sim_state.session_server_url, settings.url, sizeof(sim_state.session_server_url));
     util_old_timer_start(&sim_state.start_timer, CNFG_WAIT);
     _start_module();
     _reset_http();
@@ -230,14 +228,12 @@ void _check_response_timer()
         return;
     }
 
-    if (strncmp(settings.server_url, defaultUrl, sizeof(settings.server_url))) {
+    if (strncmp(settings.url, defaultUrl, sizeof(settings.url))) {
         strncpy(sim_state.session_server_url, defaultUrl, sizeof(sim_state.session_server_url));
-        strncpy(sim_state.session_server_port,defaultPort, sizeof(sim_state.session_server_port));
-        printTagLog(SIM_TAG, "Change server url to: %s", defaultPort);
+        printTagLog(SIM_TAG, "Change server url to: %s", defaultUrl);
     } else {
-        strncpy(sim_state.session_server_url, settings.server_url, sizeof(sim_state.session_server_url));
-        strncpy(sim_state.session_server_port, settings.server_port, sizeof(sim_state.session_server_port));
-        printTagLog(SIM_TAG, "Change server url to: %s", settings.server_url);
+        strncpy(sim_state.session_server_url, settings.url, sizeof(sim_state.session_server_url));
+        printTagLog(SIM_TAG, "Change server url to: %s", settings.url);
     }
 }
 
@@ -465,7 +461,13 @@ void _http_HTTPHEAD_fsm()
 void _http_HTTPREAD_fsm()
 {
 	if (sim_state.state == READY) {
-		sim_state.content_length = atoi(strnstr(sim_state.sim_response, CONTENT_LENGTH, sizeof(sim_state.sim_response)) + strlen(CONTENT_LENGTH));
+		sim_state.content_length = (uint32_t)atoi(
+			strnstr(
+				sim_state.sim_response,
+				CONTENT_LENGTH,
+				sizeof(sim_state.sim_response)
+			) + strlen(CONTENT_LENGTH)
+		);
 		char request[HTTP_ACT_SIZE] = { 0 };
 		snprintf(request, sizeof(request), "AT+HTTPREAD=0,%lu", sim_state.content_length);
 		_execute_state(request, HTTP_ACT_WAIT);

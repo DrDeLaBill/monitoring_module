@@ -12,7 +12,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "Log.h"
+#include "glog.h"
 #include "main.h"
 #include "pump.h"
 #include "clock.h"
@@ -69,7 +69,7 @@ bool _validate_command()
 
 	if (strlen(command_buffer) >= CHAR_COMMAND_SIZE) {
 		_clear_command();
-		_show_error();
+		settings_show();
 		return false;
 	}
 
@@ -86,7 +86,6 @@ void _execute_command()
 	char* command = strtok(command_buffer, " ");
 	bool isSuccess = false;
 	if (command == NULL) {
-		_show_error();
 		return;
 	}
 
@@ -121,28 +120,22 @@ void _execute_command()
 
 	if (isSuccess) {
 		set_settings_update_status(true);
-		_show_error();
 		_clear_command();
+		settings_show();
 		return;
 	}
 
 	char* value = strtok(NULL, " ");
 	if (value == NULL) {
-		_show_error();
+		settings_show();
 		return;
 	}
 
-	if (strncmp("setid", command, CHAR_COMMAND_SIZE) == 0) {
-		settings.id = (uint32_t)atoi(value);
-		isSuccess = true;
-	} else if (strncmp("setsleep", command, CHAR_COMMAND_SIZE) == 0) {
+	if (strncmp("setsleep", command, CHAR_COMMAND_SIZE) == 0) {
 		LogService::updateSleep(atoi(value) * MILLIS_IN_SECOND);
 		isSuccess = true;
 	} else if (strncmp("seturl", command, CHAR_COMMAND_SIZE) == 0) {
-		strncpy(settings.server_url, value, sizeof(settings.server_url) - 1);
-		isSuccess = true;
-	} else if (strncmp("setport", command, CHAR_COMMAND_SIZE) == 0) {
-		strncpy(settings.server_port, value, sizeof(settings.server_port) - 1);
+		strncpy(settings.url, value, sizeof(settings.url) - 1);
 		isSuccess = true;
 	} else if (strncmp("setlitersmin", command, CHAR_COMMAND_SIZE) == 0) {
 		pump_update_ltrmin(atoi(value));
@@ -181,60 +174,17 @@ void _execute_command()
 	}
 #endif
 
+	settings_show();
+
 	if (isSuccess) {
 		set_settings_update_status(true);
 		return;
 	}
 
-	_show_error();
 	_clear_command();
 }
 
 void _clear_command()
 {
 	memset(command_buffer, 0, sizeof(command_buffer));
-}
-
-void _show_error()
-{
-	printPretty(
-		"\n\n####################SETTINGS####################\n" \
-		"Time:             20%02u-%02u-%02uT%02u:%02u:%02u\n" \
-		"Device ID:        %lu\n" \
-		"Server URL:       %s:%s\n" \
-		"ADC level MIN:    %lu\n" \
-		"ADC level MAX:    %lu\n" \
-		"Liquid level MIN: %lu l\n" \
-		"Liquid level MAX: %lu l\n" \
-		"Target:           %lu l/d\n" \
-		"Sleep time:       %lu sec\n" \
-		"Server log ID:    %lu\n" \
-		"Pump speed:       %lu ml/h\n" \
-		"Pump work:        %lu sec\n" \
-		"Pump work day:    %lu sec\n" \
-		"Config ver:       %lu\n" \
-		"Pump              %s\n" \
-		"####################SETTINGS####################\n\n", \
-		clock_get_year() % 100, \
-		clock_get_month(), \
-		clock_get_date(), \
-		clock_get_hour(), \
-		clock_get_minute(), \
-		clock_get_second(), \
-		settings.id, \
-		settings.server_url, \
-		settings.server_port, \
-		settings.tank_ADC_min, \
-		settings.tank_ADC_max, \
-		settings.tank_liters_min / MILLILITERS_IN_LITER, \
-		settings.tank_liters_max / MILLILITERS_IN_LITER, \
-		settings.pump_target / MILLILITERS_IN_LITER, \
-		settings.sleep_time / MILLIS_IN_SECOND, \
-		settings.server_log_id, \
-		settings.pump_speed, \
-		settings.pump_work_sec, \
-		settings.pump_work_day_sec, \
-		settings.cf_id, \
-		settings.pump_enabled ? "ON" : "OFF"
-	);
 }

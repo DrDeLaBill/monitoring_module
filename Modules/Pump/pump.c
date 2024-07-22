@@ -11,10 +11,10 @@
 #include <stdbool.h>
 #include <string.h>
 
-#include "log.h"
+#include "glog.h"
 #include "main.h"
 #include "clock.h"
-#include "utils.h"
+#include "gutils.h"
 #include "settings.h"
 #include "liquid_sensor.h"
 #include "pressure_sensor.h"
@@ -22,12 +22,8 @@
 
 
 #define CYCLES_PER_HOUR    4
-#define MONTHS_PER_YEAR    12
-#define HOURS_PER_DAY      24
-#define SECONDS_PER_MINUTE 60
 #define MIN_PUMP_WORK_TIME ((uint32_t)30000)
 #define PUMP_OFF_TIME_MIN  ((uint32_t)5000)
-#define MINUTES_PER_HOUR   60
 #define PUMP_WORK_PERIOD   ((uint32_t)900000)
 
 #define PUMP_LED_DISABLE_STATE_OFF_TIME ((uint32_t)6000)

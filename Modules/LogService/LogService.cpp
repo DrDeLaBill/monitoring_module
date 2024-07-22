@@ -6,9 +6,10 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "log.h"
+#include "glog.h"
 #include "pump.h"
 #include "clock.h"
+#include "system.h"
 #include "defines.h"
 #include "settings.h"
 #include "sim_module.h"
@@ -28,24 +29,26 @@ std::unique_ptr<RecordDB> LogService::nextRecord = std::make_unique<RecordDB>(0)
 bool LogService::newRecordLoaded = false;
 
 
-const char* LogService::TAG               = "LOG";
+const char* LogService::TAG                = "LOG";
 
-const char* LogService::T_DASH_FIELD      = "-";
-const char* LogService::T_TIME_FIELD      = "t";
-const char* LogService::T_COLON_FIELD     = ":";
+const char* LogService::T_DASH_FIELD       = "-";
+const char* LogService::T_TIME_FIELD       = "t";
+const char* LogService::T_COLON_FIELD      = ":";
 
-const char* LogService::TIME_FIELD        = "t";
-const char* LogService::CF_ID_FIELD       = "cf_id";
-const char* LogService::CF_DATA_FIELD     = "cf";
-const char* LogService::CF_DEV_ID_FIELD   = "id";
-const char* LogService::CF_PWR_FIELD      = "pwr";
-const char* LogService::CF_LTRMIN_FIELD   = "ltrmin";
-const char* LogService::CF_LTRMAX_FIELD   = "ltrmax";
-const char* LogService::CF_TRGT_FIELD     = "trgt";
-const char* LogService::CF_SLEEP_FIELD    = "sleep";
-const char* LogService::CF_SPEED_FIELD    = "speed";
-const char* LogService::CF_LOGID_FIELD    = "d_hwm";
-const char* LogService::CF_CLEAR_FIELD    = "clr";
+const char* LogService::TIME_FIELD         = "t";
+const char* LogService::CF_ID_FIELD        = "cf_id";
+const char* LogService::CF_DATA_FIELD      = "cf";
+const char* LogService::CF_DEV_ID_FIELD    = "id";
+const char* LogService::CF_PWR_FIELD       = "pwr";
+const char* LogService::CF_LTRMIN_FIELD    = "ltrmin";
+const char* LogService::CF_LTRMAX_FIELD    = "ltrmax";
+const char* LogService::CF_LTRADCMIN_FIELD = "ltradcmin";
+const char* LogService::CF_LTRADCMAX_FIELD = "ltradcmax";
+const char* LogService::CF_TRGT_FIELD      = "trgt";
+const char* LogService::CF_SLEEP_FIELD     = "sleep";
+const char* LogService::CF_SPEED_FIELD     = "speed";
+const char* LogService::CF_LOGID_FIELD     = "d_hwm";
+const char* LogService::CF_CLEAR_FIELD     = "clr";
 
 
 void LogService::update()
@@ -91,19 +94,26 @@ void LogService::sendRequest()
 	snprintf(
 		data,
 		sizeof(data),
-		"id=%lu\n"
-		"fw_id=%lu\n"
-		"cf_id=%lu\n"
-		"t=20%02d-%02d-%02dT%02d:%02d:%02d\n",
-		settings.id,
+		"id=%s\n"
+		"fw_id=%u\n"
+		"cf_id=%lu\n",
+		get_system_serial_str(),
 		FW_VERSION,
-		settings.cf_id,
-		clock_get_year(),
-		clock_get_month(),
-		clock_get_date(),
-		clock_get_hour(),
-		clock_get_minute(),
-		clock_get_second()
+		settings.cf_id
+	);
+	if (!settings.calibrated) {
+		snprintf(
+			data + strlen(data),
+			sizeof(data) - strlen(data),
+			"adclevel=%u\n",
+			get_liquid_adc()
+		);
+	}
+	snprintf(
+		data + strlen(data),
+		sizeof(data) - strlen(data),
+		"t=%s\n",
+		get_clock_time_format()
 	);
 
 	RecordDB::RecordStatus recordStatus = RecordDB::RECORD_ERROR;
@@ -243,6 +253,14 @@ void LogService::parse()
 		pump_update_ltrmax(atoi(data_ptr));
 	}
 
+	if (LogService::findParam(&data_ptr, var_ptr, CF_LTRADCMIN_FIELD)) {
+		settings.tank_ADC_min = atoi(data_ptr);
+	}
+
+	if (LogService::findParam(&data_ptr, var_ptr, CF_LTRADCMAX_FIELD)) {
+		settings.tank_ADC_max = atoi(data_ptr);
+	}
+
 	if (LogService::findParam(&data_ptr, var_ptr, CF_TRGT_FIELD)) {
 		pump_update_target(atoi(data_ptr));
 	}
@@ -253,10 +271,6 @@ void LogService::parse()
 
 	if (LogService::findParam(&data_ptr, var_ptr, CF_SPEED_FIELD)) {
 		pump_update_speed(atoi(data_ptr));
-	}
-
-	if (LogService::findParam(&data_ptr, var_ptr, CF_DEV_ID_FIELD)) {
-		settings.id = atoi(data_ptr);
 	}
 
 	if (LogService::findParam(&data_ptr, var_ptr, CF_CLEAR_FIELD)) {
@@ -308,12 +322,6 @@ bool LogService::findParam(char** dst, const char* src, const char* param)
 	}
 
 	snprintf(search_param, sizeof(search_param), ";%s=", param);
-	ptr = strnstr(src, search_param, strlen(src));
-	if (ptr) {
-		goto do_success;
-	}
-
-	snprintf(search_param, sizeof(search_param), "=%s=", param);
 	ptr = strnstr(src, search_param, strlen(src));
 	if (ptr) {
 		goto do_success;

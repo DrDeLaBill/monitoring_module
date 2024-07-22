@@ -4,11 +4,11 @@
 
 #include <cstring>
 
-#include "log.h"
+#include "glog.h"
 #include "main.h"
 #include "soul.h"
 #include "main.h"
-#include "utils.h"
+#include "gutils.h"
 #include "bmacro.h"
 
 #include "CodeStopwatch.h"

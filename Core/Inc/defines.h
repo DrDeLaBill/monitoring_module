@@ -20,8 +20,6 @@ extern "C" {
 #include "stm32f1xx_hal.h"
 
 // General settings
-#define FW_VERSION            ((uint32_t)2)
-#define CF_VERSION_DEFAULT    ((uint32_t)1)
 #define MILLIS_IN_SECOND      1000
 #define DEFAULT_UART_DELAY    100
 #define DEFAULT_UART_SIZE     100

@@ -7,7 +7,7 @@
 #include <stdint.h>
 
 #include "main.h"
-#include "utils.h"
+#include "gutils.h"
 #include "defines.h"
 
 #define PRESS_MPA_x100_MAX ((uint16_t)1600)

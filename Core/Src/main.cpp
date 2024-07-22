@@ -29,17 +29,17 @@
 /* USER CODE BEGIN Includes */
 #include <string.h>
 
-#include "log.h"
+#include "glog.h"
 #include "pump.h"
 #include "soul.h"
-#include "utils.h"
+#include "gutils.h"
+#include "at24cm01.h"
 #include "settings.h"
 #include "sim_module.h"
 #include "ds1307_driver.h"
 #include "liquid_sensor.h"
 #include "pressure_sensor.h"
 #include "command_manager.h"
-#include "eeprom_at24cm01_storage.h"
 
 #include "RecordDB.h"
 #include "StorageAT.h"
@@ -132,7 +132,7 @@ int main(void)
   MX_RTC_Init();
 #endif
 
-    set_status(WAIT_LOAD);
+    set_status(LOADING);
 
     HAL_Delay(100);
 
@@ -163,7 +163,7 @@ int main(void)
 		RTCWatchdog
 	> soulGuard;
 
-	while (is_status(WAIT_LOAD)) soulGuard.defend();
+	while (is_status(LOADING)) soulGuard.defend();
 
     printTagLog(MAIN_TAG, "The device has been loaded\n");
 

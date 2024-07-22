@@ -39,6 +39,7 @@ bool     clock_get_rtc_date(RTC_DateTypeDef* date);
 uint32_t clock_datetime_to_seconds(const RTC_DateTypeDef* date, const RTC_TimeTypeDef* time);
 uint32_t clock_get_timestamp();
 void     clock_seconds_to_datetime(const uint32_t seconds, RTC_DateTypeDef* date, RTC_TimeTypeDef* time);
+char*    get_clock_time_format();
 
 
 #ifdef __cplusplus

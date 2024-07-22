@@ -6,7 +6,7 @@
 #include <memory>
 #include <stdint.h>
 
-#include "utils.h"
+#include "gutils.h"
 
 #include "RecordDB.h"
 
@@ -30,13 +30,15 @@ private:
 	static const char* CF_PWR_FIELD;
 	static const char* CF_LTRMIN_FIELD;
 	static const char* CF_LTRMAX_FIELD;
+	static const char* CF_LTRADCMIN_FIELD;
+	static const char* CF_LTRADCMAX_FIELD;
 	static const char* CF_TRGT_FIELD;
 	static const char* CF_SLEEP_FIELD;
 	static const char* CF_SPEED_FIELD;
 	static const char* CF_LOGID_FIELD;
 	static const char* CF_CLEAR_FIELD;
 
-	static constexpr uint32_t LOG_SIZE = 370;
+	static constexpr uint32_t LOG_SIZE = 400;
 
 	static util_old_timer_t logTimer;
 	static util_old_timer_t settingsTimer;
