@@ -127,12 +127,16 @@ uint32_t clock_get_timestamp()
 	RTC_TimeTypeDef time = {0};
 
 	if (!clock_get_rtc_date(&date)) {
+#if CLOCK_BEDUG
 		BEDUG_ASSERT(false, "Unable to get current date");
+#endif
 		memset((void*)&date, 0, sizeof(date));
 	}
 
 	if (!clock_get_rtc_time(&time)) {
+#if CLOCK_BEDUG
 		BEDUG_ASSERT(false, "Unable to get current time");
+#endif
 		memset((void*)&time, 0, sizeof(time));
 	}
 
@@ -154,6 +158,9 @@ void clock_seconds_to_datetime(const uint32_t seconds, RTC_DateTypeDef* date, RT
 	uint32_t days = 1 + hours / HOURS_PER_DAY;
 
 	date->WeekDay = (uint8_t)((RTC_WEEKDAY_THURSDAY + days) % (DAYS_PER_WEEK)) + 1;
+	if (date->WeekDay == DAYS_PER_WEEK) {
+		date->WeekDay = 0;
+	}
 	date->Month = 1;
 	while (days) {
 		uint16_t days_in_year = (date->Year % LEAP_YEAR_PERIOD > 0) ? DAYS_PER_YEAR : DAYS_PER_LEAP_YEAR;
@@ -185,13 +192,17 @@ char* get_clock_time_format()
 	RTC_TimeTypeDef time = {0};
 
 	if (!clock_get_rtc_date(&date)) {
+#if CLOCK_BEDUG
 		BEDUG_ASSERT(false, "Unable to get current date");
+#endif
 		memset((void*)&date, 0, sizeof(date));
 		return format_time;
 	}
 
 	if (!clock_get_rtc_time(&time)) {
+#if CLOCK_BEDUG
 		BEDUG_ASSERT(false, "Unable to get current time");
+#endif
 		memset((void*)&time, 0, sizeof(time));
 		return format_time;
 	}

@@ -10,19 +10,23 @@ extern "C" {
 #include <stdbool.h>
 
 
-#define SIM_MODULE_DEBUG (true)
+#ifdef DEBUG
+#   define SIM_MODULE_DEBUG (1)
+#endif
 
-#define RESPONSE_SIZE 430
-#define END_OF_STRING 0x1a
+
+#define RESPONSE_SIZE (430)
+#define END_OF_STRING (0x1a)
+#define SIM_LOG_SIZE  (200)
 
 
 extern char sim_response[RESPONSE_SIZE];
 
 
-void sim_module_begin();
-void sim_module_proccess();
+void sim_begin();
+void sim_proccess();
 void sim_proccess_input(const char input_chr);
-void send_http_post(const char* data);
+void send_sim_http_post(const char* data);
 bool has_http_response();
 bool if_network_ready();
 char* get_response();

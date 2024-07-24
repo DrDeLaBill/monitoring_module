@@ -8,7 +8,9 @@
 
 #include "main.h"
 #include "gutils.h"
+#include "system.h"
 #include "defines.h"
+
 
 #define PRESS_MPA_x100_MAX ((uint16_t)1600)
 #define PRESS_MPA_x100_MIN ((uint16_t)0)
@@ -76,18 +78,6 @@ uint16_t get_press()
 
 uint16_t _pressure_get_adc_value()
 {
-	ADC_ChannelConfTypeDef conf = {
-		.Channel = PRESS_ADC_CHANNELL,
-		.Rank = 1,
-		.SamplingTime = ADC_SAMPLETIME_28CYCLES_5,
-	};
-	if (HAL_ADC_ConfigChannel(&MEASURE_ADC, &conf) != HAL_OK) {
-		return 0;
-	}
-	HAL_ADC_Start(&MEASURE_ADC);
-	HAL_ADC_PollForConversion(&MEASURE_ADC, ADC_READ_TIMEOUT);
-	uint16_t pressure_ADC_value = HAL_ADC_GetValue(&MEASURE_ADC);
-	HAL_ADC_Stop(&MEASURE_ADC);
-	return pressure_ADC_value;
+	return SYSTEM_ADC_VOLTAGE[2];
 }
 

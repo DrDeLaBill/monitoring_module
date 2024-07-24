@@ -7,33 +7,85 @@
 #include "glog.h"
 #include "soul.h"
 #include "main.h"
+#include "fsm_gc.h"
 #include "settings.h"
 
 #include "SettingsDB.h"
 #include "CodeStopwatch.h"
 
 
-fsm::FiniteStateMachine<SettingsWatchdog::fsm_table> SettingsWatchdog::fsm;
+void _stng_check(void);
+
+void _stng_init_s(void);
+void _stng_idle_s(void);
+void _stng_save_s(void);
+void _stng_load_s(void);
+
+
+#if WATCHDOG_BEDUG
+const char STNGw_TAG[] = "STGw";
+#endif
+
+
+FSM_GC_CREATE(stng_fsm)
+
+FSM_GC_CREATE_EVENT(stng_success_e)
+FSM_GC_CREATE_EVENT(stng_saved_e)
+FSM_GC_CREATE_EVENT(stng_updated_e)
+
+FSM_GC_CREATE_STATE(stng_init_s, _stng_init_s)
+FSM_GC_CREATE_STATE(stng_idle_s, _stng_idle_s)
+FSM_GC_CREATE_STATE(stng_save_s, _stng_save_s)
+FSM_GC_CREATE_STATE(stng_load_s, _stng_load_s)
+
+FSM_GC_CREATE_TABLE(
+	stng_fsm_table,
+	{&stng_init_s, &stng_updated_e, &stng_idle_s},
+
+	{&stng_idle_s, &stng_saved_e,   &stng_load_s},
+	{&stng_idle_s, &stng_updated_e, &stng_save_s},
+
+	{&stng_load_s, &stng_updated_e, &stng_idle_s},
+	{&stng_save_s, &stng_saved_e,   &stng_idle_s}
+)
 
 
 SettingsWatchdog::SettingsWatchdog()
 {
 	set_status(LOADING);
+
+	fsm_gc_init(&stng_fsm, stng_fsm_table, __arr_len(stng_fsm_table));
 }
 
 void SettingsWatchdog::check()
 {
+#if WATCHDOG_BEDUG
 	utl::CodeStopwatch stopwatch("STNG", GENERAL_TIMEOUT_MS);
-	fsm.proccess();
+#endif
+
+	fsm_gc_proccess(&stng_fsm);
 }
 
-void SettingsWatchdog::state_init::operator ()() const
+void _stng_check(void)
+{
+	reset_error(SETTINGS_LOAD_ERROR);
+	if (!settings_check(&settings)) {
+		set_error(SETTINGS_LOAD_ERROR);
+#if WATCHDOG_BEDUG
+		printTagLog(STNGw_TAG, "action_check: event_not_valid");
+#endif
+		settings_repair(&settings);
+		set_status(NEED_SAVE_SETTINGS);
+	}
+}
+
+void _stng_init_s(void)
 {
 	SettingsDB settingsDB(reinterpret_cast<uint8_t*>(&settings), settings_size());
 	SettingsStatus status = settingsDB.load();
 	if (status == SETTINGS_OK) {
-#if SETTINGS_WATCHDOG_BEDUG
-		printTagLog(TAG, "state_init: event_loaded");
+#if WATCHDOG_BEDUG
+		printTagLog(STNGw_TAG, "state_init: event_loaded");
 #endif
 		if (!settings_check(&settings)) {
 			status = SETTINGS_ERROR;
@@ -44,8 +96,8 @@ void SettingsWatchdog::state_init::operator ()() const
 		settings_repair(&settings);
 		status = settingsDB.save();
 		if (status == SETTINGS_OK) {
-#if SETTINGS_WATCHDOG_BEDUG
-			printTagLog(TAG, "state_init: event_saved");
+#if WATCHDOG_BEDUG
+			printTagLog(STNGw_TAG, "state_init: event_saved");
 #endif
 		}
 	}
@@ -57,38 +109,43 @@ void SettingsWatchdog::state_init::operator ()() const
 		set_status(SETTINGS_INITIALIZED);
 		reset_status(LOADING);
 
-		fsm.push_event(updated_e{});
+		_stng_check();
+		fsm_gc_push_event(&stng_fsm, &stng_updated_e);
 	} else {
 		set_error(SETTINGS_LOAD_ERROR);
 	}
 }
 
-void SettingsWatchdog::state_idle::operator ()() const
+void _stng_idle_s(void)
 {
 	if (is_status(NEED_SAVE_SETTINGS)) {
-#if SETTINGS_WATCHDOG_BEDUG
-		printTagLog(TAG, "state_idle: event_updated");
+#if WATCHDOG_BEDUG
+		printTagLog(STNGw_TAG, "state_idle: event_updated");
 #endif
 		set_status(LOADING);
-		fsm.push_event(updated_e{});
+		_stng_check();
+		fsm_gc_push_event(&stng_fsm, &stng_updated_e);
 	} else if (is_status(NEED_LOAD_SETTINGS)) {
-#if SETTINGS_WATCHDOG_BEDUG
-		printTagLog(TAG, "state_idle: event_saved");
+#if WATCHDOG_BEDUG
+		printTagLog(STNGw_TAG, "state_idle: event_saved");
 #endif
 		set_status(LOADING);
-		fsm.push_event(saved_e{});
+		_stng_check();
+		fsm_gc_push_event(&stng_fsm, &stng_saved_e);
 	}
 }
 
-void SettingsWatchdog::state_save::operator ()() const
+void _stng_save_s(void)
 {
 	SettingsDB settingsDB(reinterpret_cast<uint8_t*>(&settings), settings_size());
 	SettingsStatus status = settingsDB.save();
 	if (status == SETTINGS_OK) {
-#if SETTINGS_WATCHDOG_BEDUG
-		printTagLog(TAG, "state_save: event_saved");
+#if WATCHDOG_BEDUG
+		printTagLog(STNGw_TAG, "state_save: event_saved");
 #endif
-		fsm.push_event(saved_e{});
+		_stng_check();
+		fsm_gc_push_event(&stng_fsm, &stng_saved_e);
+
 		settings_show();
 
 		reset_error(SETTINGS_LOAD_ERROR);
@@ -98,32 +155,21 @@ void SettingsWatchdog::state_save::operator ()() const
 	}
 }
 
-void SettingsWatchdog::state_load::operator ()() const
+void _stng_load_s(void)
 {
 	SettingsDB settingsDB(reinterpret_cast<uint8_t*>(&settings), settings_size());
 	SettingsStatus status = settingsDB.load();
 	if (status == SETTINGS_OK) {
-#if SETTINGS_WATCHDOG_BEDUG
-		printTagLog(TAG, "state_load: event_loaded");
+#if WATCHDOG_BEDUG
+		printTagLog(STNGw_TAG, "state_load: event_loaded");
 #endif
-		fsm.push_event(updated_e{});
+		_stng_check();
+		fsm_gc_push_event(&stng_fsm, &stng_updated_e);
+
 		settings_show();
 
 		reset_error(SETTINGS_LOAD_ERROR);
 		reset_status(NEED_LOAD_SETTINGS);
 		reset_status(LOADING);
-	}
-}
-
-void SettingsWatchdog::action_check::operator ()() const
-{
-	reset_error(SETTINGS_LOAD_ERROR);
-	if (!settings_check(&settings)) {
-		set_error(SETTINGS_LOAD_ERROR);
-#if SETTINGS_WATCHDOG_BEDUG
-		printTagLog(TAG, "action_check: event_not_valid");
-#endif
-		settings_repair(&settings);
-		set_status(NEED_SAVE_SETTINGS);
 	}
 }

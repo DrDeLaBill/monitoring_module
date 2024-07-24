@@ -13,7 +13,12 @@ extern "C" {
 #include "soul.h"
 
 
-extern uint16_t SYSTEM_ADC_VOLTAGE;
+#ifdef DEBUG
+#   define SYSTEM_BEDUG (1)
+#endif
+
+
+extern uint16_t SYSTEM_ADC_VOLTAGE[3];
 
 
 void system_clock_hsi_config(void);

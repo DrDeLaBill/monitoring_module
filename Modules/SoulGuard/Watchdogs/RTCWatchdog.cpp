@@ -12,12 +12,11 @@
 #include "CodeStopwatch.h"
 
 
-extern settings_t settings;
-
-
 void RTCWatchdog::check()
 {
+#if WATCHDOG_BEDUG
 	utl::CodeStopwatch stopwatch("RTC", GENERAL_TIMEOUT_MS);
+#endif
 
 	RTC_DateTypeDef date = {};
 	RTC_TimeTypeDef time = {};
@@ -28,11 +27,15 @@ void RTCWatchdog::check()
 
 	bool updateFlag = false;
 	if (date.Date == 0 || date.Date > 31) {
+#if WATCHDOG_BEDUG
 		printTagLog(TAG, "WARNING! The date of the clock has been reset to 1");
+#endif
 		updateFlag = true;
 	}
 	if (date.Month == 0 || date.Month > 12) {
+#if WATCHDOG_BEDUG
 		printTagLog(TAG, "WARNING! The month of the clock has been reset to 1");
+#endif
 		updateFlag = true;
 	}
 
@@ -42,17 +45,23 @@ void RTCWatchdog::check()
 
 	updateFlag = false;
 	if (time.Seconds > 59) {
+#if WATCHDOG_BEDUG
 		printTagLog(TAG, "WARNING! The seconds of the clock has been reset to 1");
+#endif
 		updateFlag = true;
 		time.Seconds = 0;
 	}
 	if (time.Minutes > 59) {
+#if WATCHDOG_BEDUG
 		printTagLog(TAG, "WARNING! The minutes of the clock has been reset to 1");
+#endif
 		updateFlag = true;
 		time.Minutes = 0;
 	}
 	if (time.Hours > 23) {
+#if WATCHDOG_BEDUG
 		printTagLog(TAG, "WARNING! The hours of the clock has been reset to 1");
+#endif
 		updateFlag = true;
 		time.Hours = 0;
 	}

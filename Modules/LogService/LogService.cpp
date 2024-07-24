@@ -61,8 +61,8 @@ void LogService::update()
 		LogService::parse();
 	}
 
-	if (LogService::logTimer.delay != settings.sleep_time) {
-		LogService::logTimer.delay = settings.sleep_time;
+	if (logTimer.delay != settings.sleep_time) {
+		logTimer.delay = settings.sleep_time;
 	}
 
 	if (util_old_timer_wait(&LogService::logTimer)) {
@@ -90,7 +90,7 @@ void LogService::updateSleep(uint32_t time)
 
 void LogService::sendRequest()
 {
-	char data[LOG_SIZE] = {};
+	char data[SIM_LOG_SIZE] = {};
 	snprintf(
 		data,
 		sizeof(data),
@@ -117,14 +117,14 @@ void LogService::sendRequest()
 	);
 
 	RecordDB::RecordStatus recordStatus = RecordDB::RECORD_ERROR;
-	if (!newRecordLoaded && is_new_data_saved()) {
+	if (!newRecordLoaded && is_status(HAS_NEW_RECORD)) {
 		nextRecord   = std::make_unique<RecordDB>(static_cast<uint32_t>(settings.server_log_id));
 		recordStatus = nextRecord->loadNext();
 	}
 	if (recordStatus == RecordDB::RECORD_NO_LOG) {
-		set_new_data_saved(false);
+	    reset_status(HAS_NEW_RECORD);
 	}
-	if (recordStatus == RecordDB::RECORD_OK) {
+	if (/* settings.calibrated && */recordStatus == RecordDB::RECORD_OK) {
 		snprintf(
 			data + strlen(data),
 			sizeof(data) - strlen(data),
@@ -157,10 +157,10 @@ void LogService::sendRequest()
 
 
 #if LOG_SERVICE_BEDUG
-	printTagLog(TAG, "request: %s\n", data);
+	printTagLog(TAG, "request:\n%s\n", data);
 #endif
 
-	send_http_post(data);
+	send_sim_http_post(data);
 	util_old_timer_start(&settingsTimer, settingsDelayMs);
 	LogService::logId = nextRecord->record.id;
 }
@@ -216,7 +216,9 @@ void LogService::parse()
 	settings.server_log_id = atoi(data_ptr);
 
 
+#if LOG_SERVICE_BEDUG
 	printTagLog(LogService::TAG, "Recieved response from the server\n");
+#endif
 
 	if (!LogService::findParam(&data_ptr, var_ptr, CF_ID_FIELD)) {
 #if LOG_SERVICE_BEDUG
@@ -234,12 +236,9 @@ void LogService::parse()
 
 	if (!LogService::findParam(&data_ptr, var_ptr, CF_DATA_FIELD)) {
 #if LOG_SERVICE_BEDUG
-		printTagLog(LogService::TAG, "unable to parse response (no data) - [%s]\n", var_ptr);
+		printTagLog(LogService::TAG, "warning: no cf_id data - [%s]\n", var_ptr);
 #endif
-		return;
 	}
-	data_ptr += strlen(CF_DATA_FIELD);
-	var_ptr = data_ptr;
 
 	if (LogService::findParam(&data_ptr, var_ptr, CF_PWR_FIELD)) {
 		pump_update_enable_state(atoi(data_ptr));
@@ -302,7 +301,7 @@ void LogService::saveNewLog()
 	if (record.save() == RecordDB::RECORD_OK) {
 		settings.pump_work_sec = 0;
 		settings.pump_downtime_sec = 0;
-		set_settings_update_status(true);
+		set_status(NEED_SAVE_SETTINGS);
 	}
 }
 
@@ -316,6 +315,12 @@ bool LogService::findParam(char** dst, const char* src, const char* param)
 	char* ptr = NULL;
 
 	snprintf(search_param, sizeof(search_param), "\n%s=", param);
+	ptr = strnstr(src, search_param, strlen(src));
+	if (ptr) {
+		goto do_success;
+	}
+
+	snprintf(search_param, sizeof(search_param), "=%s=", param);
 	ptr = strnstr(src, search_param, strlen(src));
 	if (ptr) {
 		goto do_success;
@@ -398,8 +403,7 @@ void LogService::clearLog()
 	settings.pump_work_sec = 0;
 	settings.pump_work_day_sec = 0;
 	settings.pump_downtime_sec = 0;
-	// TODO: clear log in EEPROM
-	set_settings_update_status(true);
+	set_status(NEED_SAVE_SETTINGS);
 }
 
 void LogService::saveResponse()
@@ -407,5 +411,5 @@ void LogService::saveResponse()
 #if LOG_SERVICE_BEDUG
 	printTagLog(LogService::TAG, "configuration updated\n");
 #endif
-	set_settings_update_status(true);
+	set_status(NEED_SAVE_SETTINGS);
 }

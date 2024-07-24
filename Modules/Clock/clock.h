@@ -25,6 +25,9 @@ extern "C" {
 #define DAYS_PER_LEAP_YEAR (366)
 #define LEAP_YEAR_PERIOD   ((uint32_t)4)
 
+#ifdef DEBUG
+#   define CLOCK_BEDUG     (1)
+#endif
 
 uint8_t  clock_get_year();
 uint8_t  clock_get_month();

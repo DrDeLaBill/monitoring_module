@@ -12,16 +12,17 @@
 #include <string.h>
 
 #include "glog.h"
+#include "soul.h"
 #include "main.h"
 #include "clock.h"
 #include "gutils.h"
 #include "settings.h"
 #include "liquid_sensor.h"
-#include "pressure_sensor.h"
 #include "command_manager.h"
+#include "pressure_sensor.h"
 
 
-#define CYCLES_PER_HOUR    4
+#define CYCLES_PER_HOUR    (4)
 #define MIN_PUMP_WORK_TIME ((uint32_t)30000)
 #define PUMP_OFF_TIME_MIN  ((uint32_t)5000)
 #define PUMP_WORK_PERIOD   ((uint32_t)900000)
@@ -68,6 +69,7 @@ void pump_init()
 
 	pump_update_enable_state(settings.pump_enabled);
 
+#if PUMP_BEDUG
     if (settings.pump_target == 0) {
         printTagLog(PUMP_TAG, "WWARNING - pump init - no setting milliliters_per_day");
     }
@@ -77,6 +79,7 @@ void pump_init()
     if (is_liquid_tank_empty()) {
         printTagLog(PUMP_TAG, "WWARNING - pump init - liquid tank empty");
     }
+#endif
 }
 
 void pump_proccess()
@@ -168,7 +171,7 @@ void pump_clear_log()
     settings.pump_work_sec = 0;
     settings.pump_work_day_sec = 0;
 	_pump_clear_state();
-	set_settings_update_status(true);
+	set_status(NEED_SAVE_SETTINGS);
 }
 
 void pump_show_status()
@@ -177,7 +180,6 @@ void pump_show_status()
 	uint16_t liquid_adc = get_liquid_adc();
 	uint16_t pressure_1 = get_press();
 
-    printTagLog(PUMP_TAG, "PUMP_STATUS: %s\n################################################", pump_state.enabled ? "ENABLED" : "DISABLED");
 
     uint16_t used_day_liquid = settings.pump_work_day_sec * settings.pump_speed / MILLIS_IN_SECOND;
     if (settings.pump_target == 0) {
@@ -406,9 +408,11 @@ void _pump_log_work_time()
 	uint32_t time = work_state_time / MILLIS_IN_SECOND;
 	settings.pump_work_day_sec += time;
 	settings.pump_work_sec += time;
+#if PUMP_BEDUG
 	printTagLog(PUMP_TAG, "update work log: time added (%lu s)", time);
+#endif
 
-	set_settings_update_status(true);
+	set_status(NEED_SAVE_SETTINGS);
 }
 
 void _pump_log_downtime()
@@ -425,16 +429,20 @@ void _pump_log_downtime()
 
 	uint32_t time = __abs_dif(HAL_GetTick(), pump_state.start_time) / MILLIS_IN_SECOND;
     settings.pump_downtime_sec += time;
+#if PUMP_BEDUG
     printTagLog(PUMP_TAG, "update downtime log: time added (%ld s)", time);
+#endif
 
-	set_settings_update_status(true);
+	set_status(NEED_SAVE_SETTINGS);
 }
 
 void _pump_check_log_date()
 {
 	uint8_t cur_date = clock_get_date();
 	if (settings.pump_log_date != cur_date) {
+#if PUMP_BEDUG
 		printTagLog(PUMP_TAG, "update pump log: day counter - %u -> %u", settings.pump_log_date, cur_date);
+#endif
 		settings.pump_work_day_sec = 0;
 		settings.pump_log_date = cur_date;
 	}

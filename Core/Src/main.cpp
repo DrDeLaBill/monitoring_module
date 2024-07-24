@@ -19,6 +19,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "adc.h"
+#include "dma.h"
 #include "i2c.h"
 #include "iwdg.h"
 #include "rtc.h"
@@ -33,13 +34,14 @@
 #include "pump.h"
 #include "soul.h"
 #include "gutils.h"
+#include "system.h"
 #include "at24cm01.h"
 #include "settings.h"
 #include "sim_module.h"
 #include "ds1307_driver.h"
 #include "liquid_sensor.h"
-#include "pressure_sensor.h"
 #include "command_manager.h"
+#include "pressure_sensor.h"
 
 #include "RecordDB.h"
 #include "StorageAT.h"
@@ -66,13 +68,16 @@
 
 /* USER CODE BEGIN PV */
 
-static constexpr char MAIN_TAG[] = "MAIN";
+const char MAIN_TAG[] = "MAIN";
 
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
+
+void error_loop();
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -87,6 +92,15 @@ StorageAT storage(
 char cmd_input_chr = 0;
 char sim_input_chr = 0;
 
+SoulGuard<
+	RestartWatchdog,
+	MemoryWatchdog,
+	StackWatchdog,
+	SettingsWatchdog,
+	PowerWatchdog,
+	RTCWatchdog
+> soulGuard;
+
 /* USER CODE END 0 */
 
 /**
@@ -96,6 +110,7 @@ char sim_input_chr = 0;
 int main(void)
 {
   /* USER CODE BEGIN 1 */
+	system_pre_load();
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -104,18 +119,22 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-
+  if (is_error(RCC_ERROR)) {
+	  system_clock_hsi_config();
+  } else {
   /* USER CODE END Init */
 
   /* Configure the system clock */
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
+  }
 #ifndef DEBUG
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_I2C1_Init();
   MX_USART1_UART_Init();
   MX_USART3_UART_Init();
@@ -125,6 +144,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
 #else
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_I2C1_Init();
   MX_USART1_UART_Init();
   MX_USART3_UART_Init();
@@ -132,12 +152,16 @@ int main(void)
   MX_RTC_Init();
 #endif
 
-    set_status(LOADING);
+    utl::Timer errTimer(40 * SECOND_MS);
 
     HAL_Delay(100);
 
     gprint("\n\n\n");
     printTagLog(MAIN_TAG, "The device is loading");
+
+	SystemInfo();
+
+    set_status(LOADING);
 
     // UART command manager
     command_manager_begin();
@@ -145,8 +169,6 @@ int main(void)
     pump_init();
     // Clock
     DS1307_Init();
-    // Measure ADC start
-    HAL_ADCEx_Calibration_Start(&MEASURE_ADC);
     // Commands
     HAL_UART_Receive_IT(&COMMAND_UART, (uint8_t*) &cmd_input_chr, sizeof(char));
     // Sim module
@@ -155,35 +177,58 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-	SoulGuard<
-		RestartWatchdog,
-		MemoryWatchdog,
-		StackWatchdog,
-		SettingsWatchdog,
-		RTCWatchdog
-	> soulGuard;
 
-	while (is_status(LOADING)) soulGuard.defend();
+	system_rtc_test();
+
+    errTimer.start();
+	while (has_errors() || is_status(LOADING)) {
+		soulGuard.defend();
+
+    	if (!errTimer.wait()) {
+			system_error_handler((SOUL_STATUS)get_first_error(), error_loop);
+		}
+	}
+
+    sim_begin();
+
+    system_post_load();
+
+    HAL_Delay(5000);
 
     printTagLog(MAIN_TAG, "The device has been loaded\n");
 
-    // SIM module
-    sim_module_begin();
+#ifdef DEBUG
+	static unsigned last_error = get_first_error();
+#endif
 
+	set_status(WORKING);
+	set_status(HAS_NEW_RECORD);
+	errTimer.start();
     while (1) {
 		soulGuard.defend();
 
-		if (has_errors()) {
+#ifdef DEBUG
+		unsigned error = get_first_error();
+		if (error && last_error != error) {
+			printTagLog(MAIN_TAG, "New error: %u", error);
+			last_error = error;
+		}
+#endif
+
+		if (!errTimer.wait()) {
+			system_error_handler((SOUL_STATUS)get_first_error(), error_loop);
+		}
+
+		if (has_errors() || is_status(LOADING)) {
 			continue;
 		}
+
+#ifndef DEBUG
+		HAL_IWDG_Refresh(&DEVICE_IWDG);
+#endif
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-#ifndef DEBUG
-        // Watchdog timer update
-        HAL_IWDG_Refresh(&DEVICE_IWDG);
-#endif
-
         // Commands from UART
         command_manager_proccess();
 
@@ -194,13 +239,12 @@ int main(void)
         pump_proccess();
 
         // Sim module
-        sim_module_proccess();
+        sim_proccess();
 
         // Logger
         LogService::update();
 
-        // Liquid level measurements
-        level_tick();
+		errTimer.start();
     }
   /* USER CODE END 3 */
 }
@@ -255,6 +299,11 @@ void SystemClock_Config(void)
 
 /* USER CODE BEGIN 4 */
 
+void error_loop()
+{
+	soulGuard.defend();
+}
+
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
     if (huart == &COMMAND_UART) {
         cmd_proccess_input(cmd_input_chr);
@@ -286,10 +335,11 @@ int _write(int, uint8_t *ptr, int len) {
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
-    /* User can add his own implementation to report the HAL error return state */
-    __disable_irq();
-    while (1) {
-    }
+#ifdef DEBUG
+    b_assert(__FILE__, __LINE__, "The error handler has been called");
+#endif
+    SOUL_STATUS err = has_errors() ? (SOUL_STATUS)get_first_error() : ERROR_HANDLER_CALLED;
+	system_error_handler(err, error_loop);
   /* USER CODE END Error_Handler_Debug */
 }
 
@@ -309,6 +359,8 @@ void assert_failed(uint8_t *file, uint32_t line)
 #ifdef DEBUG
 	b_assert((char*)file, line, "Wrong parameters value");
 #endif
+	SOUL_STATUS err = has_errors() ? (SOUL_STATUS)get_first_error() : ASSERT_ERROR;
+	system_error_handler(err, error_loop);
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */

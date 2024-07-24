@@ -15,6 +15,10 @@ extern "C" {
 #include "main.h"
 
 
+#ifdef DEBUG
+#   define SETTINGS_BEDUG (1)
+#endif
+
 
 #define DEVICE_MAJOR (2)
 #define DEVICE_MINOR (0)
@@ -129,14 +133,6 @@ typedef struct __attribute__((packed)) _settings_v1_t  {
 
 
 extern settings_t settings;
-
-
-typedef struct _settings_info_t {
-	bool settings_initialized;
-	bool settings_saved;
-	bool settings_updated;
-	bool saved_new_data;
-} settings_info_t;
 
 
 extern const char defaultUrl[CHAR_SETIINGS_SIZE];

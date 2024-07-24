@@ -12,7 +12,7 @@
 const char SYSTEM_TAG[] = "SYS";
 
 
-uint16_t SYSTEM_ADC_VOLTAGE = 0;
+uint16_t SYSTEM_ADC_VOLTAGE[3] = {0};
 
 
 extern RTC_HandleTypeDef hrtc;
@@ -111,71 +111,100 @@ void system_clock_hsi_config(void)
 
 void system_rtc_test(void)
 {
-#ifdef DEBUG
+#if SYSTEM_BEDUG
 	static const char TEST_TAG[] = "TEST";
-#endif
 	gprint("\n\n\n");
 	printTagLog(TEST_TAG, "RTC testing in progress...");
+#endif
 
 	RTC_DateTypeDef readDate  ={0};
 	RTC_TimeTypeDef readTime = {0};
 
+#if SYSTEM_BEDUG
 	printPretty("Get date test: ");
+#endif
 	if (!clock_get_rtc_date(&readDate)) {
+#if SYSTEM_BEDUG
 		gprint("   error\n");
+#endif
 		system_error_handler(RTC_ERROR, NULL);
 	}
+#if SYSTEM_BEDUG
 	gprint("   OK\n");
-
 	printPretty("Get time test: ");
+#endif
 	if (!clock_get_rtc_time(&readTime)) {
+#if SYSTEM_BEDUG
 		gprint("   error\n");
+#endif
 		system_error_handler(RTC_ERROR, NULL);
 	}
+#if SYSTEM_BEDUG
 	gprint("   OK\n");
-
-
 	printPretty("Save date test: ");
+#endif
 	if (!clock_save_date(&readDate)) {
+#if SYSTEM_BEDUG
 		gprint("  error\n");
+#endif
 		system_error_handler(RTC_ERROR, NULL);
 	}
+#if SYSTEM_BEDUG
 	gprint("  OK\n");
-
 	printPretty("Save time test: ");
+#endif
 	if (!clock_save_time(&readTime)) {
+#if SYSTEM_BEDUG
 		gprint("  error\n");
+#endif
 		system_error_handler(RTC_ERROR, NULL);
 	}
+#if SYSTEM_BEDUG
 	gprint("  OK\n");
+#endif
 
 
 	RTC_DateTypeDef checkDate  ={0};
 	RTC_TimeTypeDef checkTime = {0};
+#if SYSTEM_BEDUG
 	printPretty("Check date test: ");
+#endif
 	if (!clock_get_rtc_date(&checkDate)) {
+#if SYSTEM_BEDUG
 		gprint(" error\n");
+#endif
 		system_error_handler(RTC_ERROR, NULL);
 	}
 	if (memcmp((void*)&readDate, (void*)&checkDate, sizeof(readDate))) {
+#if SYSTEM_BEDUG
 		gprint(" error\n");
+#endif
 		system_error_handler(RTC_ERROR, NULL);
 	}
+#if SYSTEM_BEDUG
 	gprint(" OK\n");
-
 	printPretty("Check time test: ");
+#endif
 	if (!clock_get_rtc_time(&checkTime)) {
+#if SYSTEM_BEDUG
 		gprint(" error\n");
+#endif
 		system_error_handler(RTC_ERROR, NULL);
 	}
 	if (!IS_SAME_TIME(readTime, checkTime)) {
+#if SYSTEM_BEDUG
 		gprint(" error\n");
+#endif
 		system_error_handler(RTC_ERROR, NULL);
 	}
+#if SYSTEM_BEDUG
 	gprint(" OK\n");
+#endif
 
 
+#if SYSTEM_BEDUG
 	printPretty("Weekday test\n");
+#endif
 	const RTC_DateTypeDef dates[] = {
 		{RTC_WEEKDAY_SATURDAY,  01, 01, 00},
 		{RTC_WEEKDAY_SUNDAY,    01, 02, 00},
@@ -225,31 +254,43 @@ void system_rtc_test(void)
 	};
 
 	for (unsigned i = 0; i < __arr_len(seconds); i++) {
+#if SYSTEM_BEDUG
 		printPretty("[%02u]: ", i);
+#endif
 
 		RTC_DateTypeDef tmpDate = {0};
 		RTC_TimeTypeDef tmpTime = {0};
 		clock_seconds_to_datetime(seconds[i], &tmpDate, &tmpTime);
 		if (memcmp((void*)&tmpDate, (void*)&dates[i], sizeof(tmpDate))) {
+#if SYSTEM_BEDUG
 			gprint("            error\n");
+#endif
 			system_error_handler(RTC_ERROR, NULL);
 		}
 		if (!IS_SAME_TIME(tmpTime, times[i])) {
+#if SYSTEM_BEDUG
 			gprint("            error\n");
+#endif
 			system_error_handler(RTC_ERROR, NULL);
 		}
 
 		uint32_t tmpSeconds = clock_datetime_to_seconds(&dates[i], &times[i]);
 		if (tmpSeconds != seconds[i]) {
+#if SYSTEM_BEDUG
 			gprint("            error\n");
+#endif
 			system_error_handler(RTC_ERROR, NULL);
 		}
 
+#if SYSTEM_BEDUG
 		gprint("            OK\n");
+#endif
 	}
 
 
+#if SYSTEM_BEDUG
 	printTagLog(TEST_TAG, "RTC testing done");
+#endif
 }
 
 void system_pre_load(void)
@@ -304,14 +345,16 @@ void system_post_load(void)
 	HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR1, 0);
 	HAL_PWR_DisableBkUpAccess();
 
+#if SYSTEM_BEDUG
 	if (get_last_error()) {
 		printTagLog(SYSTEM_TAG, "Last reload error: %u", get_last_error());
 	}
+#endif
 
 #ifdef STM32F1
 	HAL_ADCEx_Calibration_Start(&hadc1);
 #endif
-	HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&SYSTEM_ADC_VOLTAGE, 2);
+	HAL_ADC_Start_DMA(&hadc1, (uint32_t*)SYSTEM_ADC_VOLTAGE, 3);
 	uint64_t counter = 0;
 	uint64_t count_max = HAL_RCC_GetHCLKFreq() * 10;
 	util_old_timer_t timer = {0};
@@ -357,7 +400,9 @@ void system_error_handler(SOUL_STATUS error, void (*error_loop) (void))
 		error = INTERNAL_ERROR;
 	}
 
+#if SYSTEM_BEDUG
 	printTagLog(SYSTEM_TAG, "system_error_handler called error=%u", error);
+#endif
 
 	/* Custom events begin */
 	HAL_GPIO_WritePin(RED_LED_GPIO_Port, RED_LED_Pin, GPIO_PIN_SET);
@@ -388,7 +433,7 @@ void system_error_handler(SOUL_STATUS error, void (*error_loop) (void))
 		counter++;
 	}
 
-#ifdef DEBUG
+#if SYSTEM_BEDUG
 	printTagLog(SYSTEM_TAG, "system reset");
 	counter = 100;
 	while(counter--);
@@ -402,12 +447,14 @@ uint32_t get_system_power(void)
 	if (!SYSTEM_ADC_VOLTAGE) {
 		return 0;
 	}
-	return (STM_ADC_MAX * STM_REF_VOLTAGEx10) / SYSTEM_ADC_VOLTAGE;
+	return 30; // TODO: (STM_ADC_MAX * STM_REF_VOLTAGEx10) / SYSTEM_ADC_VOLTAGE;
 }
 
 void system_reset_i2c_errata(void)
 {
+#if SYSTEM_BEDUG
 	printTagLog(SYSTEM_TAG, "RESET I2C (ERRATA)");
+#endif
 
 	HAL_I2C_DeInit(&EEPROM_I2C);
 

@@ -9,8 +9,11 @@
 #include "StorageAT.h"
 
 
-#define STORAGE_DRIVER_BEDUG      (false)
-#define STORAGE_DRIVER_USE_BUFFER (true)
+#ifdef DEBUG
+#   define STORAGE_DRIVER_BEDUG   (0)
+#endif
+
+#define STORAGE_DRIVER_USE_BUFFER (1)
 
 
 struct StorageDriver: public IStorageDriver

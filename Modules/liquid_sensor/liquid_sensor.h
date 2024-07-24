@@ -17,7 +17,6 @@ extern "C" {
 #include "stm32f1xx_hal.h"
 #include <stdbool.h>
 
-void     level_tick();
 int32_t  get_liquid_level();
 uint16_t get_liquid_adc();
 bool     is_liquid_tank_empty();

@@ -11,7 +11,9 @@
 #include "RecordDB.h"
 
 
-#define LOG_SERVICE_BEDUG (true)
+#ifdef DEBUG
+#   define LOG_SERVICE_BEDUG (1)
+#endif
 
 
 class LogService
@@ -38,7 +40,7 @@ private:
 	static const char* CF_LOGID_FIELD;
 	static const char* CF_CLEAR_FIELD;
 
-	static constexpr uint32_t LOG_SIZE = 400;
+	static constexpr uint32_t LOG_SIZE = 200;
 
 	static util_old_timer_t logTimer;
 	static util_old_timer_t settingsTimer;

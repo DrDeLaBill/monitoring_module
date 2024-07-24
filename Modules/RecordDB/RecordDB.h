@@ -8,7 +8,9 @@
 #include "StorageAT.h"
 
 
-#define RECORD_BEDUG (true)
+#ifdef DEBUG
+#   define RECORD_BEDUG (1)
+#endif
 
 
 class RecordDB

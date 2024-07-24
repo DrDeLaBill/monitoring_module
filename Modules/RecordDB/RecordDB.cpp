@@ -8,6 +8,7 @@
 #include "StorageAT.h"
 
 #include "glog.h"
+#include "soul.h"
 #include "gutils.h"
 #include "settings.h"
 
@@ -232,7 +233,7 @@ RecordDB::RecordStatus RecordDB::save()
         return RECORD_ERROR;
     }
 
-    set_new_data_saved(true);
+    set_status(HAS_NEW_RECORD);
 
 #if RECORD_BEDUG
     printTagLog(RecordDB::TAG, "record saved on address=%08X", (unsigned int)address);

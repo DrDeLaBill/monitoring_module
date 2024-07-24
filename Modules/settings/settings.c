@@ -19,13 +19,6 @@ const char defaultUrl[CHAR_SETIINGS_SIZE]  = "urv.iot.turtton.ru";
 
 settings_t settings = { 0 };
 
-settings_info_t stngs_info = {
-	.settings_initialized = false,
-	.settings_saved       = false,
-	.settings_updated     = false,
-	.saved_new_data       = true
-};
-
 
 settings_t* settings_get()
 {
@@ -69,7 +62,9 @@ void settings_repair(settings_t* other)
 
 		settings_reset(other);
 
+#if SETTINGS_BEDUG
 		printTagLog(SETTINGS_TAG, "Repair settings");
+#endif
 
 		other->cf_id = old_stng.cf_id;
 		memset(other->url, 0, sizeof(other->url));
@@ -98,7 +93,9 @@ void settings_repair(settings_t* other)
 
 void settings_reset(settings_t* other)
 {
+#if SETTINGS_BEDUG
 	printTagLog(SETTINGS_TAG, "Reset settings");
+#endif
 
 	other->bedacode = BEDACODE;
 	other->dv_type = DEVICE_TYPE;
@@ -132,87 +129,38 @@ void settings_show()
 		"Time:             %s\n"
 		"Device ID:        %s\n"
 		"Server URL:       %s\n"
+		"Sleep time:       %lu sec\n"
+		"Target:           %lu l/d\n"
+		"Pump speed:       %lu ml/h\n"
+		"Pump work:        %lu sec\n"
+		"Pump work day:    %lu sec\n"
+		"Pump              %s\n"
+#if SETTINGS_BEDUG
 		"ADC level MIN:    %lu\n"
 		"ADC level MAX:    %lu\n"
 		"Liquid level MIN: %lu l\n"
 		"Liquid level MAX: %lu l\n"
-		"Target:           %lu l/d\n"
-		"Sleep time:       %lu sec\n"
 		"Server log ID:    %lu\n"
-		"Pump speed:       %lu ml/h\n"
-		"Pump work:        %lu sec\n"
-		"Pump work day:    %lu sec\n"
 		"Config ver:       %lu\n"
-		"Pump              %s\n"
+#endif
 		"####################SETTINGS####################\n",
 		get_clock_time_format(),
 		get_system_serial_str(),
 		settings.url,
+		settings.sleep_time / MILLIS_IN_SECOND,
+		settings.pump_target / MILLILITERS_IN_LITER,
+		settings.pump_speed,
+		settings.pump_work_sec,
+		settings.pump_work_day_sec,
+		settings.pump_enabled ? "ON" : "OFF"
+#if SETTINGS_BEDUG
+		,
 		settings.tank_ADC_min,
 		settings.tank_ADC_max,
 		settings.tank_liters_min / MILLILITERS_IN_LITER,
 		settings.tank_liters_max / MILLILITERS_IN_LITER,
-		settings.pump_target / MILLILITERS_IN_LITER,
-		settings.sleep_time / MILLIS_IN_SECOND,
 		settings.server_log_id,
-		settings.pump_speed,
-		settings.pump_work_sec,
-		settings.pump_work_day_sec,
-		settings.cf_id,
-		settings.pump_enabled ? "ON" : "OFF"
+		settings.cf_id
+#endif
 	);
-}
-
-void settings_set_cf_id(uint32_t cf_id)
-{
-    if (cf_id) {
-        settings.cf_id = cf_id;
-    }
-}
-
-bool is_settings_saved()
-{
-	return stngs_info.settings_saved;
-}
-
-bool is_settings_updated()
-{
-	return stngs_info.settings_updated;
-}
-
-bool is_settings_initialized()
-{
-	return stngs_info.settings_initialized;
-}
-
-bool is_new_data_saved()
-{
-	return stngs_info.saved_new_data;
-}
-
-void set_settings_initialized()
-{
-	stngs_info.settings_initialized = true;
-}
-
-void set_settings_save_status(bool state)
-{
-	if (state) {
-		stngs_info.settings_updated = false;
-	}
-    set_new_data_saved(state);
-	stngs_info.settings_saved = state;
-}
-
-void set_settings_update_status(bool state)
-{
-	if (state) {
-		stngs_info.settings_saved = false;
-	}
-	stngs_info.settings_updated = state;
-}
-
-void set_new_data_saved(bool state)
-{
-	stngs_info.saved_new_data = state;
 }

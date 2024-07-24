@@ -20,6 +20,11 @@ extern "C" {
 #include "gutils.h"
 
 
+#ifdef DEBUG
+#   define PUMP_BEDUG (1)
+#endif
+
+
 typedef struct _pump_state_t {
 	void             (*state_action) (void);
 	bool             enabled;

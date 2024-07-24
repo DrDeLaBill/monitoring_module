@@ -5,17 +5,18 @@
  *      Author: DrDeLaBill
  */
 
-#include <command_manager.h>
+#include "command_manager.h"
 
-#include "stm32f1xx_hal.h"
 #include <stdbool.h>
 #include <string.h>
 #include <stdlib.h>
 
 #include "glog.h"
+#include "soul.h"
 #include "main.h"
 #include "pump.h"
 #include "clock.h"
+#include "hal_defs.h"
 #include "liquid_sensor.h"
 
 #include "StorageAT.h"
@@ -119,7 +120,7 @@ void _execute_command()
 #endif
 
 	if (isSuccess) {
-		set_settings_update_status(true);
+		set_status(NEED_SAVE_SETTINGS);
 		_clear_command();
 		settings_show();
 		return;
@@ -177,7 +178,7 @@ void _execute_command()
 	settings_show();
 
 	if (isSuccess) {
-		set_settings_update_status(true);
+		set_status(NEED_SAVE_SETTINGS);
 		return;
 	}
 
