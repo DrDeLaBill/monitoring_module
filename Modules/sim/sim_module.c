@@ -78,39 +78,35 @@ const sim_command_t start_cmds[] = {
 	{"ATE0",        "ok"},
 	{"AT+CGMR",     "ok"},
 	{"AT+CSQ",      "ok"},
-#if A7670_ENABLE
-	{"AT+CPIN?",    "+cpin: ready"},
-	{"AT+CGREG?",   "+cgreg: 0,1"},
-	{"AT+CPSI?",    "ok"},
-	{"AT+CGDCONT?", "ok"}
-#elif SIM868E_ENABLE
+//#if A7670_ENABLE
+//	{"AT+CPIN?",    "+cpin: ready"},
+//	{"AT+CGREG?",   "+cgreg: 0,1"},
+//	{"AT+CPSI?",    "ok"},
+//	{"AT+CGDCONT?", "ok"}
+//#elif SIM868E_ENABLE
+//	{"AT+COPS?",     "ok"},
+//	{"AT+SAPBR=2,1", "ok"},
+//	{"AT+SAPBR=3,1,\"CONTYPE\",\"GPRS\"", "ok"},
+//	{"AT+SAPBR=3,1,\"APN\",\"internet\"", "ok"},
+//	{"AT+SAPBR=1,1", "ok"}
+//#else
+//#   error "Please select your modem"
+//#endif
+};
+
+const sim_command_t sim868_cmds[] = {
 	{"AT+COPS?",     "ok"},
 	{"AT+SAPBR=2,1", "ok"},
 	{"AT+SAPBR=3,1,\"CONTYPE\",\"GPRS\"", "ok"},
 	{"AT+SAPBR=3,1,\"APN\",\"internet\"", "ok"},
 	{"AT+SAPBR=1,1", "ok"}
-#else
-#   error "Please select your modem"
-#endif
-};
-
-const sim_command_t sim868_cmds[] = {
-	{"AT+CREG?",    "ok"},
-	{"AT+IFC=1,1",  "ok"},
-	{"AT+CLIP=1",   "ok"},
-	{"AT+CLTS=1",   "ok"},
-	{"AT+CSCLK=0",  "ok"},
-	{"AT+CMGHEX=1", "ok"},
-	{"AT+CNTP",     "ok"},
-	{"AT+HTTPINIT", "ok"}
 };
 
 const sim_command_t a7670_cmds[] = {
 	{"AT+CPIN?",    "+cpin: ready"},
 	{"AT+CGREG?",   "+cgreg: 0,1"},
 	{"AT+CPSI?",    "ok"},
-	{"AT+CGDCONT?", "ok"},
-	{"AT+HTTPINIT", "ok"}
+	{"AT+CGDCONT?", "ok"}
 };
 
 
@@ -182,25 +178,25 @@ FSM_GC_CREATE_TABLE(
 
 	{&sim_start_iterate_s,  &sim_success_e,  &sim_start_s},
 	{&sim_start_iterate_s,  &sim_timeout_e,  &sim_count_error_s},
-	{&sim_start_iterate_s,  &sim_end_e,      &sim_init_http_s},
+	{&sim_start_iterate_s,  &sim_end_e,      &sim_check_sim_s},
 
-//	{&sim_check_sim_s,      &sim_success_e,  &sim_check_sim_wait_s},
-//
-//	{&sim_check_sim_wait_s, &sim_a7670e_e,   &sim_a7670e_start_s},
-//	{&sim_check_sim_wait_s, &sim_868e_e,     &sim_868e_start_s},
-//	{&sim_check_sim_wait_s, &sim_timeout_e,  &sim_count_error_s},
-//
-//	{&sim_868e_start_s,     &sim_success_e,  &sim_868e_iterate_s},
-//
-//	{&sim_868e_iterate_s,   &sim_success_e,  &sim_868e_start_s},
-//	{&sim_868e_iterate_s,   &sim_timeout_e,  &sim_count_error_s},
-//	{&sim_868e_iterate_s,   &sim_end_e,      &sim_start_http_s},
-//
-//	{&sim_a7670e_start_s,   &sim_success_e,  &sim_a7670e_iterate_s},
-//
-//	{&sim_a7670e_iterate_s, &sim_success_e,  &sim_a7670e_start_s},
-//	{&sim_a7670e_iterate_s, &sim_timeout_e,  &sim_count_error_s},
-//	{&sim_a7670e_iterate_s, &sim_end_e,      &sim_start_http_s},
+	{&sim_check_sim_s,      &sim_success_e,  &sim_check_sim_wait_s},
+
+	{&sim_check_sim_wait_s, &sim_a7670e_e,   &sim_a7670e_start_s},
+	{&sim_check_sim_wait_s, &sim_868e_e,     &sim_868e_start_s},
+	{&sim_check_sim_wait_s, &sim_timeout_e,  &sim_count_error_s},
+
+	{&sim_868e_start_s,     &sim_success_e,  &sim_868e_iterate_s},
+
+	{&sim_868e_iterate_s,   &sim_success_e,  &sim_868e_start_s},
+	{&sim_868e_iterate_s,   &sim_timeout_e,  &sim_count_error_s},
+	{&sim_868e_iterate_s,   &sim_end_e,      &sim_init_http_s},
+
+	{&sim_a7670e_start_s,   &sim_success_e,  &sim_a7670e_iterate_s},
+
+	{&sim_a7670e_iterate_s, &sim_success_e,  &sim_a7670e_start_s},
+	{&sim_a7670e_iterate_s, &sim_timeout_e,  &sim_count_error_s},
+	{&sim_a7670e_iterate_s, &sim_end_e,      &sim_init_http_s},
 
 	{&sim_init_http_s,      &sim_success_e,  &sim_start_http_s},
 	{&sim_init_http_s,      &sim_timeout_e,  &sim_close_http_s},
@@ -364,9 +360,9 @@ void _sim_start_iterate_s(void)
 void _sim_check_sim_s(void)
 {
 	memset(sim_state.response, 0, sizeof(sim_state.response));
-	_sim_send_cmd("ATI");
+	_sim_send_cmd("AT+CGMR");
 
-	util_old_timer_start(&sim_state.timer, 20000);
+	util_old_timer_start(&sim_state.timer,SIM_DELAY_MS);
 
 	fsm_gc_clear(&sim_fsm);
 	fsm_gc_push_event(&sim_fsm, &sim_success_e);
