@@ -47,6 +47,12 @@ const char* DOUBLE_LINE_BREAK = "\r\n\r\n";
 const char* SIM_ERR_RESPONSE  = "\r\nerror\r\n";
 
 
+typedef enum _module_type_t {
+	A7670,
+	SIM868
+} module_type_t;
+
+
 typedef struct _sim_command_t {
     char request [50];
     char response[20];
@@ -64,9 +70,10 @@ typedef struct _sim_state_t {
 	unsigned resp_cnt;
 	unsigned resp_len;
 
-	util_old_timer_t timer;
-
 	unsigned errors;
+
+	module_type_t    module;
+	util_old_timer_t timer;
 } sim_state_t;
 
 
@@ -120,8 +127,10 @@ void _sim_start_iterate_s(void);
 void _sim_check_sim_s(void);
 void _sim_check_sim_wait_s(void);
 void _sim_868e_start_s(void);
+void _sim_868e_error_s(void);
 void _sim_868e_iterate_s(void);
 void _sim_a7670e_start_s(void);
+void _sim_a7670e_error_s(void);
 void _sim_a7670e_iterate_s(void);
 void _sim_init_http_s(void);
 void _sim_start_http_s(void);
@@ -153,8 +162,10 @@ FSM_GC_CREATE_STATE(sim_start_iterate_s,  _sim_start_iterate_s)
 FSM_GC_CREATE_STATE(sim_check_sim_s,      _sim_check_sim_s)
 FSM_GC_CREATE_STATE(sim_check_sim_wait_s, _sim_check_sim_wait_s)
 FSM_GC_CREATE_STATE(sim_868e_start_s,     _sim_868e_start_s)
+FSM_GC_CREATE_STATE(sim_868e_error_s,     _sim_868e_error_s)
 FSM_GC_CREATE_STATE(sim_868e_iterate_s,   _sim_868e_iterate_s)
 FSM_GC_CREATE_STATE(sim_a7670e_start_s,   _sim_a7670e_start_s)
+FSM_GC_CREATE_STATE(sim_a7670e_error_s,   _sim_a7670e_error_s)
 FSM_GC_CREATE_STATE(sim_a7670e_iterate_s, _sim_a7670e_iterate_s)
 FSM_GC_CREATE_STATE(sim_init_http_s,      _sim_init_http_s)
 FSM_GC_CREATE_STATE(sim_start_http_s,     _sim_start_http_s)
@@ -189,14 +200,20 @@ FSM_GC_CREATE_TABLE(
 	{&sim_868e_start_s,     &sim_success_e,  &sim_868e_iterate_s},
 
 	{&sim_868e_iterate_s,   &sim_success_e,  &sim_868e_start_s},
-	{&sim_868e_iterate_s,   &sim_timeout_e,  &sim_count_error_s},
+	{&sim_868e_iterate_s,   &sim_timeout_e,  &sim_868e_error_s},
 	{&sim_868e_iterate_s,   &sim_end_e,      &sim_init_http_s},
+
+	{&sim_868e_error_s,     &sim_success_e,  &sim_868e_start_s},
+	{&sim_868e_error_s,     &sim_error_e,    &sim_error_s},
 
 	{&sim_a7670e_start_s,   &sim_success_e,  &sim_a7670e_iterate_s},
 
 	{&sim_a7670e_iterate_s, &sim_success_e,  &sim_a7670e_start_s},
-	{&sim_a7670e_iterate_s, &sim_timeout_e,  &sim_count_error_s},
+	{&sim_a7670e_iterate_s, &sim_timeout_e,  &sim_a7670e_error_s},
 	{&sim_a7670e_iterate_s, &sim_end_e,      &sim_init_http_s},
+
+	{&sim_a7670e_error_s,   &sim_success_e,  &sim_a7670e_start_s},
+	{&sim_a7670e_error_s,   &sim_error_e,    &sim_error_s},
 
 	{&sim_init_http_s,      &sim_success_e,  &sim_start_http_s},
 	{&sim_init_http_s,      &sim_timeout_e,  &sim_close_http_s},
@@ -372,6 +389,7 @@ void _sim_check_sim_wait_s(void)
 {
 	if (_sim_validate("a7670")) {
 		sim_state.counter = 0;
+		sim_state.module = A7670;
 		_sim_clear_response();
 		fsm_gc_push_event(&sim_fsm, &sim_a7670e_e);
 		return;
@@ -379,6 +397,7 @@ void _sim_check_sim_wait_s(void)
 
 	if (_sim_validate("sim868")) {
 		sim_state.counter = 0;
+		sim_state.module  = SIM868;
 		_sim_clear_response();
 		fsm_gc_push_event(&sim_fsm, &sim_868e_e);
 		return;
@@ -397,6 +416,23 @@ void _sim_868e_start_s(void)
 	_sim_send_cmd(sim868_cmds[sim_state.counter].request);
 	util_old_timer_start(&sim_state.timer, SIM_DELAY_MS);
 	fsm_gc_push_event(&sim_fsm, &sim_success_e);
+}
+
+void _sim_868e_error_s(void)
+{
+#if SIM_MODULE_DEBUG
+    printTagLog(SIM_TAG, "error - [%s]\n", strlen(sim_state.response) ? sim_state.response : "empty answer");
+#endif
+	_sim_clear_response();
+
+	sim_state.errors++;
+	sim_state.counter = 0;
+
+	if (sim_state.errors > SIM_MAX_ERRORS) {
+		fsm_gc_push_event(&sim_fsm, &sim_error_e);
+	} else {
+		fsm_gc_push_event(&sim_fsm, &sim_success_e);
+	}
 }
 
 void _sim_868e_iterate_s(void)
@@ -428,6 +464,23 @@ void _sim_a7670e_start_s(void)
 	_sim_send_cmd(a7670_cmds[sim_state.counter].request);
 	util_old_timer_start(&sim_state.timer, SIM_DELAY_MS);
 	fsm_gc_push_event(&sim_fsm, &sim_success_e);
+}
+
+void _sim_a7670e_error_s(void)
+{
+#if SIM_MODULE_DEBUG
+    printTagLog(SIM_TAG, "error - [%s]\n", strlen(sim_state.response) ? sim_state.response : "empty answer");
+#endif
+	_sim_clear_response();
+
+	sim_state.errors++;
+	sim_state.counter = 0;
+
+	if (sim_state.errors > SIM_MAX_ERRORS) {
+		fsm_gc_push_event(&sim_fsm, &sim_error_e);
+	} else {
+		fsm_gc_push_event(&sim_fsm, &sim_success_e);
+	}
 }
 
 void _sim_a7670e_iterate_s(void)
@@ -639,13 +692,24 @@ void _sim_read_data_s(void)
 
 void _sim_wait_data_s(void)
 {
-	if (_sim_validate("+httpread: 0")) {
-		fsm_gc_clear(&sim_fsm);
+	if (sim_state.module == A7670) {
+		if (_sim_validate("+httpread: 0")) {
+			fsm_gc_clear(&sim_fsm);
 
-		sim_state.done = false;
-		util_old_timer_start(&sim_state.timer, SIM_HTTP_MS);
+			sim_state.done = false;
+			util_old_timer_start(&sim_state.timer, SIM_HTTP_MS);
 
-		fsm_gc_push_event(&sim_fsm, &sim_success_e);
+			fsm_gc_push_event(&sim_fsm, &sim_success_e);
+		}
+	} else if (sim_state.module == SIM868) {
+		if (_sim_validate("ok")) {
+			fsm_gc_clear(&sim_fsm);
+
+			sim_state.done = false;
+			util_old_timer_start(&sim_state.timer, SIM_HTTP_MS);
+
+			fsm_gc_push_event(&sim_fsm, &sim_success_e);
+		}
 	}
 
 	if (util_old_timer_wait(&sim_state.timer)) {
@@ -697,6 +761,9 @@ void _sim_close_http_s(void)
 
 void _sim_change_url_s(void)
 {
+#if SIM_MODULE_DEBUG
+    printTagLog(SIM_TAG, "error - [%s]\n", strlen(sim_state.response) ? sim_state.response : "empty answer");
+#endif
     if (strncmp(settings.url, defaultUrl, sizeof(settings.url))) {
         strncpy(sim_state.url, defaultUrl, sizeof(sim_state.url));
 #if SIM_MODULE_DEBUG
