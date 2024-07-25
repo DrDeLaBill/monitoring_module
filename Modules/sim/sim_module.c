@@ -23,8 +23,8 @@
 #include "liquid_sensor.h"
 
 
-#define A7670_ENABLE     (0)
-#define SIM868E_ENABLE   (1)
+#define A7670_ENABLE     (1)
+#define SIM868E_ENABLE   (0)
 
 #define SIM_MAX_ERRORS   (5)
 #define SIM_DELAY_MS     (10000)
@@ -203,7 +203,7 @@ FSM_GC_CREATE_TABLE(
 //	{&sim_a7670e_iterate_s, &sim_end_e,      &sim_start_http_s},
 
 	{&sim_init_http_s,      &sim_success_e,  &sim_start_http_s},
-	{&sim_init_http_s,      &sim_timeout_e,  &sim_count_error_s},
+	{&sim_init_http_s,      &sim_timeout_e,  &sim_close_http_s},
 
 	{&sim_start_http_s,     &sim_success_e,  &sim_send_http_s},
 	{&sim_start_http_s,     &sim_timeout_e,  &sim_change_url_s},
@@ -228,7 +228,8 @@ FSM_GC_CREATE_TABLE(
 	{&sim_close_http_s,     &sim_success_e,  &sim_init_http_s},
 	{&sim_close_http_s,     &sim_timeout_e,  &sim_count_error_s},
 
-	{&sim_change_url_s,     &sim_success_e,  &sim_count_error_s},
+	{&sim_change_url_s,     &sim_success_e,  &sim_init_http_s},
+	{&sim_change_url_s,     &sim_error_e,    &sim_error_s},
 
 	{&sim_count_error_s,    &sim_success_e,  &sim_start_s},
 	{&sim_count_error_s,    &sim_error_e,    &sim_error_s},
@@ -466,8 +467,9 @@ void _sim_init_http_s(void)
 	}
 
 	if (_sim_validate("ok")) {
-		sim_state.counter = 0;
 		_sim_clear_response();
+
+		sim_state.counter = 0;
 
 		fsm_gc_clear(&sim_fsm);
 		fsm_gc_push_event(&sim_fsm, &sim_success_e);
@@ -476,6 +478,10 @@ void _sim_init_http_s(void)
 	if (util_old_timer_wait(&sim_state.timer)) {
 		return;
 	}
+
+	_sim_clear_response();
+
+	sim_state.counter = 0;
 
 	fsm_gc_push_event(&sim_fsm, &sim_timeout_e);
 }
@@ -637,7 +643,7 @@ void _sim_read_data_s(void)
 
 void _sim_wait_data_s(void)
 {
-	if (_sim_validate("\r\n\r\nok\r\n")) {
+	if (_sim_validate("+httpread: 0")) {
 		fsm_gc_clear(&sim_fsm);
 
 		sim_state.done = false;
@@ -661,16 +667,26 @@ void _sim_wait_user_s(void)
 
 	_sim_clear_response();
 
-	_sim_send_cmd("AT+HTTPTERM");
-	util_old_timer_start(&sim_state.timer, SIM_HTTP_MS);
+	sim_state.counter = 0;
 
 	fsm_gc_push_event(&sim_fsm, &sim_success_e);
 }
 
 void _sim_close_http_s(void)
 {
+	if (!sim_state.counter) {
+		_sim_clear_response();
+
+		sim_state.counter++;
+
+		_sim_send_cmd("AT+HTTPTERM");
+		util_old_timer_start(&sim_state.timer, SIM_DELAY_MS);
+	}
+
 	if (_sim_validate("ok")) {
 		_sim_clear_response();
+
+		sim_state.counter = 0;
 
 		fsm_gc_clear(&sim_fsm);
 		fsm_gc_push_event(&sim_fsm, &sim_success_e);
@@ -697,7 +713,14 @@ void _sim_change_url_s(void)
 #endif
     }
 
-	fsm_gc_push_event(&sim_fsm, &sim_success_e);
+    sim_state.errors++;
+    sim_state.counter = 0;
+
+	if (sim_state.errors > SIM_MAX_ERRORS) {
+		fsm_gc_push_event(&sim_fsm, &sim_error_e);
+	} else {
+		fsm_gc_push_event(&sim_fsm, &sim_success_e);
+	}
 }
 
 void _sim_count_error_s(void)
@@ -708,6 +731,7 @@ void _sim_count_error_s(void)
 	_sim_clear_response();
 
 	sim_state.errors++;
+	sim_state.counter = 0;
 
 	if (sim_state.errors > SIM_MAX_ERRORS) {
 		fsm_gc_push_event(&sim_fsm, &sim_error_e);
