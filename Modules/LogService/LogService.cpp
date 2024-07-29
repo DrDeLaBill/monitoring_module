@@ -42,8 +42,6 @@ const char* LogService::CF_DEV_ID_FIELD    = "id";
 const char* LogService::CF_PWR_FIELD       = "pwr";
 const char* LogService::CF_LTRMIN_FIELD    = "ltrmin";
 const char* LogService::CF_LTRMAX_FIELD    = "ltrmax";
-const char* LogService::CF_LTRADCMIN_FIELD = "ltradcmin";
-const char* LogService::CF_LTRADCMAX_FIELD = "ltradcmax";
 const char* LogService::CF_TRGT_FIELD      = "trgt";
 const char* LogService::CF_SLEEP_FIELD     = "sleep";
 const char* LogService::CF_SPEED_FIELD     = "speed";
@@ -250,14 +248,6 @@ void LogService::parse()
 
 	if (LogService::findParam(&data_ptr, var_ptr, CF_LTRMAX_FIELD)) {
 		pump_update_ltrmax(atoi(data_ptr));
-	}
-
-	if (LogService::findParam(&data_ptr, var_ptr, CF_LTRADCMIN_FIELD)) {
-		settings.tank_ADC_min = atoi(data_ptr);
-	}
-
-	if (LogService::findParam(&data_ptr, var_ptr, CF_LTRADCMAX_FIELD)) {
-		settings.tank_ADC_max = atoi(data_ptr);
 	}
 
 	if (LogService::findParam(&data_ptr, var_ptr, CF_TRGT_FIELD)) {

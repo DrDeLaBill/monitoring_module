@@ -32,8 +32,6 @@ private:
 	static const char* CF_PWR_FIELD;
 	static const char* CF_LTRMIN_FIELD;
 	static const char* CF_LTRMAX_FIELD;
-	static const char* CF_LTRADCMIN_FIELD;
-	static const char* CF_LTRADCMAX_FIELD;
 	static const char* CF_TRGT_FIELD;
 	static const char* CF_SLEEP_FIELD;
 	static const char* CF_SPEED_FIELD;
