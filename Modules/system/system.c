@@ -444,10 +444,10 @@ void system_error_handler(SOUL_STATUS error, void (*error_loop) (void))
 
 uint32_t get_system_power(void)
 {
-	if (!SYSTEM_ADC_VOLTAGE) {
+	if (!SYSTEM_ADC_VOLTAGE[0]) {
 		return 0;
 	}
-	return 30; // TODO: (STM_ADC_MAX * STM_REF_VOLTAGEx10) / SYSTEM_ADC_VOLTAGE;
+	return (STM_ADC_MAX * STM_REF_VOLTAGEx10) / SYSTEM_ADC_VOLTAGE[0];
 }
 
 void system_reset_i2c_errata(void)

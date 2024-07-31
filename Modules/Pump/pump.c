@@ -294,6 +294,10 @@ void _pump_clear_state()
 
 void _pump_fsm_state_enable()
 {
+	if (util_old_timer_wait(&pump_state.wait_timer)) {
+		return;
+	}
+
 	_pump_clear_state();
 	_pump_check_log_date();
 	_pump_calculate_work_time();
@@ -334,6 +338,8 @@ void _pump_fsm_state_stop()
 	}
 
 	uint32_t off_state_time = PUMP_WORK_PERIOD - work_state_time;
+	util_old_timer_start(&pump_state.wait_timer, off_state_time);
+
 	if (off_state_time < MIN_PUMP_WORK_TIME) {
 		_pump_set_state(_pump_fsm_state_enable);
 		return;
@@ -341,7 +347,6 @@ void _pump_fsm_state_stop()
 
 	printTagLog(PUMP_TAG, "PUMP OFF (%lu ms)", off_state_time);
 
-	util_old_timer_start(&pump_state.wait_timer, off_state_time);
 	HAL_GPIO_WritePin(PUMP_GPIO_Port, PUMP_Pin, GPIO_PIN_RESET);
 
     _pump_set_state(_pump_fsm_state_off);

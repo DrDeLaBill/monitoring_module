@@ -136,7 +136,7 @@ void LogService::sendRequest()
 				"pumpd=%lu\r\n",
 			nextRecord->record.id,
 			nextRecord->record.time[0], nextRecord->record.time[1], nextRecord->record.time[2], nextRecord->record.time[3], nextRecord->record.time[4], nextRecord->record.time[5],
-			nextRecord->record.level / 1000,
+			nextRecord->record.level / MILLILITERS_IN_LITER,
 			nextRecord->record.press_1 / 100, nextRecord->record.press_1 % 100,
 //			nextRecord->record.press_2 / 100, record.record.press_2 % 100,
 			nextRecord->record.pump_wok_time,
