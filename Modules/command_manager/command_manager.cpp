@@ -91,10 +91,10 @@ void _execute_command()
 	}
 
 	if (strncmp("saveadcmin", command, CHAR_COMMAND_SIZE) == 0) {
-		settings.tank_ADC_min = get_liquid_adc();
+		settings.tank_ADC_min = get_level_adc();
 		isSuccess = true;
 	} else if (strncmp("saveadcmax", command, CHAR_COMMAND_SIZE) == 0) {
-		settings.tank_ADC_max = get_liquid_adc();
+		settings.tank_ADC_max = get_level_adc();
 		isSuccess = true;
 	}  else if (strncmp("default", command, CHAR_COMMAND_SIZE) == 0) {
 		settings_reset(&settings);
@@ -104,9 +104,6 @@ void _execute_command()
 		isSuccess = true;
 	} else if (strncmp("clearpump", command, CHAR_COMMAND_SIZE) == 0) {
 		pump_clear_log();
-		isSuccess = true;
-	} else if (strncmp("pump", command, CHAR_COMMAND_SIZE) == 0) {
-		pump_show_status();
 		isSuccess = true;
 	} else if (strncmp("reset", command, CHAR_COMMAND_SIZE) == 0) {
 		// TODO: очистка EEPROM
@@ -176,13 +173,13 @@ void _execute_command()
 #endif
 
 	settings_show();
+	pump_show_status();
+	_clear_command();
 
 	if (isSuccess) {
 		set_status(NEED_SAVE_SETTINGS);
 		return;
 	}
-
-	_clear_command();
 }
 
 void _clear_command()

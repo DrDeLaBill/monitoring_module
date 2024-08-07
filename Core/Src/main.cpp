@@ -241,6 +241,9 @@ int main(void)
         // Sim module
         sim_proccess();
 
+        // Liquid level proccess
+        level_tick();
+
         // Logger
         LogService::update();
 

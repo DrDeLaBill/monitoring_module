@@ -27,7 +27,7 @@ extern "C" {
 #define DEFAULT_SLEEPING_TIME 900000
 #define MIN_TANK_VOLUME       3126
 #define MAX_TANK_VOLUME       75
-#define MIN_TANK_LTR          20000
+#define MIN_TANK_LTR          10000
 #define MAX_TANK_LTR          375000
 #define SETTING_VALUE_MIN     0
 #define MAX_ADC_VALUE         4095

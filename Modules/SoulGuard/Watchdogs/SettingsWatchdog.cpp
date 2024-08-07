@@ -72,7 +72,7 @@ void _stng_check(void)
 	if (!settings_check(&settings)) {
 		set_error(SETTINGS_LOAD_ERROR);
 #if WATCHDOG_BEDUG
-		printTagLog(STNGw_TAG, "action_check: event_not_valid");
+		printTagLog(STNGw_TAG, "settings check: event_not_valid");
 #endif
 		settings_repair(&settings);
 		set_status(NEED_SAVE_SETTINGS);

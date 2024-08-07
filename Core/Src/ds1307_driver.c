@@ -49,10 +49,10 @@ void DS1307_SetRegByte(uint8_t regAddr, uint8_t val) {
  * @param regAddr Register address to read.
  * @return Value stored in the register, 0 to 255.
  */
-int8_t DS1307_GetRegByte(uint8_t regAddr) {
-	int8_t val;
+uint8_t DS1307_GetRegByte(uint8_t regAddr) {
+	uint8_t val;
 	HAL_I2C_Master_Transmit(&CLOCK_I2C, DS1307_I2C_ADDR << 1, &regAddr, 1, DS1307_TIMEOUT);
-	HAL_I2C_Master_Receive(&CLOCK_I2C, DS1307_I2C_ADDR << 1, &val, 1, DS1307_TIMEOUT);
+	HAL_I2C_Master_Receive(&CLOCK_I2C, DS1307_I2C_ADDR << 1, (uint8_t*)&val, 1, DS1307_TIMEOUT);
 	return val;
 }
 
@@ -139,7 +139,7 @@ uint8_t DS1307_GetSecond(void) {
  * @return UTC hour offset, -12 to 12.
  */
 int8_t DS1307_GetTimeZoneHour(void) {
-	return DS1307_GetRegByte((uint8_t)DS1307_REG_UTC_HR);
+	return (int8_t)DS1307_GetRegByte((uint8_t)DS1307_REG_UTC_HR);
 }
 
 /**
@@ -148,7 +148,7 @@ int8_t DS1307_GetTimeZoneHour(void) {
  * @return UTC time zone, 0 to 59.
  */
 int8_t DS1307_GetTimeZoneMin(void) {
-	return DS1307_GetRegByte((uint8_t)DS1307_REG_UTC_MIN);
+	return (int8_t)DS1307_GetRegByte((uint8_t)DS1307_REG_UTC_MIN);
 }
 
 /**

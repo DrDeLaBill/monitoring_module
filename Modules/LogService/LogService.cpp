@@ -103,8 +103,8 @@ void LogService::sendRequest()
 		snprintf(
 			data + strlen(data),
 			sizeof(data) - strlen(data),
-			"adclevel=%u\n",
-			get_liquid_adc()
+			"adclevel=%lu\n",
+			get_level_adc()
 		);
 	}
 	snprintf(
@@ -136,7 +136,7 @@ void LogService::sendRequest()
 				"pumpd=%lu\r\n",
 			nextRecord->record.id,
 			nextRecord->record.time[0], nextRecord->record.time[1], nextRecord->record.time[2], nextRecord->record.time[3], nextRecord->record.time[4], nextRecord->record.time[5],
-			nextRecord->record.level / MILLILITERS_IN_LITER,
+			nextRecord->record.level,
 			nextRecord->record.press_1 / 100, nextRecord->record.press_1 % 100,
 //			nextRecord->record.press_2 / 100, record.record.press_2 % 100,
 			nextRecord->record.pump_wok_time,
@@ -274,7 +274,7 @@ void LogService::saveNewLog()
 	RecordDB record(0);
 //	cur_record.record.fw_id   = FW_VERSION;
 	record.record.cf_id   = settings.cf_id;
-	record.record.level   = get_liquid_level() * 1000;
+	record.record.level   = get_level();
 	record.record.press_1 = get_press();
 //	cur_record.record.press_2 = get_second_press();
 

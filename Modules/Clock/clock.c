@@ -34,7 +34,7 @@ uint8_t _get_days_in_month(uint8_t year, Months month);
 
 uint8_t clock_get_year()
 {
-	return DS1307_GetYear();
+	return (uint8_t)(DS1307_GetYear() % 100);
 }
 
 uint8_t clock_get_month()
