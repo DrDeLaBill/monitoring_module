@@ -28,7 +28,7 @@
 
 #define SIM_MAX_ERRORS   (5)
 #define SIM_DELAY_MS     (10000)
-#define SIM_HTTP_MS      (20000)
+#define SIM_HTTP_MS      (15000)
 #define SIM_HTTP_SIZE    (90)
 
 
@@ -74,6 +74,8 @@ typedef struct _sim_state_t {
 
 	module_type_t    module;
 	util_old_timer_t timer;
+
+	bool     http_error;
 } sim_state_t;
 
 
@@ -149,12 +151,13 @@ void _sim_error_s(void);
 
 FSM_GC_CREATE(sim_fsm)
 
-FSM_GC_CREATE_EVENT(sim_success_e)
-FSM_GC_CREATE_EVENT(sim_end_e)
-FSM_GC_CREATE_EVENT(sim_a7670e_e)
-FSM_GC_CREATE_EVENT(sim_868e_e)
-FSM_GC_CREATE_EVENT(sim_timeout_e)
-FSM_GC_CREATE_EVENT(sim_error_e)
+FSM_GC_CREATE_EVENT(sim_end_e ,    0)
+FSM_GC_CREATE_EVENT(sim_change_e,  0)
+FSM_GC_CREATE_EVENT(sim_a7670e_e,  0)
+FSM_GC_CREATE_EVENT(sim_868e_e,    0)
+FSM_GC_CREATE_EVENT(sim_success_e, 1)
+FSM_GC_CREATE_EVENT(sim_timeout_e, 2)
+FSM_GC_CREATE_EVENT(sim_error_e,   3)
 
 FSM_GC_CREATE_STATE(sim_init_s,           _sim_init_s)
 FSM_GC_CREATE_STATE(sim_start_s,          _sim_start_s)
@@ -183,73 +186,74 @@ FSM_GC_CREATE_STATE(sim_error_s,          _sim_error_s)
 
 FSM_GC_CREATE_TABLE(
 	sim_fsm_table,
-	{&sim_init_s,           &sim_success_e,  &sim_reset_s},
+	{&sim_init_s,           &sim_success_e,  &sim_reset_s,          NULL},
 
-	{&sim_start_s,          &sim_success_e,  &sim_start_iterate_s},
+	{&sim_start_s,          &sim_success_e,  &sim_start_iterate_s,  NULL},
 
-	{&sim_start_iterate_s,  &sim_success_e,  &sim_start_s},
-	{&sim_start_iterate_s,  &sim_timeout_e,  &sim_count_error_s},
-	{&sim_start_iterate_s,  &sim_end_e,      &sim_check_sim_s},
+	{&sim_start_iterate_s,  &sim_success_e,  &sim_start_s,          NULL},
+	{&sim_start_iterate_s,  &sim_timeout_e,  &sim_count_error_s,    NULL},
+	{&sim_start_iterate_s,  &sim_end_e,      &sim_check_sim_s,      NULL},
 
-	{&sim_check_sim_s,      &sim_success_e,  &sim_check_sim_wait_s},
+	{&sim_check_sim_s,      &sim_success_e,  &sim_check_sim_wait_s, NULL},
 
-	{&sim_check_sim_wait_s, &sim_a7670e_e,   &sim_a7670e_start_s},
-	{&sim_check_sim_wait_s, &sim_868e_e,     &sim_868e_start_s},
-	{&sim_check_sim_wait_s, &sim_timeout_e,  &sim_count_error_s},
+	{&sim_check_sim_wait_s, &sim_a7670e_e,   &sim_a7670e_start_s,   NULL},
+	{&sim_check_sim_wait_s, &sim_868e_e,     &sim_868e_start_s,     NULL},
+	{&sim_check_sim_wait_s, &sim_timeout_e,  &sim_count_error_s,    NULL},
 
-	{&sim_868e_start_s,     &sim_success_e,  &sim_868e_iterate_s},
+	{&sim_868e_start_s,     &sim_success_e,  &sim_868e_iterate_s,   NULL},
 
-	{&sim_868e_iterate_s,   &sim_success_e,  &sim_868e_start_s},
-	{&sim_868e_iterate_s,   &sim_timeout_e,  &sim_868e_error_s},
-	{&sim_868e_iterate_s,   &sim_end_e,      &sim_init_http_s},
+	{&sim_868e_iterate_s,   &sim_success_e,  &sim_868e_start_s,     NULL},
+	{&sim_868e_iterate_s,   &sim_timeout_e,  &sim_868e_error_s,     NULL},
+	{&sim_868e_iterate_s,   &sim_end_e,      &sim_init_http_s,      NULL},
 
-	{&sim_868e_error_s,     &sim_success_e,  &sim_868e_start_s},
-	{&sim_868e_error_s,     &sim_error_e,    &sim_error_s},
+	{&sim_868e_error_s,     &sim_success_e,  &sim_868e_start_s,     NULL},
+	{&sim_868e_error_s,     &sim_error_e,    &sim_error_s,          NULL},
 
-	{&sim_a7670e_start_s,   &sim_success_e,  &sim_a7670e_iterate_s},
+	{&sim_a7670e_start_s,   &sim_success_e,  &sim_a7670e_iterate_s, NULL},
 
-	{&sim_a7670e_iterate_s, &sim_success_e,  &sim_a7670e_start_s},
-	{&sim_a7670e_iterate_s, &sim_timeout_e,  &sim_a7670e_error_s},
-	{&sim_a7670e_iterate_s, &sim_end_e,      &sim_init_http_s},
+	{&sim_a7670e_iterate_s, &sim_success_e,  &sim_a7670e_start_s,   NULL},
+	{&sim_a7670e_iterate_s, &sim_timeout_e,  &sim_a7670e_error_s,   NULL},
+	{&sim_a7670e_iterate_s, &sim_end_e,      &sim_init_http_s,      NULL},
 
-	{&sim_a7670e_error_s,   &sim_success_e,  &sim_a7670e_start_s},
-	{&sim_a7670e_error_s,   &sim_error_e,    &sim_error_s},
+	{&sim_a7670e_error_s,   &sim_success_e,  &sim_a7670e_start_s,   NULL},
+	{&sim_a7670e_error_s,   &sim_error_e,    &sim_error_s,          NULL},
 
-	{&sim_init_http_s,      &sim_success_e,  &sim_start_http_s},
-	{&sim_init_http_s,      &sim_timeout_e,  &sim_close_http_s},
+	{&sim_init_http_s,      &sim_success_e,  &sim_start_http_s,     NULL},
+	{&sim_init_http_s,      &sim_timeout_e,  &sim_close_http_s,     NULL},
 
-	{&sim_start_http_s,     &sim_success_e,  &sim_send_http_s},
-	{&sim_start_http_s,     &sim_timeout_e,  &sim_change_url_s},
+	{&sim_start_http_s,     &sim_success_e,  &sim_send_http_s,      NULL},
+	{&sim_start_http_s,     &sim_timeout_e,  &sim_close_http_s,     NULL},
 
-	{&sim_send_http_s,      &sim_success_e,  &sim_send_post_s},
-	{&sim_send_http_s,      &sim_timeout_e,  &sim_change_url_s},
+	{&sim_send_http_s,      &sim_success_e,  &sim_send_post_s,      NULL},
+	{&sim_send_http_s,      &sim_timeout_e,  &sim_close_http_s,     NULL},
 
-	{&sim_send_post_s,      &sim_success_e,  &sim_wait_post_s},
-	{&sim_send_post_s,      &sim_timeout_e,  &sim_change_url_s},
+	{&sim_send_post_s,      &sim_success_e,  &sim_wait_post_s,      NULL},
+	{&sim_send_post_s,      &sim_timeout_e,  &sim_close_http_s,     NULL},
 
-	{&sim_wait_post_s,      &sim_success_e,  &sim_read_data_s},
-	{&sim_wait_post_s,      &sim_timeout_e,  &sim_change_url_s},
+	{&sim_wait_post_s,      &sim_success_e,  &sim_read_data_s,      NULL},
+	{&sim_wait_post_s,      &sim_timeout_e,  &sim_close_http_s,     NULL},
 
-	{&sim_read_data_s,      &sim_success_e,  &sim_wait_data_s},
-	{&sim_read_data_s,      &sim_timeout_e,  &sim_change_url_s},
+	{&sim_read_data_s,      &sim_success_e,  &sim_wait_data_s,      NULL},
+	{&sim_read_data_s,      &sim_timeout_e,  &sim_close_http_s,     NULL},
 
-	{&sim_wait_data_s,      &sim_success_e,  &sim_wait_user_s},
-	{&sim_wait_data_s,      &sim_timeout_e,  &sim_change_url_s},
+	{&sim_wait_data_s,      &sim_success_e,  &sim_wait_user_s,      NULL},
+	{&sim_wait_data_s,      &sim_timeout_e,  &sim_close_http_s,     NULL},
 
-	{&sim_wait_user_s,      &sim_success_e,  &sim_close_http_s},
+	{&sim_wait_user_s,      &sim_success_e,  &sim_close_http_s,     NULL},
 
-	{&sim_close_http_s,     &sim_success_e,  &sim_init_http_s},
-	{&sim_close_http_s,     &sim_timeout_e,  &sim_count_error_s},
+	{&sim_close_http_s,     &sim_success_e,  &sim_init_http_s,      NULL},
+	{&sim_close_http_s,     &sim_change_e,   &sim_change_url_s,      NULL},
+	{&sim_close_http_s,     &sim_timeout_e,  &sim_count_error_s,    NULL},
 
-	{&sim_change_url_s,     &sim_success_e,  &sim_init_http_s},
-	{&sim_change_url_s,     &sim_error_e,    &sim_error_s},
+	{&sim_change_url_s,     &sim_success_e,  &sim_init_http_s,      NULL},
+	{&sim_change_url_s,     &sim_error_e,    &sim_error_s,          NULL},
 
-	{&sim_count_error_s,    &sim_success_e,  &sim_start_s},
-	{&sim_count_error_s,    &sim_error_e,    &sim_error_s},
+	{&sim_count_error_s,    &sim_success_e,  &sim_start_s,          NULL},
+	{&sim_count_error_s,    &sim_error_e,    &sim_error_s,          NULL},
 
-	{&sim_error_s,          &sim_success_e,  &sim_reset_s},
+	{&sim_error_s,          &sim_success_e,  &sim_reset_s,          NULL},
 
-	{&sim_reset_s,          &sim_success_e,  &sim_start_s}
+	{&sim_reset_s,          &sim_success_e,  &sim_start_s,          NULL}
 )
 
 
@@ -291,6 +295,11 @@ char* get_response()
 {
 	sim_state.done = true;
     return sim_state.response;
+}
+
+char* get_sim_url()
+{
+	return sim_state.url;
 }
 
 bool if_network_ready()
@@ -507,6 +516,8 @@ void _sim_a7670e_iterate_s(void)
 
 void _sim_init_http_s(void)
 {
+	sim_state.http_error = false;
+
 	if (!sim_state.counter) {
 		sim_state.counter++;
 		_sim_clear_response();
@@ -560,6 +571,9 @@ void _sim_start_http_s(void)
 		return;
 	}
 
+	sim_state.counter = 0;
+	sim_state.http_error = true;
+	util_old_timer_start(&sim_state.timer, SIM_HTTP_MS);
 	fsm_gc_push_event(&sim_fsm, &sim_timeout_e);
 }
 
@@ -595,6 +609,9 @@ void _sim_send_http_s(void)
 		return;
 	}
 
+	sim_state.counter = 0;
+	sim_state.http_error = true;
+	util_old_timer_start(&sim_state.timer, SIM_HTTP_MS);
 	fsm_gc_push_event(&sim_fsm, &sim_timeout_e);
 }
 
@@ -616,6 +633,8 @@ void _sim_send_post_s(void)
 		return;
 	}
 
+	sim_state.http_error = true;
+	util_old_timer_start(&sim_state.timer, SIM_HTTP_MS);
 	fsm_gc_push_event(&sim_fsm, &sim_timeout_e);
 }
 
@@ -650,6 +669,9 @@ void _sim_wait_post_s(void)
 		return;
 	}
 
+	sim_state.counter = 0;
+	sim_state.http_error = true;
+	util_old_timer_start(&sim_state.timer, SIM_HTTP_MS);
 	fsm_gc_push_event(&sim_fsm, &sim_timeout_e);
 }
 
@@ -687,6 +709,9 @@ void _sim_read_data_s(void)
 		return;
 	}
 
+	sim_state.counter = 0;
+	sim_state.http_error = true;
+	util_old_timer_start(&sim_state.timer, SIM_HTTP_MS);
 	fsm_gc_push_event(&sim_fsm, &sim_timeout_e);
 }
 
@@ -716,7 +741,10 @@ void _sim_wait_data_s(void)
 		return;
 	}
 
-	fsm_gc_push_event(&sim_fsm, &sim_success_e);
+	sim_state.counter = 0;
+	sim_state.http_error = true;
+	util_old_timer_start(&sim_state.timer, SIM_HTTP_MS);
+	fsm_gc_push_event(&sim_fsm, &sim_timeout_e);
 }
 
 void _sim_wait_user_s(void)
@@ -749,7 +777,13 @@ void _sim_close_http_s(void)
 		sim_state.counter = 0;
 
 		fsm_gc_clear(&sim_fsm);
-		fsm_gc_push_event(&sim_fsm, &sim_success_e);
+		if (sim_state.http_error ||
+			strncmp(sim_state.url, settings.url, strlen(sim_state.url))
+		) {
+			fsm_gc_push_event(&sim_fsm, &sim_change_e);
+		} else {
+			fsm_gc_push_event(&sim_fsm, &sim_success_e);
+		}
 	}
 
 	if (util_old_timer_wait(&sim_state.timer)) {
@@ -764,7 +798,7 @@ void _sim_change_url_s(void)
 #if SIM_MODULE_DEBUG
     printTagLog(SIM_TAG, "error - [%s]\n", strlen(sim_state.response) ? sim_state.response : "empty answer");
 #endif
-    if (strncmp(settings.url, defaultUrl, sizeof(settings.url))) {
+    if (strncmp(sim_state.url, defaultUrl, sizeof(sim_state.url))) {
         strncpy(sim_state.url, defaultUrl, sizeof(sim_state.url));
 #if SIM_MODULE_DEBUG
         printTagLog(SIM_TAG, "Change server url to: %s", sim_state.url);
@@ -777,7 +811,8 @@ void _sim_change_url_s(void)
     }
 
     sim_state.errors++;
-    sim_state.counter = 0;
+    sim_state.counter    = 0;
+    sim_state.http_error = false;
 
 	if (sim_state.errors > SIM_MAX_ERRORS) {
 		fsm_gc_push_event(&sim_fsm, &sim_error_e);
@@ -794,7 +829,8 @@ void _sim_count_error_s(void)
 	_sim_clear_response();
 
 	sim_state.errors++;
-	sim_state.counter = 0;
+	sim_state.counter    = 0;
+    sim_state.http_error = false;
 
 	if (sim_state.errors > SIM_MAX_ERRORS) {
 		fsm_gc_push_event(&sim_fsm, &sim_error_e);
@@ -825,6 +861,8 @@ void _sim_reset_s(void)
 	if (util_old_timer_wait(&sim_state.timer)) {
 		return;
 	}
+
+	sim_state.counter = 0;
 
 	HAL_GPIO_WritePin(SIM_MODULE_RESET_PORT, SIM_MODULE_RESET_PIN, GPIO_PIN_SET);
 	fsm_gc_push_event(&sim_fsm, &sim_success_e);

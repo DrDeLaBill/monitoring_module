@@ -37,6 +37,7 @@ private:
 	static const char* CF_SPEED_FIELD;
 	static const char* CF_LOGID_FIELD;
 	static const char* CF_CLEAR_FIELD;
+	static const char* CF_URL_FIELD;
 
 	static constexpr uint32_t LOG_SIZE = 200;
 

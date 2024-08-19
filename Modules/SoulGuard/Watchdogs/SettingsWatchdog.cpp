@@ -29,9 +29,9 @@ const char STNGw_TAG[] = "STGw";
 
 FSM_GC_CREATE(stng_fsm)
 
-FSM_GC_CREATE_EVENT(stng_success_e)
-FSM_GC_CREATE_EVENT(stng_saved_e)
-FSM_GC_CREATE_EVENT(stng_updated_e)
+FSM_GC_CREATE_EVENT(stng_success_e, 0)
+FSM_GC_CREATE_EVENT(stng_saved_e,   0)
+FSM_GC_CREATE_EVENT(stng_updated_e, 0)
 
 FSM_GC_CREATE_STATE(stng_init_s, _stng_init_s)
 FSM_GC_CREATE_STATE(stng_idle_s, _stng_idle_s)
@@ -40,13 +40,13 @@ FSM_GC_CREATE_STATE(stng_load_s, _stng_load_s)
 
 FSM_GC_CREATE_TABLE(
 	stng_fsm_table,
-	{&stng_init_s, &stng_updated_e, &stng_idle_s},
+	{&stng_init_s, &stng_updated_e, &stng_idle_s, NULL},
 
-	{&stng_idle_s, &stng_saved_e,   &stng_load_s},
-	{&stng_idle_s, &stng_updated_e, &stng_save_s},
+	{&stng_idle_s, &stng_saved_e,   &stng_load_s, NULL},
+	{&stng_idle_s, &stng_updated_e, &stng_save_s, NULL},
 
-	{&stng_load_s, &stng_updated_e, &stng_idle_s},
-	{&stng_save_s, &stng_saved_e,   &stng_idle_s}
+	{&stng_load_s, &stng_updated_e, &stng_idle_s, NULL},
+	{&stng_save_s, &stng_saved_e,   &stng_idle_s, NULL}
 )
 
 

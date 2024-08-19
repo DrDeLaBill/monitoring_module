@@ -30,6 +30,7 @@ void send_sim_http_post(const char* data);
 bool has_http_response();
 bool if_network_ready();
 char* get_response();
+char* get_sim_url();
 
 
 #ifdef __cplusplus

@@ -196,17 +196,7 @@ void settings_reset(settings_t* other);
 
 void settings_show();
 
-bool is_settings_saved();
-bool is_settings_updated();
-bool is_settings_initialized();
-bool is_new_data_saved();
-
-void set_settings_initialized();
-void set_settings_save_status(bool state);
-void set_settings_update_status(bool state);
-void set_new_data_saved(bool state);
-
-void settings_set_cf_id(uint32_t id);
+void set_settings_url(const char* url);
 
 
 #ifdef __cplusplus

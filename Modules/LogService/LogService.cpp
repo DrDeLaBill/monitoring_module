@@ -2,6 +2,7 @@
 
 #include "LogService.h"
 
+#include <ctype.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -47,6 +48,7 @@ const char* LogService::CF_SLEEP_FIELD     = "sleep";
 const char* LogService::CF_SPEED_FIELD     = "speed";
 const char* LogService::CF_LOGID_FIELD     = "d_hwm";
 const char* LogService::CF_CLEAR_FIELD     = "clr";
+const char* LogService::CF_URL_FIELD       = "url";
 
 
 void LogService::update()
@@ -122,7 +124,10 @@ void LogService::sendRequest()
 	if (recordStatus == RecordDB::RECORD_NO_LOG) {
 	    reset_status(HAS_NEW_RECORD);
 	}
-	if (/* settings.calibrated && */recordStatus == RecordDB::RECORD_OK) {
+	if (// settings.calibrated &&
+		recordStatus == RecordDB::RECORD_OK &&
+		!strncmp(get_sim_url(), settings.url, strlen(settings.url))
+	) {
 		snprintf(
 			data + strlen(data),
 			sizeof(data) - strlen(data),
@@ -197,13 +202,6 @@ void LogService::parse()
 		return;
 	}
 
-	if (settings.server_log_id < LogService::logId) {
-		settings.server_log_id = LogService::logId;
-#if LOG_SERVICE_BEDUG
-		printTagLog(LogService::TAG, "server log id updated\n");
-#endif
-	}
-
 	// Parse configuration:
 	if (!LogService::findParam(&data_ptr, var_ptr, CF_LOGID_FIELD)) {
 #if LOG_SERVICE_BEDUG
@@ -212,7 +210,6 @@ void LogService::parse()
 		return;
 	}
 	settings.server_log_id = atoi(data_ptr);
-
 
 #if LOG_SERVICE_BEDUG
 	printTagLog(LogService::TAG, "Recieved response from the server\n");
@@ -264,6 +261,19 @@ void LogService::parse()
 
 	if (LogService::findParam(&data_ptr, var_ptr, CF_CLEAR_FIELD)) {
 		if (atoi(data_ptr) == 1) LogService::clearLog();
+	}
+
+	if (LogService::findParam(&data_ptr, var_ptr, CF_URL_FIELD)) {
+		char url[CHAR_SETIINGS_SIZE] = "";
+		for (unsigned i = 0; i < __min(strlen(data_ptr), sizeof(url) - 1); i++) {
+			if (data_ptr[i] == ';' ||
+				isspace(data_ptr[i])
+			) {
+				break;
+			}
+			url[i] = data_ptr[i];
+		}
+		set_settings_url(url);
 	}
 
 	LogService::saveResponse();

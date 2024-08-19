@@ -196,3 +196,15 @@ void settings_show()
 	);
 #endif
 }
+
+void set_settings_url(const char* url)
+{
+	if (!url) {
+		return;
+	}
+	if (!strlen(url)) {
+		return;
+	}
+	memset(settings.url, 0, sizeof(settings.url));
+	strncpy(settings.url, url, __min(sizeof(settings.url) - 1, strlen(url)));
+}
