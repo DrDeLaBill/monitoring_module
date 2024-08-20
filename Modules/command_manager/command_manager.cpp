@@ -116,17 +116,15 @@ void _execute_command()
 	}
 #endif
 
+	char* value = strtok(NULL, " ");
+	
 	if (isSuccess) {
 		set_status(NEED_SAVE_SETTINGS);
-		_clear_command();
-		settings_show();
-		return;
+		goto do_end;
 	}
 
-	char* value = strtok(NULL, " ");
 	if (value == NULL) {
-		settings_show();
-		return;
+		goto do_end;
 	}
 
 	if (strncmp("setsleep", command, CHAR_COMMAND_SIZE) == 0) {
@@ -172,6 +170,7 @@ void _execute_command()
 	}
 #endif
 
+do_end:
 	settings_show();
 	pump_show_status();
 	_clear_command();

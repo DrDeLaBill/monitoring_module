@@ -90,6 +90,8 @@ void LogService::updateSleep(uint32_t time)
 
 void LogService::sendRequest()
 {
+	bool is_base_server = strncmp(get_sim_url(), settings.url, strlen(settings.url));
+
 	char data[SIM_LOG_SIZE] = {};
 	snprintf(
 		data,
@@ -99,7 +101,7 @@ void LogService::sendRequest()
 		"cf_id=%lu\n",
 		get_system_serial_str(),
 		FW_VERSION,
-		settings.cf_id
+		is_base_server ? 0 : settings.cf_id
 	);
 	if (!settings.calibrated) {
 		snprintf(
@@ -126,7 +128,7 @@ void LogService::sendRequest()
 	}
 	if (// settings.calibrated &&
 		recordStatus == RecordDB::RECORD_OK &&
-		!strncmp(get_sim_url(), settings.url, strlen(settings.url))
+		!is_base_server
 	) {
 		snprintf(
 			data + strlen(data),
