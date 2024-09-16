@@ -21,7 +21,7 @@ extern "C" {
 
 
 #ifdef DEBUG
-#   define PUMP_BEDUG (1)
+#   define PUMP_BEDUG (0)
 #endif
 
 

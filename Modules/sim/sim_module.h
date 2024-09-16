@@ -11,7 +11,7 @@ extern "C" {
 
 
 #ifdef DEBUG
-#   define SIM_MODULE_DEBUG (1)
+#   define SIM_MODULE_DEBUG (0)
 #endif
 
 

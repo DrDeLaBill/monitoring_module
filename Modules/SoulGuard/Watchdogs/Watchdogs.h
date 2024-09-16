@@ -8,7 +8,7 @@
 
 
 #ifdef DEBUG
-#   define WATCHDOG_BEDUG   (1)
+#   define WATCHDOG_BEDUG   (0)
 #endif
 
 #define WATCHDOG_TIMEOUT_MS ((uint32_t)100)

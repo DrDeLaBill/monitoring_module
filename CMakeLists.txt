@@ -63,12 +63,6 @@ message(STATUS "ASM FLAGS: ${CMAKE_ASM_FLAGS}")
 # Включаем Assembler
 enable_language(ASM)
 
-# Указываем стандарт C++ и C
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_C_STANDARD 17)
-set(CMAKE_C_STANDARD_REQUIRED ON)
-
 # Указываем исходные файлы проекта
 FILE_PATHS("./Drivers" drivers_c_paths "c")
 FILE_PATHS("./Modules" modules_c_paths "c")
