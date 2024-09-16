@@ -31,13 +31,13 @@ build:
     - mkdir debug
     - cd debug
     - ../cmake-3.26.0-linux-x86_64/bin/cmake -G"Unix Makefiles" .. -DDEBUG=1
-    - ../cmake-3.26.0-linux-x86_64/bin/cmake --build .
+    - ../cmake-3.26.0-linux-x86_64/bin/cmake --build . -- VERBOSE=1
 
     - echo "Build release"
     - mkdir ../release
     - cd ../release
     - ../cmake-3.26.0-linux-x86_64/bin/cmake -G"Unix Makefiles" ..
-    - ../cmake-3.26.0-linux-x86_64/bin/cmake --build .
+    - ../cmake-3.26.0-linux-x86_64/bin/cmake --build . -- VERBOSE=1
 
     - mkdir ../build
     - cd ..
