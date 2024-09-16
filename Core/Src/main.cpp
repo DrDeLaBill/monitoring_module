@@ -85,8 +85,9 @@ void error_loop();
 
 StorageDriver storageDriver;
 StorageAT storage(
-	eeprom_get_size() / Page::PAGE_SIZE,
-	&storageDriver
+	eeprom_get_size() / STORAGE_PAGE_SIZE,
+	&storageDriver,
+  EEPROM_PAGE_SIZE
 );
 
 char cmd_input_chr = 0;

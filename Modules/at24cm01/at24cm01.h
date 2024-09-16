@@ -17,7 +17,7 @@ extern "C" {
 #define EEPROM_PAGE_SIZE   (256)
 #define EEPROM_PAGES_COUNT (512)
 #ifdef DEBUG
-#   define EEPROM_DEBUG       (false)
+#   define EEPROM_DEBUG    (0)
 #endif
 
 
@@ -29,8 +29,8 @@ typedef enum _eeprom_status_t {
 } eeprom_status_t;
 
 
-eeprom_status_t eeprom_read(uint32_t addr, uint8_t* buf, uint32_t len);
-eeprom_status_t eeprom_write(uint32_t addr, uint8_t* buf, uint32_t len);
+eeprom_status_t eeprom_read(const uint32_t addr, uint8_t* buf, const uint32_t len);
+eeprom_status_t eeprom_write(const uint32_t addr, const uint8_t* buf, const uint32_t len);
 uint32_t        eeprom_get_size();
 
 

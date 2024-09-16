@@ -20,10 +20,10 @@
 const char EEPROM_TAG[] = "EEPR";
 
 
-eeprom_status_t eeprom_read(uint32_t addr, uint8_t* buf, uint32_t len)
+eeprom_status_t eeprom_read(const uint32_t addr, uint8_t* buf, const uint32_t len)
 {
 #if EEPROM_DEBUG
-    printTagLog(EEPROM_TAG, "eeprom read: begin (addr=%lu, length=%u)", addr, len);
+    printTagLog(EEPROM_TAG, "eeprom read: begin (addr=%lu, length=%lu)", addr, len);
 #endif
 
     if (addr + len > EEPROM_PAGES_COUNT * EEPROM_PAGE_SIZE) {
@@ -78,10 +78,10 @@ eeprom_status_t eeprom_read(uint32_t addr, uint8_t* buf, uint32_t len)
     return EEPROM_OK;
 }
 
-eeprom_status_t eeprom_write(uint32_t addr, uint8_t* buf, uint32_t len)
+eeprom_status_t eeprom_write(const uint32_t addr, const uint8_t* buf, const uint32_t len)
 {
 #if EEPROM_DEBUG
-    printTagLog(EEPROM_TAG, "eeprom write: begin (addr=%lu, length=%u)", addr, len);
+    printTagLog(EEPROM_TAG, "eeprom write: begin (addr=%lu, length=%lu)", addr, len);
 #endif
 
     if (addr + len > EEPROM_PAGES_COUNT * EEPROM_PAGE_SIZE) {
@@ -117,7 +117,7 @@ eeprom_status_t eeprom_write(uint32_t addr, uint8_t* buf, uint32_t len)
 		dev_addr,
 		(uint16_t)(addr & 0xFFFF),
 		I2C_MEMADD_SIZE_16BIT,
-		buf,
+		(uint8_t*)buf,
 		(uint16_t)len,
 		EEPROM_DELAY_MS
 	);

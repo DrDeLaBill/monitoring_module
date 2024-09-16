@@ -7,7 +7,7 @@
 #include "bmacro.h"
 #include "at24cm01.h"
 
-#include "StorageAT.h"
+#include "StorageType.h"
 
 
 #define ERROR_TIMEOUT_MS ((uint32_t)200)
@@ -19,17 +19,17 @@ utl::Timer StorageDriver::timer(ERROR_TIMEOUT_MS);
 #if STORAGE_DRIVER_USE_BUFFER
 
 bool StorageDriver::hasBuffer = false;
-uint8_t StorageDriver::bufferPage[Page::PAGE_SIZE] = {};
+uint8_t StorageDriver::bufferPage[STORAGE_PAGE_SIZE] = {};
 uint32_t StorageDriver::lastAddress = 0;
 
 #endif
 
 
-StorageStatus StorageDriver::read(uint32_t address, uint8_t *data, uint32_t len) {
+StorageStatus StorageDriver::read(const uint32_t address, uint8_t *data, const uint32_t len) {
 	if (is_error(POWER_ERROR) || is_status(MEMORY_ERROR)) {
 
 #if STORAGE_DRIVER_BEDUG
-		printTagLog(TAG, "Error power", address);
+		printTagLog(TAG, "Error power");
 #endif
 
 		return STORAGE_ERROR;
@@ -38,7 +38,7 @@ StorageStatus StorageDriver::read(uint32_t address, uint8_t *data, uint32_t len)
 
 #if STORAGE_DRIVER_USE_BUFFER
 
-	if (hasBuffer && lastAddress == address && len == Page::PAGE_SIZE) {
+	if (hasBuffer && lastAddress == address && len == STORAGE_PAGE_SIZE) {
 		memcpy(data, bufferPage, len);
 
 #	if STORAGE_DRIVER_BEDUG
@@ -83,8 +83,8 @@ StorageStatus StorageDriver::read(uint32_t address, uint8_t *data, uint32_t len)
 
 #if STORAGE_DRIVER_USE_BUFFER
 
-    if (lastAddress != address && len == Page::PAGE_SIZE) {
-    	memcpy(bufferPage, data, Page::PAGE_SIZE);
+    if (lastAddress != address && len == STORAGE_PAGE_SIZE) {
+    	memcpy(bufferPage, data, STORAGE_PAGE_SIZE);
     	lastAddress = address;
     	hasBuffer = true;
     }
@@ -101,11 +101,11 @@ StorageStatus StorageDriver::read(uint32_t address, uint8_t *data, uint32_t len)
 }
 ;
 
-StorageStatus StorageDriver::write(uint32_t address, uint8_t *data, uint32_t len) {
+StorageStatus StorageDriver::write(const uint32_t address, const uint8_t *data, const uint32_t len) {
 	if (is_error(POWER_ERROR) || is_status(MEMORY_ERROR)) {
 
 #if STORAGE_DRIVER_BEDUG
-		printTagLog(TAG, "Error power", address);
+		printTagLog(TAG, "Error power");
 #endif
 
 		return STORAGE_ERROR;
@@ -154,4 +154,9 @@ StorageStatus StorageDriver::write(uint32_t address, uint8_t *data, uint32_t len
 	hasError = false;
 	reset_status(MEMORY_WRITE_FAULT);
     return STORAGE_OK;
+}
+
+StorageStatus StorageDriver::erase(const uint32_t*, const uint32_t)
+{
+	return STORAGE_OK;
 }

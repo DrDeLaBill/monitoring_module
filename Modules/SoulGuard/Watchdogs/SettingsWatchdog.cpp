@@ -10,6 +10,7 @@
 #include "fsm_gc.h"
 #include "settings.h"
 
+#include "Timer.h"
 #include "SettingsDB.h"
 #include "CodeStopwatch.h"
 
@@ -21,15 +22,20 @@ void _stng_idle_s(void);
 void _stng_save_s(void);
 void _stng_load_s(void);
 
+void _stng_update_hash_a(void);
+
 
 #if WATCHDOG_BEDUG
 const char STNGw_TAG[] = "STGw";
 #endif
 
 
+static unsigned old_hash = 0;
+static unsigned new_hash = 0;
+
+
 FSM_GC_CREATE(stng_fsm)
 
-FSM_GC_CREATE_EVENT(stng_success_e, 0)
 FSM_GC_CREATE_EVENT(stng_saved_e,   0)
 FSM_GC_CREATE_EVENT(stng_updated_e, 0)
 
@@ -40,13 +46,13 @@ FSM_GC_CREATE_STATE(stng_load_s, _stng_load_s)
 
 FSM_GC_CREATE_TABLE(
 	stng_fsm_table,
-	{&stng_init_s, &stng_updated_e, &stng_idle_s, NULL},
+	{&stng_init_s, &stng_updated_e, &stng_idle_s, _stng_update_hash_a},
 
-	{&stng_idle_s, &stng_saved_e,   &stng_load_s, NULL},
-	{&stng_idle_s, &stng_updated_e, &stng_save_s, NULL},
+	{&stng_idle_s, &stng_saved_e,   &stng_load_s, _stng_update_hash_a},
+	{&stng_idle_s, &stng_updated_e, &stng_save_s, _stng_update_hash_a},
 
-	{&stng_load_s, &stng_updated_e, &stng_idle_s, NULL},
-	{&stng_save_s, &stng_saved_e,   &stng_idle_s, NULL}
+	{&stng_load_s, &stng_updated_e, &stng_idle_s, _stng_update_hash_a},
+	{&stng_save_s, &stng_saved_e,   &stng_idle_s, _stng_update_hash_a}
 )
 
 
@@ -172,4 +178,10 @@ void _stng_load_s(void)
 		reset_status(NEED_LOAD_SETTINGS);
 		reset_status(LOADING);
 	}
+}
+
+void _stng_update_hash_a(void)
+{
+	old_hash = util_hash((uint8_t*)&settings, sizeof(settings));
+	new_hash = old_hash;
 }

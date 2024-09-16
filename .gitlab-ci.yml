@@ -1,0 +1,70 @@
+stages:
+  - build
+  - release
+
+build:
+  stage: build
+  image: gcc
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
+  tags:
+    - build
+  script:
+    - echo "Start job (id=$CI_JOB_ID)"
+    - sha_short=$(git rev-parse --short HEAD)
+    - echo "BUILD_JOB_ID=${CI_JOB_ID}" >> variables.env
+    - echo "BUILD_SHA_SHORT=${sha_short}" >> variables.env
+    - cat variables.env
+    - wget https://cmake.org/files/v3.26/cmake-3.26.0-linux-x86_64.tar.gz 
+    - tar xzf cmake-3.26.0-linux-x86_64.tar.gz
+    - rm -rf cmake-3.26.0-linux-x86_64.tar.gz
+    - cd cmake-3.26.0-linux-x86_64
+    - apt-get install
+    - ./bin/cmake --version
+    - cd ..
+    - apt-get update --yes
+    - apt-get install --yes gcc-arm-none-eabi
+    - git submodule init
+    - git submodule update
+
+    - echo "Build debug"
+    - mkdir debug
+    - cd debug
+    - ../cmake-3.26.0-linux-x86_64/bin/cmake -G"Unix Makefiles" .. -DDEBUG=1
+    - ../cmake-3.26.0-linux-x86_64/bin/cmake --build .
+
+    - echo "Build release"
+    - mkdir ../release
+    - cd ../release
+    - ../cmake-3.26.0-linux-x86_64/bin/cmake -G"Unix Makefiles" ..
+    - ../cmake-3.26.0-linux-x86_64/bin/cmake --build .
+
+    - mkdir ../build
+    - cd ..
+    - cp ./debug/monitoring_module.bin ./build/monitoring_module-debug.bin
+    - cp ./release/monitoring_module.bin ./build/monitoring_module-release.bin
+  artifacts:
+    reports:
+      dotenv: variables.env
+    paths:
+      - build
+
+release:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  needs: 
+    - job: "build"
+      artifacts: true
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
+  script:
+    - echo "Running release for $CI_COMMIT_TAG"
+  release:
+    name: 'Release $TAG $CI_COMMIT_TAG-$BUILD_SHA_SHORT'
+    tag_name: '$CI_COMMIT_TAG'
+    description: CHANGELOG.md
+    ref: '$CI_COMMIT_SHA'
+    assets:
+      links:
+        - name: 'Binaries'
+          url: '$CI_PROJECT_URL/-/jobs/$BUILD_JOB_ID/artifacts/download?file_type=archive'

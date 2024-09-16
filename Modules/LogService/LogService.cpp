@@ -181,7 +181,7 @@ void LogService::parse()
 
 	if (!var_ptr) {
 #if LOG_SERVICE_BEDUG
-		printTagLog(LogService::TAG, "unable to parse response (no response) - [%s]\n", var_ptr);
+		printTagLog(LogService::TAG, "unable to parse response (no response)\n");
 #endif
 		return;
 	}
