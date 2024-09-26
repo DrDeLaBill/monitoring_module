@@ -9,7 +9,7 @@
 
 
 #ifdef DEBUG
-#   define SETTINGS_DB_BEDUG (0)
+#   define SETTINGS_DB_BEDUG (1)
 #endif
 
 

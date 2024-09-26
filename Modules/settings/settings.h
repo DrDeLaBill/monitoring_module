@@ -16,12 +16,12 @@ extern "C" {
 
 
 #ifdef DEBUG
-#   define SETTINGS_BEDUG (1)
+#   define SETTINGS_BEDUG (0)
 #endif
 
 
 #define DEVICE_MAJOR (2)
-#define DEVICE_MINOR (0)
+#define DEVICE_MINOR (1)
 #define DEVICE_PATCH (0)
 
 

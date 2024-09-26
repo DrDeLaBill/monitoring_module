@@ -63,16 +63,18 @@ int _write(int file, uint8_t *ptr, int len);
 #define LIQUID_LEVEL_GPIO_Port GPIOA
 #define LIQUID_PRESS1_Pin GPIO_PIN_5
 #define LIQUID_PRESS1_GPIO_Port GPIOA
+#define FLASH_SPI_CS_Pin GPIO_PIN_12
+#define FLASH_SPI_CS_GPIO_Port GPIOB
 #define SIM_RESET_Pin GPIO_PIN_8
 #define SIM_RESET_GPIO_Port GPIOA
-#define PUMP_LAMP_Pin GPIO_PIN_11
-#define PUMP_LAMP_GPIO_Port GPIOA
-#define PUMP_Pin GPIO_PIN_12
+#define PUMP_Pin GPIO_PIN_11
 #define PUMP_GPIO_Port GPIOA
-#define RED_LED_Pin GPIO_PIN_3
+#define PUMP_LAMP_Pin GPIO_PIN_12
+#define PUMP_LAMP_GPIO_Port GPIOA
+#define GREEN_LED_Pin GPIO_PIN_15
+#define GREEN_LED_GPIO_Port GPIOA
+#define RED_LED_Pin GPIO_PIN_5
 #define RED_LED_GPIO_Port GPIOB
-#define GREEN_LED_Pin GPIO_PIN_5
-#define GREEN_LED_GPIO_Port GPIOB
 #define EEPROM_SCL_Pin GPIO_PIN_6
 #define EEPROM_SCL_GPIO_Port GPIOB
 #define EEPROM_SDA_Pin GPIO_PIN_7
@@ -106,6 +108,9 @@ extern I2C_HandleTypeDef       hi2c1;
 // Watchdog
 extern IWDG_HandleTypeDef      hiwdg;
 #define DEVICE_IWDG            (hiwdg)
+// FLASH
+extern SPI_HandleTypeDef       hspi2;
+#define FLASH_SPI              (hspi2)
 
 
 /* USER CODE END Private defines */

@@ -23,6 +23,7 @@
 #include "i2c.h"
 #include "iwdg.h"
 #include "rtc.h"
+#include "spi.h"
 #include "usart.h"
 #include "gpio.h"
 
@@ -35,7 +36,6 @@
 #include "soul.h"
 #include "gutils.h"
 #include "system.h"
-#include "at24cm01.h"
 #include "settings.h"
 #include "sim_module.h"
 #include "ds1307_driver.h"
@@ -48,6 +48,12 @@
 #include "SoulGuard.h"
 #include "LogService.h"
 #include "StorageDriver.h"
+
+#ifdef EEPROM_MODE
+#   include "at24cm01.h"
+#else
+#   include "w25qxx.h"
+#endif
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -84,23 +90,29 @@ void error_loop();
 /* USER CODE BEGIN 0 */
 
 StorageDriver storageDriver;
+#ifdef EEPROM_MODE
 StorageAT storage(
 	eeprom_get_size() / STORAGE_PAGE_SIZE,
 	&storageDriver,
-  EEPROM_PAGE_SIZE
+    EEPROM_PAGE_SIZE
 );
+#else
+StorageAT* storage;
+#endif
 
 char cmd_input_chr = 0;
 char sim_input_chr = 0;
 
 SoulGuard<
 	RestartWatchdog,
-	MemoryWatchdog,
-	StackWatchdog,
-	SettingsWatchdog,
 	PowerWatchdog,
+	StackWatchdog
+> hardGuard;
+SoulGuard<
+	MemoryWatchdog,
+	SettingsWatchdog,
 	RTCWatchdog
-> soulGuard;
+> softGuard;
 
 /* USER CODE END 0 */
 
@@ -130,7 +142,27 @@ int main(void)
 
   /* USER CODE BEGIN SysInit */
   }
-#ifndef DEBUG
+#ifdef EEPROM_MODE
+#   ifndef DEBUG
+  MX_GPIO_Init();
+  MX_DMA_Init();
+  MX_I2C1_Init();
+  MX_USART1_UART_Init();
+  MX_USART3_UART_Init();
+  MX_ADC1_Init();
+  MX_IWDG_Init();
+  MX_RTC_Init();
+#   else
+  MX_GPIO_Init();
+  MX_DMA_Init();
+  MX_I2C1_Init();
+  MX_USART1_UART_Init();
+  MX_USART3_UART_Init();
+  MX_ADC1_Init();
+  MX_RTC_Init();
+#   endif
+#else
+#   ifndef DEBUG
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -142,8 +174,9 @@ int main(void)
   MX_ADC1_Init();
   MX_IWDG_Init();
   MX_RTC_Init();
+  MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
-#else
+#   else
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_I2C1_Init();
@@ -151,14 +184,11 @@ int main(void)
   MX_USART3_UART_Init();
   MX_ADC1_Init();
   MX_RTC_Init();
+  MX_SPI2_Init();
+#   endif
 #endif
 
-    utl::Timer errTimer(40 * SECOND_MS);
-
     HAL_Delay(100);
-
-    gprint("\n\n\n");
-    printTagLog(MAIN_TAG, "The device is loading");
 
 	SystemInfo();
 
@@ -174,45 +204,91 @@ int main(void)
     HAL_UART_Receive_IT(&COMMAND_UART, (uint8_t*) &cmd_input_chr, sizeof(char));
     // Sim module
     HAL_UART_Receive_IT(&SIM_MODULE_UART, (uint8_t*) &sim_input_chr, sizeof(char));
+
+    gprint("\n\n\n");
+    printTagLog(MAIN_TAG, "The device is loading");
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+    utl::Timer errTimer(40 * SECOND_MS);
 
-	system_rtc_test();
-
-    errTimer.start();
-	while (has_errors() || is_status(LOADING)) {
-		soulGuard.defend();
+    set_error(STACK_ERROR);
+	while (has_errors()) {
+		hardGuard.defend();
 
     	if (!errTimer.wait()) {
 			system_error_handler((SOUL_STATUS)get_first_error(), error_loop);
 		}
-	}
+    }
+
+#ifndef EEPROM_MODE
+    set_error(MEMORY_INIT_ERROR);
+    errTimer.start();
+    while(flash_w25qxx_init() != FLASH_OK) {
+    	if (!errTimer.wait()) {
+			system_error_handler(MEMORY_INIT_ERROR, error_loop);
+		}
+    }
+    reset_error(MEMORY_INIT_ERROR);
+
+    storage = new StorageAT(
+		flash_w25qxx_get_pages_count(),
+		&storageDriver,
+		FLASH_W25_SECTOR_SIZE
+	);
+#endif
+
+    errTimer.start();
+	while (has_errors() || is_status(LOADING)) {
+		hardGuard.defend();
+		softGuard.defend();
+
+    	if (!errTimer.wait()) {
+			system_error_handler((SOUL_STATUS)get_first_error(), error_loop);
+		}
+    }
+
+	system_rtc_test();
 
     sim_begin();
 
     system_post_load();
 
-    HAL_Delay(5000);
+    HAL_Delay(100);
 
     printTagLog(MAIN_TAG, "The device has been loaded\n");
 
 #ifdef DEBUG
-	static unsigned last_error = get_first_error();
+	unsigned last_error = get_first_error();
+
+	unsigned kFLOPScounter = 0;
+	utl::Timer kFLOPSTimer(10 * SECOND_MS);
+	kFLOPSTimer.start();
 #endif
 
 	set_status(WORKING);
 	set_status(HAS_NEW_RECORD);
 	errTimer.start();
     while (1) {
-		soulGuard.defend();
+    	hardGuard.defend();
+    	softGuard.defend();
 
 #ifdef DEBUG
 		unsigned error = get_first_error();
 		if (error && last_error != error) {
 			printTagLog(MAIN_TAG, "New error: %u", error);
 			last_error = error;
+		} else if (last_error != error) {
+			printTagLog(MAIN_TAG, "No errors");
+			last_error = error;
+		}
+
+		kFLOPScounter++;
+		if (!kFLOPSTimer.wait()) {
+			printTagLog(MAIN_TAG, "kFLOPS: %u", kFLOPScounter / (10 * SECOND_MS));
+			kFLOPScounter = 0;
+			kFLOPSTimer.start();
 		}
 #endif
 
@@ -305,7 +381,8 @@ void SystemClock_Config(void)
 
 void error_loop()
 {
-	soulGuard.defend();
+	hardGuard.defend();
+	softGuard.defend();
 }
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {

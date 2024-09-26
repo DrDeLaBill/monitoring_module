@@ -236,7 +236,6 @@ RecordDB::RecordStatus RecordDB::save()
 
     set_status(HAS_NEW_RECORD);
 
-#if RECORD_BEDUG
     printTagLog(RecordDB::TAG, "record saved on address=%08X", (unsigned int)address);
     printTagLog(
 		RecordDB::TAG,
@@ -252,7 +251,6 @@ RecordDB::RecordStatus RecordDB::save()
 		record.press_1 / 100, record.press_1 % 100
 //		record.press_2 / 100, record.press_2 % 100
 	);
-#endif
 
     return RECORD_OK;
 }
