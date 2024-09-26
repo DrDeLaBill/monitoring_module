@@ -1,0 +1,212 @@
+{
+	"info": {
+		"_postman_id": "b4399ad4-ffe9-4ba6-be0a-a8676a293471",
+		"name": "monitoring_module",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "18815220"
+	},
+	"item": [
+		{
+			"name": "get_config",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Body matches string \\\"t\\\"\", function () {\r",
+							"    pm.expect(pm.response.text()).to.include(\"t=\");\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Body matches string \\\"d_hwm\\\"\", function () {\r",
+							"    pm.expect(pm.response.text()).to.include(\"d_hwm=\");\r",
+							"});\r",
+							"\r",
+							"if (pm.request.body.raw.includes(\"\\r\\ncf_id=1\\r\\n\")) {\r",
+							"    pm.test(\"Body has configuration\", function () {\r",
+							"        pm.expect(pm.response.text()).to.include(\"cf=\");\r",
+							"    });\r",
+							"}\r",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "User-Agent",
+						"value": " monitor",
+						"type": "text"
+					},
+					{
+						"key": "Connection",
+						"value": "cloase",
+						"type": "text"
+					},
+					{
+						"key": "Accept-Charset",
+						"value": " utf-8, us-ascii",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": " text/plain",
+						"type": "text"
+					},
+					{
+						"key": "Content-Length",
+						"value": " 45",
+						"type": "text",
+						"disabled": true
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "id=FF34066E3439575043055538\r\nfw_id=2\r\ncf_id=81261372\r\nt=2023-08-02T02:21:08\r\n\r\n"
+				},
+				"url": {
+					"raw": "{{server_url}}/api/log/ep",
+					"host": [
+						"{{server_url}}"
+					],
+					"path": [
+						"api",
+						"log",
+						"ep"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "send_log",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Body matches string \\\"t\\\"\", function () {\r",
+							"    pm.expect(pm.response.text()).to.include(\"t=\");\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Body matches string \\\"d_hwm\\\"\", function () {\r",
+							"    pm.expect(pm.response.text()).to.include(\"d_hwm=\");\r",
+							"});\r",
+							"\r",
+							"if (pm.request.body.raw.includes(\"\\r\\ncf_id=1\\r\\n\")) {\r",
+							"    pm.test(\"Body matches configuration\", function () {\r",
+							"        pm.expect(pm.response.text()).to.include(\"cf=\");\r",
+							"    });\r",
+							"}\r",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "User-Agent",
+						"value": " monitor",
+						"type": "text"
+					},
+					{
+						"key": "Connection",
+						"value": " close",
+						"type": "text"
+					},
+					{
+						"key": "Accept-Charset",
+						"value": " utf-8, us-ascii",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": " text/plain",
+						"type": "text"
+					},
+					{
+						"key": "Content-Length",
+						"value": " 45",
+						"type": "text",
+						"disabled": true
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "id=FF34066E3439575043055538\r\nfw_id=2\r\ncf_id=80927949\r\nt=2024-07-18T13:07:43\r\nd=id=1;t=2024-07-18T13:07:43;level=100;press_1=100;pumpw=100;pumpd=100"
+				},
+				"url": {
+					"raw": "{{server_url}}/api/log/ep",
+					"host": [
+						"{{server_url}}"
+					],
+					"path": [
+						"api",
+						"log",
+						"ep"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "set_config",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "PUT",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\"name\":\"pwr\",\"value\":\"1\"}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{server_url}}/api/ui/devices/1/config/8",
+					"host": [
+						"{{server_url}}"
+					],
+					"path": [
+						"api",
+						"ui",
+						"devices",
+						"1",
+						"config",
+						"8"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

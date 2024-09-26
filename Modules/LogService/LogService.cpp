@@ -2,13 +2,15 @@
 
 #include "LogService.h"
 
+#include <ctype.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 
-#include "log.h"
+#include "glog.h"
 #include "pump.h"
 #include "clock.h"
+#include "system.h"
 #include "defines.h"
 #include "settings.h"
 #include "sim_module.h"
@@ -28,24 +30,25 @@ std::unique_ptr<RecordDB> LogService::nextRecord = std::make_unique<RecordDB>(0)
 bool LogService::newRecordLoaded = false;
 
 
-const char* LogService::TAG               = "LOG";
+const char* LogService::TAG                = "LOG";
 
-const char* LogService::T_DASH_FIELD      = "-";
-const char* LogService::T_TIME_FIELD      = "t";
-const char* LogService::T_COLON_FIELD     = ":";
+const char* LogService::T_DASH_FIELD       = "-";
+const char* LogService::T_TIME_FIELD       = "t";
+const char* LogService::T_COLON_FIELD      = ":";
 
-const char* LogService::TIME_FIELD        = "t";
-const char* LogService::CF_ID_FIELD       = "cf_id";
-const char* LogService::CF_DATA_FIELD     = "cf";
-const char* LogService::CF_DEV_ID_FIELD   = "id";
-const char* LogService::CF_PWR_FIELD      = "pwr";
-const char* LogService::CF_LTRMIN_FIELD   = "ltrmin";
-const char* LogService::CF_LTRMAX_FIELD   = "ltrmax";
-const char* LogService::CF_TRGT_FIELD     = "trgt";
-const char* LogService::CF_SLEEP_FIELD    = "sleep";
-const char* LogService::CF_SPEED_FIELD    = "speed";
-const char* LogService::CF_LOGID_FIELD    = "d_hwm";
-const char* LogService::CF_CLEAR_FIELD    = "clr";
+const char* LogService::TIME_FIELD         = "t";
+const char* LogService::CF_ID_FIELD        = "cf_id";
+const char* LogService::CF_DATA_FIELD      = "cf";
+const char* LogService::CF_DEV_ID_FIELD    = "id";
+const char* LogService::CF_PWR_FIELD       = "pwr";
+const char* LogService::CF_LTRMIN_FIELD    = "ltrmin";
+const char* LogService::CF_LTRMAX_FIELD    = "ltrmax";
+const char* LogService::CF_TRGT_FIELD      = "trgt";
+const char* LogService::CF_SLEEP_FIELD     = "sleep";
+const char* LogService::CF_SPEED_FIELD     = "speed";
+const char* LogService::CF_LOGID_FIELD     = "d_hwm";
+const char* LogService::CF_CLEAR_FIELD     = "clr";
+const char* LogService::CF_URL_FIELD       = "url";
 
 
 void LogService::update()
@@ -58,8 +61,8 @@ void LogService::update()
 		LogService::parse();
 	}
 
-	if (LogService::logTimer.delay != settings.sleep_time) {
-		LogService::logTimer.delay = settings.sleep_time;
+	if (logTimer.delay != settings.sleep_time) {
+		logTimer.delay = settings.sleep_time;
 	}
 
 	if (util_old_timer_wait(&LogService::logTimer)) {
@@ -87,34 +90,46 @@ void LogService::updateSleep(uint32_t time)
 
 void LogService::sendRequest()
 {
-	char data[LOG_SIZE] = {};
+	bool is_base_server = strncmp(get_sim_url(), settings.url, strlen(settings.url));
+
+	char data[SIM_LOG_SIZE] = {};
 	snprintf(
 		data,
 		sizeof(data),
-		"id=%lu\n"
-		"fw_id=%lu\n"
-		"cf_id=%lu\n"
-		"t=20%02d-%02d-%02dT%02d:%02d:%02d\n",
-		settings.id,
+		"id=%s\n"
+		"fw_id=%u\n"
+		"cf_id=%lu\n",
+		get_system_serial_str(),
 		FW_VERSION,
-		settings.cf_id,
-		clock_get_year(),
-		clock_get_month(),
-		clock_get_date(),
-		clock_get_hour(),
-		clock_get_minute(),
-		clock_get_second()
+		is_base_server ? 0 : settings.cf_id
+	);
+	if (!settings.calibrated) {
+		snprintf(
+			data + strlen(data),
+			sizeof(data) - strlen(data),
+			"adclevel=%lu\n",
+			get_level_adc()
+		);
+	}
+	snprintf(
+		data + strlen(data),
+		sizeof(data) - strlen(data),
+		"t=%s\n",
+		get_clock_time_format()
 	);
 
 	RecordDB::RecordStatus recordStatus = RecordDB::RECORD_ERROR;
-	if (!newRecordLoaded && is_new_data_saved()) {
+	if (!newRecordLoaded && is_status(HAS_NEW_RECORD)) {
 		nextRecord   = std::make_unique<RecordDB>(static_cast<uint32_t>(settings.server_log_id));
 		recordStatus = nextRecord->loadNext();
 	}
 	if (recordStatus == RecordDB::RECORD_NO_LOG) {
-		set_new_data_saved(false);
+	    reset_status(HAS_NEW_RECORD);
 	}
-	if (recordStatus == RecordDB::RECORD_OK) {
+	if (// settings.calibrated &&
+		recordStatus == RecordDB::RECORD_OK &&
+		!is_base_server
+	) {
 		snprintf(
 			data + strlen(data),
 			sizeof(data) - strlen(data),
@@ -128,7 +143,7 @@ void LogService::sendRequest()
 				"pumpd=%lu\r\n",
 			nextRecord->record.id,
 			nextRecord->record.time[0], nextRecord->record.time[1], nextRecord->record.time[2], nextRecord->record.time[3], nextRecord->record.time[4], nextRecord->record.time[5],
-			nextRecord->record.level / 1000,
+			nextRecord->record.level,
 			nextRecord->record.press_1 / 100, nextRecord->record.press_1 % 100,
 //			nextRecord->record.press_2 / 100, record.record.press_2 % 100,
 			nextRecord->record.pump_wok_time,
@@ -147,10 +162,10 @@ void LogService::sendRequest()
 
 
 #if LOG_SERVICE_BEDUG
-	printTagLog(TAG, "request: %s\n", data);
+	printTagLog(TAG, "request:\n%s\n", data);
 #endif
 
-	send_http_post(data);
+	send_sim_http_post(data);
 	util_old_timer_start(&settingsTimer, settingsDelayMs);
 	LogService::logId = nextRecord->record.id;
 }
@@ -166,7 +181,7 @@ void LogService::parse()
 
 	if (!var_ptr) {
 #if LOG_SERVICE_BEDUG
-		printTagLog(LogService::TAG, "unable to parse response (no response) - [%s]\n", var_ptr);
+		printTagLog(LogService::TAG, "unable to parse response (no response)\n");
 #endif
 		return;
 	}
@@ -189,13 +204,6 @@ void LogService::parse()
 		return;
 	}
 
-	if (settings.server_log_id < LogService::logId) {
-		settings.server_log_id = LogService::logId;
-#if LOG_SERVICE_BEDUG
-		printTagLog(LogService::TAG, "server log id updated\n");
-#endif
-	}
-
 	// Parse configuration:
 	if (!LogService::findParam(&data_ptr, var_ptr, CF_LOGID_FIELD)) {
 #if LOG_SERVICE_BEDUG
@@ -205,8 +213,9 @@ void LogService::parse()
 	}
 	settings.server_log_id = atoi(data_ptr);
 
-
+#if LOG_SERVICE_BEDUG
 	printTagLog(LogService::TAG, "Recieved response from the server\n");
+#endif
 
 	if (!LogService::findParam(&data_ptr, var_ptr, CF_ID_FIELD)) {
 #if LOG_SERVICE_BEDUG
@@ -224,12 +233,9 @@ void LogService::parse()
 
 	if (!LogService::findParam(&data_ptr, var_ptr, CF_DATA_FIELD)) {
 #if LOG_SERVICE_BEDUG
-		printTagLog(LogService::TAG, "unable to parse response (no data) - [%s]\n", var_ptr);
+		printTagLog(LogService::TAG, "warning: no cf_id data - [%s]\n", var_ptr);
 #endif
-		return;
 	}
-	data_ptr += strlen(CF_DATA_FIELD);
-	var_ptr = data_ptr;
 
 	if (LogService::findParam(&data_ptr, var_ptr, CF_PWR_FIELD)) {
 		pump_update_enable_state(atoi(data_ptr));
@@ -255,12 +261,21 @@ void LogService::parse()
 		pump_update_speed(atoi(data_ptr));
 	}
 
-	if (LogService::findParam(&data_ptr, var_ptr, CF_DEV_ID_FIELD)) {
-		settings.id = atoi(data_ptr);
-	}
-
 	if (LogService::findParam(&data_ptr, var_ptr, CF_CLEAR_FIELD)) {
 		if (atoi(data_ptr) == 1) LogService::clearLog();
+	}
+
+	if (LogService::findParam(&data_ptr, var_ptr, CF_URL_FIELD)) {
+		char url[CHAR_SETIINGS_SIZE] = "";
+		for (unsigned i = 0; i < __min(strlen(data_ptr), sizeof(url) - 1); i++) {
+			if (data_ptr[i] == ';' ||
+				isspace(data_ptr[i])
+			) {
+				break;
+			}
+			url[i] = data_ptr[i];
+		}
+		set_settings_url(url);
 	}
 
 	LogService::saveResponse();
@@ -271,7 +286,7 @@ void LogService::saveNewLog()
 	RecordDB record(0);
 //	cur_record.record.fw_id   = FW_VERSION;
 	record.record.cf_id   = settings.cf_id;
-	record.record.level   = get_liquid_level() * 1000;
+	record.record.level   = get_level();
 	record.record.press_1 = get_press();
 //	cur_record.record.press_2 = get_second_press();
 
@@ -288,7 +303,7 @@ void LogService::saveNewLog()
 	if (record.save() == RecordDB::RECORD_OK) {
 		settings.pump_work_sec = 0;
 		settings.pump_downtime_sec = 0;
-		set_settings_update_status(true);
+		set_status(NEED_SAVE_SETTINGS);
 	}
 }
 
@@ -307,13 +322,13 @@ bool LogService::findParam(char** dst, const char* src, const char* param)
 		goto do_success;
 	}
 
-	snprintf(search_param, sizeof(search_param), ";%s=", param);
+	snprintf(search_param, sizeof(search_param), "=%s=", param);
 	ptr = strnstr(src, search_param, strlen(src));
 	if (ptr) {
 		goto do_success;
 	}
 
-	snprintf(search_param, sizeof(search_param), "=%s=", param);
+	snprintf(search_param, sizeof(search_param), ";%s=", param);
 	ptr = strnstr(src, search_param, strlen(src));
 	if (ptr) {
 		goto do_success;
@@ -332,14 +347,14 @@ do_error:
 bool LogService::updateTime(char* data)
 {
 	// Parse time
-	DateTypeDef date = {};
-	TimeTypeDef time = {};
+	RTC_DateTypeDef date = {};
+	RTC_TimeTypeDef time = {};
 
 	char* data_ptr = data;
 	if (!data_ptr) {
 		return false;
 	}
-	date.Year = (uint8_t)atoi(data_ptr) % 100;
+	date.Year = (uint8_t)(atoi(data_ptr) % 100);
 
 	data_ptr = strnstr(data_ptr, T_DASH_FIELD, strlen(data_ptr));
 	if (!data_ptr) {
@@ -390,8 +405,7 @@ void LogService::clearLog()
 	settings.pump_work_sec = 0;
 	settings.pump_work_day_sec = 0;
 	settings.pump_downtime_sec = 0;
-	// TODO: clear log in EEPROM
-	set_settings_update_status(true);
+	set_status(NEED_SAVE_SETTINGS);
 }
 
 void LogService::saveResponse()
@@ -399,5 +413,5 @@ void LogService::saveResponse()
 #if LOG_SERVICE_BEDUG
 	printTagLog(LogService::TAG, "configuration updated\n");
 #endif
-	set_settings_update_status(true);
+	set_status(NEED_SAVE_SETTINGS);
 }

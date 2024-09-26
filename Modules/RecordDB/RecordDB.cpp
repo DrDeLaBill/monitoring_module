@@ -7,9 +7,11 @@
 
 #include "StorageAT.h"
 
-#include "log.h"
-#include "utils.h"
+#include "glog.h"
+#include "soul.h"
+#include "gutils.h"
 #include "settings.h"
+#include "liquid_sensor.h"
 
 
 extern StorageAT storage;
@@ -232,7 +234,7 @@ RecordDB::RecordStatus RecordDB::save()
         return RECORD_ERROR;
     }
 
-    set_new_data_saved(true);
+    set_status(HAS_NEW_RECORD);
 
 #if RECORD_BEDUG
     printTagLog(RecordDB::TAG, "record saved on address=%08X", (unsigned int)address);
@@ -241,12 +243,12 @@ RecordDB::RecordStatus RecordDB::save()
 		"\n"
 		"ID:      %lu\n"
 		"Time:    20%02u-%02u-%02uT%02u:%02u:%02u\n"
-		"Level:   %lu l\n"
+		"Level:   %ld %s\n"
 		"Press 1: %u.%02u MPa\n",
 //		"Press 2: %d.%02d MPa\n",
 		record.id,
 		record.time[0], record.time[1], record.time[2], record.time[3], record.time[4], record.time[5],
-		record.level,
+		record.level, (record.level == LEVEL_ERROR ? "" : "l"),
 		record.press_1 / 100, record.press_1 % 100
 //		record.press_2 / 100, record.press_2 % 100
 	);

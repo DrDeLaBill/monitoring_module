@@ -8,7 +8,9 @@
 #include "StorageAT.h"
 
 
-#define RECORD_BEDUG (true)
+#ifdef DEBUG
+#   define RECORD_BEDUG (0)
+#endif
 
 
 class RecordDB
@@ -44,7 +46,7 @@ private:
     static const char* RECORD_PREFIX;
     static const char* TAG;
 
-    static const uint32_t CLUST_SIZE  = ((Page::PAYLOAD_SIZE - sizeof(uint8_t)) / sizeof(struct _Record));
+    static const uint32_t CLUST_SIZE  = ((STORAGE_PAGE_PAYLOAD_SIZE - sizeof(uint8_t)) / sizeof(struct _Record));
     static const uint32_t CLUST_MAGIC = (sizeof(struct _Record));
 
     typedef struct __attribute__((packed)) _RecordClust {

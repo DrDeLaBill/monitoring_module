@@ -11,23 +11,20 @@
 #include <stdbool.h>
 #include <string.h>
 
-#include "log.h"
+#include "glog.h"
+#include "soul.h"
 #include "main.h"
 #include "clock.h"
-#include "utils.h"
+#include "gutils.h"
 #include "settings.h"
 #include "liquid_sensor.h"
-#include "pressure_sensor.h"
 #include "command_manager.h"
+#include "pressure_sensor.h"
 
 
-#define CYCLES_PER_HOUR    4
-#define MONTHS_PER_YEAR    12
-#define HOURS_PER_DAY      24
-#define SECONDS_PER_MINUTE 60
+#define CYCLES_PER_HOUR    (4)
 #define MIN_PUMP_WORK_TIME ((uint32_t)30000)
 #define PUMP_OFF_TIME_MIN  ((uint32_t)5000)
-#define MINUTES_PER_HOUR   60
 #define PUMP_WORK_PERIOD   ((uint32_t)900000)
 
 #define PUMP_LED_DISABLE_STATE_OFF_TIME ((uint32_t)6000)
@@ -72,15 +69,17 @@ void pump_init()
 
 	pump_update_enable_state(settings.pump_enabled);
 
-    if (settings.pump_target == 0) {
+#if PUMP_BEDUG
+    if (settings.pump_target_ml == 0) {
         printTagLog(PUMP_TAG, "WWARNING - pump init - no setting milliliters_per_day");
     }
     if (settings.pump_speed == 0) {
         printTagLog(PUMP_TAG, "WWARNING - pump init - no setting pump_speed");
     }
-    if (is_liquid_tank_empty()) {
+    if (is_tank_empty()) {
         printTagLog(PUMP_TAG, "WWARNING - pump init - liquid tank empty");
     }
+#endif
 }
 
 void pump_proccess()
@@ -119,26 +118,22 @@ void pump_update_enable_state(bool enabled)
 
 void pump_update_ltrmin(uint32_t ltrmin)
 {
-	ltrmin *= MILLILITERS_IN_LITER;
-
-	if (ltrmin == settings.tank_liters_min) {
+	if (ltrmin == settings.tank_ltr_min) {
 		return;
 	}
 
-	settings.tank_liters_min = ltrmin;
+	settings.tank_ltr_min = ltrmin;
 
 	pump_reset_work_state();
 }
 
 void pump_update_ltrmax(uint32_t ltrmax)
 {
-	ltrmax *= MILLILITERS_IN_LITER;
-
-	if (ltrmax == settings.tank_liters_max) {
+	if (ltrmax == settings.tank_ltr_max) {
 		return;
 	}
 
-	settings.tank_liters_max = ltrmax;
+	settings.tank_ltr_max = ltrmax;
 
 	pump_reset_work_state();
 }
@@ -147,11 +142,11 @@ void pump_update_target(uint32_t target)
 {
 	target *= MILLILITERS_IN_LITER;
 
-	if (target == settings.pump_target) {
+	if (target == settings.pump_target_ml) {
 		return;
 	}
 
-	settings.pump_target = target;
+	settings.pump_target_ml = target;
 
 	pump_reset_work_state();
 }
@@ -172,27 +167,26 @@ void pump_clear_log()
     settings.pump_work_sec = 0;
     settings.pump_work_day_sec = 0;
 	_pump_clear_state();
-	set_settings_update_status(true);
+	set_status(NEED_SAVE_SETTINGS);
 }
 
 void pump_show_status()
 {
-	int32_t liquid_val  = get_liquid_level();
-	uint16_t liquid_adc = get_liquid_adc();
+	int32_t  liquid_val = get_level();
+	uint32_t liquid_adc = get_level_adc();
 	uint16_t pressure_1 = get_press();
 
-    printTagLog(PUMP_TAG, "PUMP_STATUS: %s\n################################################", pump_state.enabled ? "ENABLED" : "DISABLED");
 
-    uint16_t used_day_liquid = settings.pump_work_day_sec * settings.pump_speed / MILLIS_IN_SECOND;
-    if (settings.pump_target == 0) {
+    uint32_t used_day_liquid = settings.pump_work_day_sec * settings.pump_speed / MILLIS_IN_SECOND;
+    if (settings.pump_target_ml == 0) {
 		printTagLog(PUMP_TAG, "Unable to calculate work time - no setting day liquid target");
 	} else if (settings.pump_speed == 0) {
 		printTagLog(PUMP_TAG, "Unable to calculate work time - no setting pump speed");
-	} else if (is_liquid_tank_empty()) {
+	} else if (is_tank_empty()) {
 		printTagLog(PUMP_TAG, "Unable to calculate work time - liquid tank empty");
 	} else if (pump_state.needed_work_time < MIN_PUMP_WORK_TIME) {
     	printTagLog(PUMP_TAG, "Unable to calculate work time - needed work time less than %lu sec; set work time 0 sec", MIN_PUMP_WORK_TIME / 1000);
-	} else if (settings.pump_target <= used_day_liquid) {
+	} else if (settings.pump_target_ml <= used_day_liquid) {
 		printTagLog(PUMP_TAG, "Unable to calculate work time - target liquid amount per day already used");
 	}
 
@@ -221,9 +215,9 @@ void pump_show_status()
     printTagLog(PUMP_TAG, "Liquid pressure: %u.%02u MPa", pressure_1 / 100, pressure_1 % 100);
 
     if (liquid_val < 0) {
-    	printTagLog(PUMP_TAG, "Tank liquid value ERR (ADC=%d)\n################################################", liquid_adc);
+    	printTagLog(PUMP_TAG, "Tank liquid value ERR (ADC=%lu)\n################################################", liquid_adc);
     } else {
-    	printTagLog(PUMP_TAG, "Tank liquid value: %ld l (ADC=%d)\n################################################", liquid_val, liquid_adc);
+    	printTagLog(PUMP_TAG, "Tank liquid value: %ld l (ADC=%lu)\n################################################", liquid_val, liquid_adc);
     }
 }
 
@@ -296,6 +290,10 @@ void _pump_clear_state()
 
 void _pump_fsm_state_enable()
 {
+	if (util_old_timer_wait(&pump_state.wait_timer)) {
+		return;
+	}
+
 	_pump_clear_state();
 	_pump_check_log_date();
 	_pump_calculate_work_time();
@@ -336,6 +334,8 @@ void _pump_fsm_state_stop()
 	}
 
 	uint32_t off_state_time = PUMP_WORK_PERIOD - work_state_time;
+	util_old_timer_start(&pump_state.wait_timer, off_state_time);
+
 	if (off_state_time < MIN_PUMP_WORK_TIME) {
 		_pump_set_state(_pump_fsm_state_enable);
 		return;
@@ -343,7 +343,6 @@ void _pump_fsm_state_stop()
 
 	printTagLog(PUMP_TAG, "PUMP OFF (%lu ms)", off_state_time);
 
-	util_old_timer_start(&pump_state.wait_timer, off_state_time);
 	HAL_GPIO_WritePin(PUMP_GPIO_Port, PUMP_Pin, GPIO_PIN_RESET);
 
     _pump_set_state(_pump_fsm_state_off);
@@ -353,11 +352,11 @@ void _pump_fsm_state_stop()
 
 void _pump_fsm_state_work()
 {
-	if (is_liquid_tank_empty()) {
+	if (is_tank_empty()) {
 		goto do_pump_stop;
 	}
 
-	if (util_old_timer_wait(&pump_state.wait_timer)) {
+	if (get_level() != LEVEL_ERROR && util_old_timer_wait(&pump_state.wait_timer)) {
 		return;
 	}
 
@@ -410,9 +409,11 @@ void _pump_log_work_time()
 	uint32_t time = work_state_time / MILLIS_IN_SECOND;
 	settings.pump_work_day_sec += time;
 	settings.pump_work_sec += time;
+#if PUMP_BEDUG
 	printTagLog(PUMP_TAG, "update work log: time added (%lu s)", time);
+#endif
 
-	set_settings_update_status(true);
+	set_status(NEED_SAVE_SETTINGS);
 }
 
 void _pump_log_downtime()
@@ -429,16 +430,20 @@ void _pump_log_downtime()
 
 	uint32_t time = __abs_dif(HAL_GetTick(), pump_state.start_time) / MILLIS_IN_SECOND;
     settings.pump_downtime_sec += time;
+#if PUMP_BEDUG
     printTagLog(PUMP_TAG, "update downtime log: time added (%ld s)", time);
+#endif
 
-	set_settings_update_status(true);
+	set_status(NEED_SAVE_SETTINGS);
 }
 
 void _pump_check_log_date()
 {
 	uint8_t cur_date = clock_get_date();
 	if (settings.pump_log_date != cur_date) {
+#if PUMP_BEDUG
 		printTagLog(PUMP_TAG, "update pump log: day counter - %u -> %u", settings.pump_log_date, cur_date);
+#endif
 		settings.pump_work_day_sec = 0;
 		settings.pump_log_date = cur_date;
 	}
@@ -448,23 +453,23 @@ void _pump_calculate_work_time()
 {
     pump_state.needed_work_time = 0;
 
-    if (settings.pump_target == 0) {
+    if (settings.pump_target_ml == 0) {
     	return;
     }
     if (settings.pump_speed == 0) {
     	return;
     }
-    if (is_liquid_tank_empty()) {
+    if (is_tank_empty()) {
     	return;
     }
 
-    uint16_t used_day_liquid = (settings.pump_work_day_sec * settings.pump_speed) / (MINUTES_PER_HOUR * SECONDS_PER_MINUTE);
-    if (settings.pump_target <= used_day_liquid) {
+    uint32_t used_day_liquid = (settings.pump_work_day_sec * settings.pump_speed) / (MINUTES_PER_HOUR * SECONDS_PER_MINUTE);
+    if (settings.pump_target_ml <= used_day_liquid) {
     	return;
     }
 
     uint32_t time_left = _get_day_sec_left();
-    uint32_t needed_ml = settings.pump_target - used_day_liquid;
+    uint32_t needed_ml = settings.pump_target_ml - used_day_liquid;
     uint32_t max_pump_ml_to_end_of_day = (settings.pump_speed * time_left) / (MINUTES_PER_HOUR * SECONDS_PER_MINUTE);
     if (needed_ml > max_pump_ml_to_end_of_day) {
         pump_state.needed_work_time = PUMP_WORK_PERIOD;
@@ -486,6 +491,6 @@ void _pump_calculate_work_time()
 uint32_t _get_day_sec_left()
 {
     return (SECONDS_PER_MINUTE - clock_get_second()) +
-           (MINUTES_PER_HOUR - clock_get_minute()) * SECONDS_PER_MINUTE +
-           (HOURS_PER_DAY - clock_get_hour()) * SECONDS_PER_MINUTE * MINUTES_PER_HOUR;
+           (MINUTES_PER_HOUR - clock_get_minute()) * (uint32_t)SECONDS_PER_MINUTE +
+           (HOURS_PER_DAY - clock_get_hour()) * (uint32_t)SECONDS_PER_MINUTE * MINUTES_PER_HOUR;
 }

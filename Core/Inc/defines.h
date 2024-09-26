@@ -20,8 +20,6 @@ extern "C" {
 #include "stm32f1xx_hal.h"
 
 // General settings
-#define FW_VERSION            ((uint32_t)2)
-#define CF_VERSION_DEFAULT    ((uint32_t)1)
 #define MILLIS_IN_SECOND      1000
 #define DEFAULT_UART_DELAY    100
 #define DEFAULT_UART_SIZE     100
@@ -29,7 +27,7 @@ extern "C" {
 #define DEFAULT_SLEEPING_TIME 900000
 #define MIN_TANK_VOLUME       3126
 #define MAX_TANK_VOLUME       75
-#define MIN_TANK_LTR          20000
+#define MIN_TANK_LTR          10000
 #define MAX_TANK_LTR          375000
 #define SETTING_VALUE_MIN     0
 #define MAX_ADC_VALUE         4095

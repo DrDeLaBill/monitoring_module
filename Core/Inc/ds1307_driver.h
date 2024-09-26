@@ -45,7 +45,7 @@ uint8_t DS1307_GetClockHalt(void);
 
 
 void DS1307_SetRegByte(uint8_t regAddr, uint8_t val);
-int8_t DS1307_GetRegByte(uint8_t regAddr);
+uint8_t DS1307_GetRegByte(uint8_t regAddr);
 
 void DS1307_SetEnableSquareWave(DS1307_SquareWaveEnable mode);
 void DS1307_SetInterruptRate(DS1307_Rate rate);

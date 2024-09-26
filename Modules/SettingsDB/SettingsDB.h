@@ -8,7 +8,9 @@
 #include "settings.h"
 
 
-#define SETTINGS_BEDUG (true)
+#ifdef DEBUG
+#   define SETTINGS_DB_BEDUG (0)
+#endif
 
 
 class SettingsDB

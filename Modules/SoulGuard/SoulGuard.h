@@ -6,7 +6,7 @@
 #include <variant>
 #include <unordered_map>
 
-#include "log.h"
+#include "glog.h"
 #include "main.h"
 #include "soul.h"
 #include "settings.h"

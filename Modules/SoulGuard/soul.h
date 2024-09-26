@@ -1,8 +1,7 @@
-/* Copyright © 2023 Georgy E. All rights reserved. */
+/* Copyright © 2024 Georgy E. All rights reserved. */
 
-#ifndef __SOUL_H
-#define __SOUL_H
-
+#ifndef _SOUL_H_
+#define _SOUL_H_
 
 #ifdef __cplusplus
 extern "C" {
@@ -12,20 +11,36 @@ extern "C" {
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "utils.h"
+#include "gutils.h"
 #include "hal_defs.h"
 
 
 typedef enum _SOUK_STATUS {
 	/* Device statuses start */
-	STATUSES_START,
+	STATUSES_START = 0,
 
-	WAIT_LOAD,
+	LOADING,
+	WORKING,
+	RCC_FAULT,
+	MEMORY_READ_FAULT,
+	MEMORY_WRITE_FAULT,
+	NEED_MEASURE,
+	NEED_STANDBY,
+	SETTINGS_INITIALIZED,
+	NEED_LOAD_SETTINGS,
+	NEED_SAVE_SETTINGS,
+	NO_SENSOR,
+	MANUAL_NEED_VALVE_UP,
+	MANUAL_NEED_VALVE_DOWN,
+	AUTO_NEED_VALVE_UP,
+	AUTO_NEED_VALVE_DOWN,
 	MODBUS_FAULT,
 	PUMP_FAULT,
 	RTC_FAULT,
-	NEED_INIT_RECORD_TMP,
-	NEED_SAVE_RECORD,
+	CAN_FAULT,
+	NO_BIGSKI,
+
+	HAS_NEW_RECORD,
 
 	/* Device statuses end */
 	STATUSES_END,
@@ -33,13 +48,34 @@ typedef enum _SOUK_STATUS {
 	/* Device errors start */
 	ERRORS_START,
 
-	SETTINGS_LOAD_ERROR,
-	INTERNAL_ERROR,
-	MEMORY_ERROR,
+	MCU_ERROR,
+	RCC_ERROR,
+	RTC_ERROR,
 	POWER_ERROR,
+	EXPECTED_MEMORY_ERROR,
+	MEMORY_ERROR,
+	MEMORY_INIT_ERROR,
 	STACK_ERROR,
-	LOAD_ERROR,
 	RAM_ERROR,
+	SD_CARD_ERROR,
+	USB_ERROR,
+	SETTINGS_LOAD_ERROR,
+	APP_MODE_ERROR,
+	PUMP_ERROR,
+	VALVE_ERROR,
+	FATFS_ERROR,
+	LOAD_ERROR,
+	I2C_ERROR,
+
+	NON_MASKABLE_INTERRUPT,
+	HARD_FAULT,
+	MEM_MANAGE,
+	BUS_FAULT,
+	USAGE_FAULT,
+
+	ASSERT_ERROR,
+	ERROR_HANDLER_CALLED,
+	INTERNAL_ERROR,
 
 	/* Device errors end */
 	ERRORS_END,
@@ -50,15 +86,20 @@ typedef enum _SOUK_STATUS {
 
 
 typedef struct _soul_t {
-	uint8_t errors[__div_up(SOUL_STATUSES_END - 1, BITS_IN_BYTE)];
+	unsigned last_err;
+	uint8_t statuses[__div_up(SOUL_STATUSES_END - 1, BITS_IN_BYTE)];
 } soul_t;
 
+
+unsigned get_last_error();
+void set_last_error(SOUL_STATUS error);
 
 bool has_errors();
 
 bool is_error(SOUL_STATUS error);
 void set_error(SOUL_STATUS error);
 void reset_error(SOUL_STATUS error);
+unsigned get_first_error();
 
 bool is_status(SOUL_STATUS status);
 void set_status(SOUL_STATUS status);
