@@ -5,7 +5,7 @@
  *      Author: DrDeLaBill
  */
 
-#include "../sim/sim_module.h"
+#include "sim_module.h"
 
 #include <stdio.h>
 #include <string.h>
