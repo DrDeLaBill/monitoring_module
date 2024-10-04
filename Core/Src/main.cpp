@@ -135,12 +135,14 @@ int main(void)
   if (is_error(RCC_ERROR)) {
 	  system_clock_hsi_config();
   } else {
+	  set_error(RCC_ERROR);
   /* USER CODE END Init */
 
   /* Configure the system clock */
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
+  	  reset_error(RCC_ERROR);
   }
 #ifdef EEPROM_MODE
 #   ifndef DEBUG
@@ -286,7 +288,7 @@ int main(void)
 
 		kFLOPScounter++;
 		if (!kFLOPSTimer.wait()) {
-			printTagLog(MAIN_TAG, "kFLOPS: %u", kFLOPScounter / (10 * SECOND_MS));
+			printTagLog(MAIN_TAG, "kFLOPS: %u.%u", kFLOPScounter / (10 * SECOND_MS), kFLOPScounter % (10 * SECOND_MS) / SECOND_MS);
 			kFLOPScounter = 0;
 			kFLOPSTimer.start();
 		}
@@ -295,6 +297,9 @@ int main(void)
 		if (!errTimer.wait()) {
 			system_error_handler((SOUL_STATUS)get_first_error(), error_loop);
 		}
+
+        // Pump
+        pump_proccess();
 
 		if (has_errors() || is_status(LOADING)) {
 			continue;
@@ -311,9 +316,6 @@ int main(void)
 
         // Shunt sensor
         pressure_sensor_proccess();
-
-        // Pump
-        pump_proccess();
 
         // Sim module
         sim_proccess();

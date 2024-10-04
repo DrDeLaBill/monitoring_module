@@ -30,6 +30,7 @@
 #define PUMP_LED_DISABLE_STATE_OFF_TIME ((uint32_t)6000)
 #define PUMP_LED_DISABLE_STATE_ON_TIME  ((uint32_t)300)
 #define PUMP_LED_WORK_STATE_PERIOD      ((uint32_t)1000)
+#define PUMP_LED_OFF_STATE_PERIOD       ((uint32_t)6000)
 
 
 void _pump_set_state(void (*action) (void));
@@ -57,7 +58,7 @@ uint32_t _get_day_sec_left();
 extern settings_t settings;
 
 
-pump_state_t pump_state;
+pump_state_t pump_state = {0};
 
 
 const char* PUMP_TAG = "PUMP";
@@ -229,11 +230,9 @@ void _pump_indication_proccess()
 	}
 
 	if (pump_state.state_action == _pump_fsm_state_start || pump_state.state_action == _pump_fsm_state_work) {
-		_pump_indicate_work_state();
+		_pump_indicate_work_state(PUMP_LED_WORK_STATE_PERIOD);
 	} else {
-		HAL_GPIO_WritePin(RED_LED_GPIO_Port, RED_LED_Pin, GPIO_PIN_SET);
-		HAL_GPIO_WritePin(PUMP_LAMP_GPIO_Port, PUMP_LAMP_Pin, GPIO_PIN_SET);
-		HAL_GPIO_WritePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin, GPIO_PIN_RESET);
+		_pump_indicate_work_state(PUMP_LED_OFF_STATE_PERIOD);
 	}
 }
 
@@ -258,7 +257,7 @@ void _pump_indicate_disable_state()
 	HAL_GPIO_WritePin(PUMP_LAMP_GPIO_Port, PUMP_LAMP_Pin, state);
 }
 
-void _pump_indicate_work_state()
+void _pump_indicate_work_state(uint32_t time)
 {
 	if (util_old_timer_wait(&pump_state.indication_timer)) {
 		return;
@@ -266,7 +265,7 @@ void _pump_indicate_work_state()
 
 	GPIO_PinState state = HAL_GPIO_ReadPin(GREEN_LED_GPIO_Port, GREEN_LED_Pin);
 
-	util_old_timer_start(&pump_state.indication_timer, PUMP_LED_WORK_STATE_PERIOD);
+	util_old_timer_start(&pump_state.indication_timer, time);
 
 
 	HAL_GPIO_WritePin(RED_LED_GPIO_Port, RED_LED_Pin, state);
@@ -283,8 +282,10 @@ void _pump_set_state(void (*action) (void))
 
 void _pump_clear_state()
 {
-	memset((uint8_t*)&pump_state, 0, sizeof(pump_state));
 	pump_state.enabled = settings.pump_enabled;
+	pump_state.needed_work_time = 0;
+	pump_state.start_time = 0;
+	memset((void*)&pump_state.wait_timer, 0, sizeof(pump_state.wait_timer));
 	_pump_set_state(_pump_fsm_state_enable);
 }
 

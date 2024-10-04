@@ -247,7 +247,7 @@ RecordDB::RecordStatus RecordDB::save()
 //		"Press 2: %d.%02d MPa\n",
 		record.id,
 		record.time[0], record.time[1], record.time[2], record.time[3], record.time[4], record.time[5],
-		record.level, (record.level == LEVEL_ERROR ? "" : "l"),
+		record.level / 1000, (record.level == LEVEL_ERROR ? "" : "l"),
 		record.press_1 / 100, record.press_1 % 100
 //		record.press_2 / 100, record.press_2 % 100
 	);

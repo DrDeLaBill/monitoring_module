@@ -2,6 +2,8 @@
 
 #include "system.h"
 
+#include <stdbool.h>
+
 #include "main.h"
 #include "glog.h"
 #include "pump.h"
@@ -13,6 +15,7 @@ const char SYSTEM_TAG[] = "SYS";
 
 
 uint16_t SYSTEM_ADC_VOLTAGE[3] = {0};
+bool system_hsi_initialized = false;
 
 
 extern RTC_HandleTypeDef hrtc;
@@ -107,6 +110,8 @@ void system_clock_hsi_config(void)
 #else
 #   error "Please select your controller"
 #endif
+
+	system_hsi_initialized = true;
 }
 
 void system_rtc_test(void)
@@ -404,9 +409,32 @@ void system_error_handler(SOUL_STATUS error, void (*error_loop) (void))
 	printTagLog(SYSTEM_TAG, "system_error_handler called error=%u", error);
 #endif
 
+	if (is_error(RCC_ERROR) && !system_hsi_initialized) {
+		system_clock_hsi_config();
+	}
+
 	/* Custom events begin */
+	GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+	__HAL_RCC_GPIOA_CLK_ENABLE();
+	__HAL_RCC_GPIOB_CLK_ENABLE();
+
+	GPIO_InitStruct.Pin = RED_LED_Pin;
+	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+	HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+	GPIO_InitStruct.Pin = PUMP_LAMP_Pin|GREEN_LED_Pin;
+	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
 	HAL_GPIO_WritePin(RED_LED_GPIO_Port, RED_LED_Pin, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(PUMP_LAMP_GPIO_Port, PUMP_LAMP_Pin, GPIO_PIN_SET);
+	util_old_timer_t led_timer = {0};
 	/* Custom events end */
 
 	HAL_PWR_EnableBkUpAccess();
@@ -418,9 +446,19 @@ void system_error_handler(SOUL_STATUS error, void (*error_loop) (void))
 	util_old_timer_t timer = {0};
 	util_old_timer_start(&timer, 10000);
 	while(1) {
-		if (error_loop) {
+		if (!is_error(RCC_ERROR) && error_loop) {
 			error_loop();
 		}
+
+		/* Custom events begin */
+		if (!util_old_timer_wait(&led_timer)) {
+			util_old_timer_start(&led_timer, 300);
+			HAL_GPIO_TogglePin(PUMP_LAMP_GPIO_Port, PUMP_LAMP_Pin);
+			HAL_GPIO_TogglePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin);
+			HAL_GPIO_TogglePin(RED_LED_GPIO_Port, RED_LED_Pin);
+		}
+		/* Custom events end */
+
 
 		if (is_error(RCC_ERROR) && counter > count_max) {
 			set_error(POWER_ERROR);
@@ -455,6 +493,10 @@ void system_reset_i2c_errata(void)
 #if SYSTEM_BEDUG
 	printTagLog(SYSTEM_TAG, "RESET I2C (ERRATA)");
 #endif
+
+	if (!EEPROM_I2C.Instance) {
+		return;
+	}
 
 	HAL_I2C_DeInit(&EEPROM_I2C);
 
