@@ -216,10 +216,11 @@ void pump_show_status()
     printTagLog(PUMP_TAG, "Liquid pressure: %u.%02u MPa", pressure_1 / 100, pressure_1 % 100);
 
     if (liquid_val < 0) {
-    	printTagLog(PUMP_TAG, "Tank liquid value ERR (ADC=%lu)\n################################################", liquid_adc);
+    	printTagLog(PUMP_TAG, "Tank liquid value ERR (ADC=%lu)", liquid_adc);
     } else {
-    	printTagLog(PUMP_TAG, "Tank liquid value: %ld l (ADC=%lu)\n################################################", liquid_val, liquid_adc);
+    	printTagLog(PUMP_TAG, "Tank liquid value: %ld l (ADC=%lu)", liquid_val, liquid_adc);
     }
+    gprint("################################################\n");
 }
 
 void _pump_indication_proccess()

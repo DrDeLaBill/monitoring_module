@@ -237,20 +237,11 @@ RecordDB::RecordStatus RecordDB::save()
     set_status(HAS_NEW_RECORD);
 
     printTagLog(RecordDB::TAG, "record saved on address=%08X", (unsigned int)address);
-    printTagLog(
-		RecordDB::TAG,
-		"\n"
-		"ID:      %lu\n"
-		"Time:    20%02u-%02u-%02uT%02u:%02u:%02u\n"
-		"Level:   %ld %s\n"
-		"Press 1: %u.%02u MPa\n",
-//		"Press 2: %d.%02d MPa\n",
-		record.id,
-		record.time[0], record.time[1], record.time[2], record.time[3], record.time[4], record.time[5],
-		record.level / 1000, (record.level == LEVEL_ERROR ? "" : "l"),
-		record.press_1 / 100, record.press_1 % 100
-//		record.press_2 / 100, record.press_2 % 100
-	);
+    gprint("ID:      %lu\n",                             record.id);
+	gprint("Time:    20%02u-%02u-%02uT%02u:%02u:%02u\n", record.time[0], record.time[1], record.time[2], record.time[3], record.time[4], record.time[5]);
+	gprint("Level:   %ld %s\n",                          record.level / 1000, (record.level == LEVEL_ERROR ? "" : "l"));
+	gprint("Press 1: %u.%02u MPa\n",                     record.press_1 / 100, record.press_1 % 100);
+//	gprint("Press 2: %d.%02d MPa\n",                     record.press_2 / 100, record.press_2 % 100);
 
     return RECORD_OK;
 }

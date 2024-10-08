@@ -2,8 +2,8 @@
 
 #include "settings.h"
 
+#include <stdio.h>
 #include <string.h>
-#include <stdbool.h>
 
 #include "glog.h"
 #include "main.h"
@@ -14,7 +14,9 @@
 #include "hal_defs.h"
 
 
+#if SETTINGS_BEDUG
 static const char SETTINGS_TAG[] = "STNG";
+#endif
 
 const char defaultUrl[CHAR_SETIINGS_SIZE]  = "urv.iot.turtton.ru";
 
@@ -172,28 +174,17 @@ void settings_show()
 		settings.cf_id
 	);
 #else
-	gprint(
-		"\n####################SETTINGS####################\n"
-		"Time:             %s\n"
-		"Device ID:        %s\n"
-		"Server URL:       %s\n"
-		"Sleep time:       %lu sec\n"
-		"Target:           %lu l/d\n"
-		"Pump speed:       %lu ml/h\n"
-		"Pump work:        %lu sec\n"
-		"Pump work day:    %lu sec\n"
-		"Pump              %s\n"
-		"####################SETTINGS####################\n",
-		get_clock_time_format(),
-		get_system_serial_str(),
-		settings.url,
-		settings.sleep_time / MILLIS_IN_SECOND,
-		settings.pump_target_ml / MILLILITERS_IN_LITER,
-		settings.pump_speed,
-		settings.pump_work_sec,
-		settings.pump_work_day_sec,
-		settings.pump_enabled ? "ON" : "OFF"
-	);
+    gprint("####################SETTINGS####################\n");
+    gprint("Time:             %s\n",       get_clock_time_format());
+    gprint("Device ID:        %s\n",       get_system_serial_str());
+    gprint("Server URL:       %s\n",       settings.url);
+    gprint("Sleep time:       %lu sec\n",  settings.sleep_time / MILLIS_IN_SECOND);
+    gprint("Target:           %lu l/d\n",  settings.pump_target_ml / MILLILITERS_IN_LITER);
+    gprint("Pump speed:       %lu ml/h\n", settings.pump_speed);
+    gprint("Pump work:        %lu sec\n",  settings.pump_work_sec);
+    gprint("Pump work day:    %lu sec\n",  settings.pump_work_day_sec);
+    gprint("Pump              %s\n",       settings.pump_enabled ? "ON" : "OFF");
+    gprint("####################SETTINGS####################\n");
 #endif
 }
 

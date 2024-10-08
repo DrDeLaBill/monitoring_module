@@ -115,102 +115,100 @@ void system_clock_hsi_config(void)
 void system_rtc_test(void)
 {
 #ifndef NO_SYSTEM_RTC_TEST
-	extern RTC_HandleTypeDef hrtc;
-
 #   ifdef DEBUG
 	static const char TEST_TAG[] = "TEST";
-#   endif
 	gprint("\n\n\n");
 	printTagLog(TEST_TAG, "RTC testing in progress...");
+#   endif
 
 	RTC_DateTypeDef readDate  ={0};
 	RTC_TimeTypeDef readTime = {0};
 
-#if SYSTEM_BEDUG
+#   if SYSTEM_BEDUG
 	printPretty("Get date test: ");
-#endif
+#   endif
 	if (!clock_get_rtc_date(&readDate)) {
-#if SYSTEM_BEDUG
+#   if SYSTEM_BEDUG
 		gprint("   error\n");
-#endif
+#   endif
 		system_error_handler(RTC_ERROR, NULL);
 	}
-#if SYSTEM_BEDUG
+#   if SYSTEM_BEDUG
 	gprint("   OK\n");
 	printPretty("Get time test: ");
-#endif
+#   endif
 	if (!clock_get_rtc_time(&readTime)) {
-#if SYSTEM_BEDUG
+#   if SYSTEM_BEDUG
 		gprint("   error\n");
-#endif
+#   endif
 		system_error_handler(RTC_ERROR, NULL);
 	}
-#if SYSTEM_BEDUG
+#   if SYSTEM_BEDUG
 	gprint("   OK\n");
 	printPretty("Save date test: ");
-#endif
+#   endif
 	if (!clock_save_date(&readDate)) {
-#if SYSTEM_BEDUG
+#   if SYSTEM_BEDUG
 		gprint("  error\n");
-#endif
+#   endif
 		system_error_handler(RTC_ERROR, NULL);
 	}
-#if SYSTEM_BEDUG
+#   if SYSTEM_BEDUG
 	gprint("  OK\n");
 	printPretty("Save time test: ");
-#endif
+#   endif
 	if (!clock_save_time(&readTime)) {
-#if SYSTEM_BEDUG
+#   if SYSTEM_BEDUG
 		gprint("  error\n");
-#endif
+#   endif
 		system_error_handler(RTC_ERROR, NULL);
 	}
-#if SYSTEM_BEDUG
+#   if SYSTEM_BEDUG
 	gprint("  OK\n");
-#endif
+#   endif
 
 
 	RTC_DateTypeDef checkDate  ={0};
 	RTC_TimeTypeDef checkTime = {0};
-#if SYSTEM_BEDUG
+#   if SYSTEM_BEDUG
 	printPretty("Check date test: ");
-#endif
+#   endif
 	if (!clock_get_rtc_date(&checkDate)) {
-#if SYSTEM_BEDUG
+#   if SYSTEM_BEDUG
 		gprint(" error\n");
-#endif
+#   endif
 		system_error_handler(RTC_ERROR, NULL);
 	}
 	if (memcmp((void*)&readDate, (void*)&checkDate, sizeof(readDate))) {
-#if SYSTEM_BEDUG
+#   if SYSTEM_BEDUG
 		gprint(" error\n");
-#endif
+#   endif
 		system_error_handler(RTC_ERROR, NULL);
 	}
-#if SYSTEM_BEDUG
+#   if SYSTEM_BEDUG
 	gprint(" OK\n");
 	printPretty("Check time test: ");
-#endif
+#   endif
 	if (!clock_get_rtc_time(&checkTime)) {
-#if SYSTEM_BEDUG
+#   if SYSTEM_BEDUG
 		gprint(" error\n");
-#endif
+#   endif
 		system_error_handler(RTC_ERROR, NULL);
 	}
 	if (!IS_SAME_TIME(readTime, checkTime)) {
-#if SYSTEM_BEDUG
+#   if SYSTEM_BEDUG
 		gprint(" error\n");
-#endif
+#   endif
 		system_error_handler(RTC_ERROR, NULL);
 	}
-#if SYSTEM_BEDUG
+#   if SYSTEM_BEDUG
 	gprint(" OK\n");
-#endif
+#   endif
 
 
-#if SYSTEM_BEDUG
+#   if SYSTEM_BEDUG
 	printPretty("Weekday test\n");
-#endif
+#   endif
 	const RTC_DateTypeDef dates[] = {
 		{RTC_WEEKDAY_SATURDAY,  01, 01, 00},
 		{RTC_WEEKDAY_SUNDAY,    01, 02, 00},
@@ -222,7 +220,7 @@ void system_rtc_test(void)
 		{RTC_WEEKDAY_THURSDAY,  05, 02, 24},
 		{RTC_WEEKDAY_FRIDAY,    05, 03, 24},
 	};
-#if defined(STM32F1)
+#   if defined(STM32F1)
 	const RTC_TimeTypeDef times[] = {
 		{00, 00, 00},
 		{00, 00, 00},
@@ -234,7 +232,7 @@ void system_rtc_test(void)
 		{04, 26, 12},
 		{03, 52, 35},
 	};
-#elif defined(STM32F4)
+#   elif defined(STM32F4)
 	const RTC_TimeTypeDef times[] = {
 		{00, 00, 00, 0, 0, 0, 0, 0},
 		{00, 00, 00, 0, 0, 0, 0, 0},
@@ -246,7 +244,7 @@ void system_rtc_test(void)
 		{04, 26, 12, 0, 0, 0, 0, 0},
 		{03, 52, 35, 0, 0, 0, 0, 0},
 	};
-#endif
+#   endif
 	const uint32_t seconds[] = {
 		0,
 		86400,
@@ -260,43 +258,43 @@ void system_rtc_test(void)
 	};
 
 	for (unsigned i = 0; i < __arr_len(seconds); i++) {
-#if SYSTEM_BEDUG
+#   if SYSTEM_BEDUG
 		printPretty("[%02u]: ", i);
-#endif
+#   endif
 
 		RTC_DateTypeDef tmpDate = {0};
 		RTC_TimeTypeDef tmpTime = {0};
 		clock_seconds_to_datetime(seconds[i], &tmpDate, &tmpTime);
 		if (memcmp((void*)&tmpDate, (void*)&dates[i], sizeof(tmpDate))) {
-#if SYSTEM_BEDUG
+#   if SYSTEM_BEDUG
 			gprint("            error\n");
-#endif
+#   endif
 			system_error_handler(RTC_ERROR, NULL);
 		}
 		if (!IS_SAME_TIME(tmpTime, times[i])) {
-#if SYSTEM_BEDUG
+#   if SYSTEM_BEDUG
 			gprint("            error\n");
-#endif
+#   endif
 			system_error_handler(RTC_ERROR, NULL);
 		}
 
 		uint32_t tmpSeconds = clock_datetime_to_seconds(&dates[i], &times[i]);
 		if (tmpSeconds != seconds[i]) {
-#if SYSTEM_BEDUG
+#   if SYSTEM_BEDUG
 			gprint("            error\n");
-#endif
+#   endif
 			system_error_handler(RTC_ERROR, NULL);
 		}
 
-#if SYSTEM_BEDUG
+#   if SYSTEM_BEDUG
 		gprint("            OK\n");
-#endif
+#   endif
 	}
 
 
-#if SYSTEM_BEDUG
+#   if SYSTEM_BEDUG
 	printTagLog(TEST_TAG, "RTC testing done");
-#endif
+#   endif
 
 #endif
 }
