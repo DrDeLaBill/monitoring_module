@@ -4,10 +4,11 @@
 
 #include <stdbool.h>
 
+#ifndef NO_SYSTEM_RTC_TEST
+#   include "clock.h"
+#endif
 #include "main.h"
 #include "glog.h"
-#include "pump.h"
-#include "clock.h"
 #include "hal_defs.h"
 
 
@@ -16,9 +17,6 @@ const char SYSTEM_TAG[] = "SYS";
 
 uint16_t SYSTEM_ADC_VOLTAGE[3] = {0};
 bool system_hsi_initialized = false;
-
-
-extern RTC_HandleTypeDef hrtc;
 
 
 #ifndef IS_SAME_TIME
@@ -116,11 +114,14 @@ void system_clock_hsi_config(void)
 
 void system_rtc_test(void)
 {
-#if SYSTEM_BEDUG
+#ifndef NO_SYSTEM_RTC_TEST
+	extern RTC_HandleTypeDef hrtc;
+
+#   ifdef DEBUG
 	static const char TEST_TAG[] = "TEST";
+#   endif
 	gprint("\n\n\n");
 	printTagLog(TEST_TAG, "RTC testing in progress...");
-#endif
 
 	RTC_DateTypeDef readDate  ={0};
 	RTC_TimeTypeDef readTime = {0};
@@ -296,6 +297,8 @@ void system_rtc_test(void)
 #if SYSTEM_BEDUG
 	printTagLog(TEST_TAG, "RTC testing done");
 #endif
+
+#endif
 }
 
 void system_pre_load(void)
@@ -305,12 +308,12 @@ void system_pre_load(void)
 		while (1) {}
 	}
 
-	SET_BIT(RCC->CR, RCC_CR_HSEON_Pos);
+	__set_bit(RCC->CR, RCC_CR_HSEON_Pos);
 
 	unsigned counter = 0;
 	while (1) {
-		if (READ_BIT(RCC->CR, RCC_CR_HSERDY_Pos)) {
-			CLEAR_BIT(RCC->CR, RCC_CR_HSEON_Pos);
+		if (__get_bit(RCC->CR, RCC_CR_HSERDY_Pos)) {
+			__reset_bit(RCC->CR, RCC_CR_HSEON_Pos);
 			break;
 		}
 
@@ -346,6 +349,9 @@ void system_pre_load(void)
 
 void system_post_load(void)
 {
+	extern RTC_HandleTypeDef hrtc;
+	extern ADC_HandleTypeDef hadc1;
+
 	HAL_PWR_EnableBkUpAccess();
 	HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR1, 0);
 	HAL_PWR_DisableBkUpAccess();
@@ -355,6 +361,7 @@ void system_post_load(void)
 		printTagLog(SYSTEM_TAG, "Last reload error: %u", get_last_error());
 	}
 #endif
+
 
 #ifdef STM32F1
 	HAL_ADCEx_Calibration_Start(&hadc1);
@@ -393,6 +400,8 @@ void system_post_load(void)
 
 void system_error_handler(SOUL_STATUS error, void (*error_loop) (void))
 {
+	extern RTC_HandleTypeDef hrtc;
+
 	static bool called = false;
 	if (called) {
 		return;
@@ -490,6 +499,7 @@ uint32_t get_system_power(void)
 
 void system_reset_i2c_errata(void)
 {
+#ifndef NO_SYSTEM_I2C_RESET
 #if SYSTEM_BEDUG
 	printTagLog(SYSTEM_TAG, "RESET I2C (ERRATA)");
 #endif
@@ -515,6 +525,7 @@ void system_reset_i2c_errata(void)
 
 	GPIO_InitTypeDef GPIO_InitStructure = {0};
 	GPIO_InitStructure.Mode = GPIO_MODE_OUTPUT_OD;
+	GPIO_InitStructure.Alternate = 0;
 	GPIO_InitStructure.Pull = GPIO_PULLUP;
 	GPIO_InitStructure.Speed = GPIO_SPEED_FREQ_HIGH;
 
@@ -580,6 +591,7 @@ void system_reset_i2c_errata(void)
 	}
 
 	GPIO_InitStructure.Mode = GPIO_MODE_AF_OD;
+	GPIO_InitStructure.Alternate = GPIO_AF4_I2C1;
 
 	GPIO_InitStructure.Pin = I2C_SCL_Pin;
 	HAL_GPIO_Init(I2C_PORT, &GPIO_InitStructure);
@@ -595,6 +607,7 @@ void system_reset_i2c_errata(void)
 	EEPROM_I2C.Instance->CR1 |= 0x0001;
 
 	HAL_I2C_Init(&EEPROM_I2C);
+#endif
 }
 
 char* get_system_serial_str(void)

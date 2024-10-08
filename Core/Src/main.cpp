@@ -288,7 +288,12 @@ int main(void)
 
 		kFLOPScounter++;
 		if (!kFLOPSTimer.wait()) {
-			printTagLog(MAIN_TAG, "kFLOPS: %u.%u", kFLOPScounter / (10 * SECOND_MS), kFLOPScounter % (10 * SECOND_MS) / SECOND_MS);
+			printTagLog(
+				MAIN_TAG,
+				"kFLOPS: %u.%u",
+				kFLOPScounter / (10 * SECOND_MS),
+				(kFLOPScounter / SECOND_MS) % 10
+			);
 			kFLOPScounter = 0;
 			kFLOPSTimer.start();
 		}
