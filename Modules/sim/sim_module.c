@@ -353,8 +353,6 @@ void _sim_init_s(void)
 void _sim_start_s(void)
 {
 	memset(sim_state.response, 0, sizeof(sim_state.response));
-	sim_state.counter = 0;
-
 	_sim_send_cmd(start_cmds[sim_state.counter].request);
 	util_old_timer_start(&sim_state.timer, SIM_DELAY_MS);
 	fsm_gc_push_event(&sim_fsm, &sim_success_e);
