@@ -16,7 +16,7 @@ extern "C" {
 
 
 #ifdef DEBUG
-#   define SETTINGS_BEDUG (1)
+#   define SETTINGS_BEDUG (0)
 #endif
 
 

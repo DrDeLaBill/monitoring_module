@@ -34,32 +34,56 @@ uint8_t _get_days_in_month(uint8_t year, Months month);
 
 uint8_t clock_get_year()
 {
-	return (uint8_t)(DS1307_GetYear() % 100);
+	uint8_t year = 0;
+	if (DS1307_GetYear(&year) != DS1307_OK) {
+		year = 0;
+	}
+	return year;
 }
 
 uint8_t clock_get_month()
 {
-	return DS1307_GetMonth();
+	uint8_t month = 0;
+	if (DS1307_GetMonth(&month) != DS1307_OK) {
+		month = 0;
+	}
+	return month;
 }
 
 uint8_t clock_get_date()
 {
-	return DS1307_GetDate();
+	uint8_t date = 0;
+	if (DS1307_GetDate(&date) != DS1307_OK) {
+		date = 0;
+	}
+	return date;
 }
 
 uint8_t clock_get_hour()
 {
-	return DS1307_GetHour();
+	uint8_t hour = 0;
+	if (DS1307_GetHour(&hour) != DS1307_OK) {
+		hour = 0;
+	}
+	return hour;
 }
 
 uint8_t clock_get_minute()
 {
-	return DS1307_GetMinute();
+	uint8_t minute = 0;
+	if (DS1307_GetMinute(&minute) != DS1307_OK) {
+		minute = 0;
+	}
+	return minute;
 }
 
 uint8_t clock_get_second()
 {
-	return DS1307_GetSecond();
+	uint8_t second = 0;
+	if (DS1307_GetSecond(&second) != DS1307_OK) {
+		second = 0;
+	}
+	return second;
 }
 
 bool clock_save_time(const RTC_TimeTypeDef* time)
@@ -70,9 +94,15 @@ bool clock_save_time(const RTC_TimeTypeDef* time)
 	) {
         return false;
     }
-	DS1307_SetHour(time->Hours);
-	DS1307_SetMinute(time->Minutes);
-	DS1307_SetSecond(time->Seconds);
+	if (DS1307_SetHour(time->Hours) != DS1307_OK) {
+		return false;
+	}
+	if (DS1307_SetMinute(time->Minutes) != DS1307_OK) {
+		return false;
+	}
+	if (DS1307_SetSecond(time->Seconds) != DS1307_OK) {
+		return false;
+	}
 	return true;
 }
 
@@ -81,25 +111,49 @@ bool clock_save_date(const RTC_DateTypeDef* date)
 	if (date->Date > DAYS_PER_MONTH_MAX || date->Month > MONTHS_PER_YEAR) {
 		return false;
 	}
-	DS1307_SetYear(date->Year);
-	DS1307_SetMonth(date->Month);
-	DS1307_SetDate(date->Date);
+	if (date->Year > 24) {
+		asm("nop");
+	}
+	if (DS1307_SetYear(date->Year) != DS1307_OK) {
+		return false;
+	}
+	if (DS1307_SetMonth(date->Month) != DS1307_OK) {
+		return false;
+	}
+	if (DS1307_SetDate(date->Date) != DS1307_OK) {
+		return false;
+	}
 	return true;
 }
 
 bool clock_get_rtc_time(RTC_TimeTypeDef* time)
 {
-	time->Hours = DS1307_GetHour();
-	time->Minutes = DS1307_GetMinute();
-	time->Seconds = DS1307_GetSecond();
+	if (DS1307_GetHour(&time->Hours) != DS1307_OK) {
+		return false;
+	}
+	if (DS1307_GetMinute(&time->Minutes) != DS1307_OK) {
+		return false;
+	}
+	if (DS1307_GetSecond(&time->Seconds) != DS1307_OK) {
+		return false;
+	}
 	return true;
 }
 
 bool clock_get_rtc_date(RTC_DateTypeDef* date)
 {
-	date->Year = (uint8_t)DS1307_GetYear();
-	date->Month = DS1307_GetMonth();
-	date->Date = DS1307_GetDate();
+	if (DS1307_GetYear(&date->Year) != DS1307_OK) {
+		return false;
+	}
+	if (date->Year > 24) {
+		asm("nop");
+	}
+	if (DS1307_GetMonth(&date->Month) != DS1307_OK) {
+		return false;
+	}
+	if (DS1307_GetDate(&date->Date) != DS1307_OK) {
+		return false;
+	}
 	return true;
 }
 
@@ -206,6 +260,32 @@ char* get_clock_time_format()
 		memset((void*)&time, 0, sizeof(time));
 		return format_time;
 	}
+
+	snprintf(
+		format_time,
+		sizeof(format_time) - 1,
+		"20%02u-%02u-%02uT%02u:%02u:%02u",
+		date.Year,
+		date.Month,
+		date.Date,
+		time.Hours,
+		time.Minutes,
+		time.Seconds
+	);
+
+	return format_time;
+}
+
+char* get_clock_time_format_by_sec(uint32_t seconds)
+{
+	static char format_time[30] = "";
+	memset(format_time, '-', sizeof(format_time) - 1);
+	format_time[sizeof(format_time) - 1] = 0;
+
+	RTC_DateTypeDef date = {0};
+	RTC_TimeTypeDef time = {0};
+
+	clock_seconds_to_datetime(seconds, &date, &time);
 
 	snprintf(
 		format_time,

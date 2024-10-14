@@ -12,6 +12,12 @@ extern "C"{
 #include "stm32f1xx_hal.h"
 
 
+typedef enum _DS1307_STATUS {
+	DS1307_OK,
+	DS1307_ERROR
+} DS1307_STATUS;
+
+
 /*----------------------------------------------------------------------------*/
 #define DS1307_I2C_ADDR 	0x68
 #define DS1307_REG_SECOND 	0x00
@@ -38,38 +44,38 @@ typedef enum DS1307_SquareWaveEnable{
 	DS1307_DISABLED, DS1307_ENABLED
 } DS1307_SquareWaveEnable;
 
-void DS1307_Init();
+DS1307_STATUS DS1307_Init();
 
-void DS1307_SetClockHalt(uint8_t halt);
-uint8_t DS1307_GetClockHalt(void);
+DS1307_STATUS DS1307_SetClockHalt(uint8_t halt);
+DS1307_STATUS DS1307_GetClockHalt(uint8_t* res);
 
 
-void DS1307_SetRegByte(uint8_t regAddr, uint8_t val);
-uint8_t DS1307_GetRegByte(uint8_t regAddr);
+DS1307_STATUS DS1307_SetRegByte(uint8_t regAddr, uint8_t val);
+DS1307_STATUS DS1307_GetRegByte(uint8_t regAddr, uint8_t* res);
 
-void DS1307_SetEnableSquareWave(DS1307_SquareWaveEnable mode);
-void DS1307_SetInterruptRate(DS1307_Rate rate);
+DS1307_STATUS DS1307_SetEnableSquareWave(DS1307_SquareWaveEnable mode);
+DS1307_STATUS DS1307_SetInterruptRate(DS1307_Rate rate);
 
-uint8_t DS1307_GetDayOfWeek(void);
-uint8_t DS1307_GetDate(void);
-uint8_t DS1307_GetMonth(void);
-uint16_t DS1307_GetYear(void);
+DS1307_STATUS DS1307_GetDayOfWeek(uint8_t* res);
+DS1307_STATUS DS1307_GetDate(uint8_t* res);
+DS1307_STATUS DS1307_GetMonth(uint8_t* res);
+DS1307_STATUS DS1307_GetYear(uint8_t* res);
 
-uint8_t DS1307_GetHour(void);
-uint8_t DS1307_GetMinute(void);
-uint8_t DS1307_GetSecond(void);
-int8_t DS1307_GetTimeZoneHour(void);
-int8_t DS1307_GetTimeZoneMin(void);
+DS1307_STATUS DS1307_GetHour(uint8_t* res);
+DS1307_STATUS DS1307_GetMinute(uint8_t* res);
+DS1307_STATUS DS1307_GetSecond(uint8_t* res);
+DS1307_STATUS DS1307_GetTimeZoneHour(int8_t* res);
+DS1307_STATUS DS1307_GetTimeZoneMin(int8_t* res);
 
-void DS1307_SetDayOfWeek(uint8_t dow);
-void DS1307_SetDate(uint8_t date);
-void DS1307_SetMonth(uint8_t month);
-void DS1307_SetYear(uint16_t year);
+DS1307_STATUS DS1307_SetDayOfWeek(uint8_t dow);
+DS1307_STATUS DS1307_SetDate(uint8_t date);
+DS1307_STATUS DS1307_SetMonth(uint8_t month);
+DS1307_STATUS DS1307_SetYear(uint16_t year);
 
-void DS1307_SetHour(uint8_t hour_24mode);
-void DS1307_SetMinute(uint8_t minute);
-void DS1307_SetSecond(uint8_t second);
-void DS1307_SetTimeZone(int8_t hr, uint8_t min);
+DS1307_STATUS DS1307_SetHour(uint8_t hour_24mode);
+DS1307_STATUS DS1307_SetMinute(uint8_t minute);
+DS1307_STATUS DS1307_SetSecond(uint8_t second);
+DS1307_STATUS DS1307_SetTimeZone(int8_t hr, uint8_t min);
 
 uint8_t DS1307_DecodeBCD(uint8_t bin);
 uint8_t DS1307_EncodeBCD(uint8_t dec);

@@ -40,9 +40,8 @@ void system_clock_hsi_config(void)
 	RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
 	RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI_DIV2;
 	RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
-	if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
-	{
-		Error_Handler();
+	if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
+		return;
 	}
 
 	RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
@@ -52,16 +51,14 @@ void system_clock_hsi_config(void)
 	RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
 	RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-	if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1) != HAL_OK)
-	{
-		Error_Handler();
+	if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1) != HAL_OK) {
+		return;
 	}
 	PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_RTC|RCC_PERIPHCLK_ADC;
 	PeriphClkInit.RTCClockSelection = RCC_RTCCLKSOURCE_LSI;
 	PeriphClkInit.AdcClockSelection = RCC_ADCPCLK2_DIV6;
-	if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
-	{
-		Error_Handler();
+	if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK) {
+		return;
 	}
 #elif defined(STM32F4)
 	RCC_OscInitTypeDef RCC_OscInitStruct = {0};
@@ -87,9 +84,8 @@ void system_clock_hsi_config(void)
 	RCC_OscInitStruct.PLL.PLLN = 84;
 	RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
 	RCC_OscInitStruct.PLL.PLLQ = 4;
-	if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
-	{
-		Error_Handler();
+	if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
+		return;
 	}
 
 	/** Initializes the CPU, AHB and APB buses clocks
@@ -101,9 +97,8 @@ void system_clock_hsi_config(void)
 	RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
 	RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-	if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
-	{
-		Error_Handler();
+	if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK) {
+		return;
 	}
 #else
 #   error "Please select your controller"
@@ -303,7 +298,8 @@ void system_pre_load(void)
 {
 	if (!MCUcheck()) {
 		set_error(MCU_ERROR);
-		while (1) {}
+		system_error_handler(get_first_error(), NULL);
+		while(1) {}
 	}
 
 	__set_bit(RCC->CR, RCC_CR_HSEON_Pos);
@@ -420,6 +416,16 @@ void system_error_handler(SOUL_STATUS error, void (*error_loop) (void))
 		system_clock_hsi_config();
 	}
 
+	bool rtc_initialized = true;
+	if (!hrtc.Instance) {
+		hrtc.Instance = RTC;
+		hrtc.Init.AsynchPrediv = RTC_AUTO_1_SECOND;
+		hrtc.Init.OutPut = RTC_OUTPUTSOURCE_ALARM;
+		if (HAL_RTC_Init(&hrtc) != HAL_OK) {
+			rtc_initialized = false;
+		}
+	}
+
 	/* Custom events begin */
 	GPIO_InitTypeDef GPIO_InitStruct = {0};
 
@@ -444,9 +450,11 @@ void system_error_handler(SOUL_STATUS error, void (*error_loop) (void))
 	util_old_timer_t led_timer = {0};
 	/* Custom events end */
 
-	HAL_PWR_EnableBkUpAccess();
-	HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR1, error);
-	HAL_PWR_DisableBkUpAccess();
+	if (rtc_initialized) {
+		HAL_PWR_EnableBkUpAccess();
+		HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR1, error);
+		HAL_PWR_DisableBkUpAccess();
+	}
 
 	uint64_t counter = 0;
 	uint64_t count_max = HAL_RCC_GetHCLKFreq() * 10;
@@ -523,7 +531,7 @@ void system_reset_i2c_errata(void)
 
 	GPIO_InitTypeDef GPIO_InitStructure = {0};
 	GPIO_InitStructure.Mode = GPIO_MODE_OUTPUT_OD;
-	GPIO_InitStructure.Alternate = 0;
+//	GPIO_InitStructure.Alternate = 0;
 	GPIO_InitStructure.Pull = GPIO_PULLUP;
 	GPIO_InitStructure.Speed = GPIO_SPEED_FREQ_HIGH;
 
@@ -589,7 +597,7 @@ void system_reset_i2c_errata(void)
 	}
 
 	GPIO_InitStructure.Mode = GPIO_MODE_AF_OD;
-	GPIO_InitStructure.Alternate = GPIO_AF4_I2C1;
+//	GPIO_InitStructure.Alternate = GPIO_AF4_I2C1;
 
 	GPIO_InitStructure.Pin = I2C_SCL_Pin;
 	HAL_GPIO_Init(I2C_PORT, &GPIO_InitStructure);

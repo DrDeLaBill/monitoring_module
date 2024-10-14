@@ -241,6 +241,7 @@ int main(void)
 	);
 #endif
 
+    set_error(RTC_ERROR);
     errTimer.start();
 	while (has_errors() || is_status(LOADING)) {
 		hardGuard.defend();
@@ -290,7 +291,7 @@ int main(void)
 		if (!kFLOPSTimer.wait()) {
 			printTagLog(
 				MAIN_TAG,
-				"kFLOPS: %u.%u",
+				"kFLOPS: %lu.%lu",
 				kFLOPScounter / (10 * SECOND_MS),
 				(kFLOPScounter / SECOND_MS) % 10
 			);

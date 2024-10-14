@@ -77,9 +77,9 @@ void LogService::update()
 		return;
 	}
 
-	LogService::saveNewLog();
-
-	util_old_timer_start(&logTimer, settings.sleep_time);
+	if (LogService::saveNewLog()) {
+		util_old_timer_start(&logTimer, settings.sleep_time);
+	}
 }
 
 void LogService::updateSleep(uint32_t time)
@@ -135,14 +135,14 @@ void LogService::sendRequest()
 			sizeof(data) - strlen(data),
 			"d="
 				"id=%lu;"
-				"t=20%02d-%02d-%02dT%02d:%02d:%02d;"
+				"t=%s;"
 				"level=%ld;"
 				"press_1=%u.%02u;"
 //				"press_2=%lu.%02lu;"
 				"pumpw=%lu;"
 				"pumpd=%lu\r\n",
 			nextRecord->record.id,
-			nextRecord->record.time[0], nextRecord->record.time[1], nextRecord->record.time[2], nextRecord->record.time[3], nextRecord->record.time[4], nextRecord->record.time[5],
+			get_clock_time_format_by_sec(nextRecord->record.time),
 			nextRecord->record.level,
 			nextRecord->record.press_1 / 100, nextRecord->record.press_1 % 100,
 //			nextRecord->record.press_2 / 100, record.record.press_2 % 100,
@@ -281,21 +281,16 @@ void LogService::parse()
 	LogService::saveResponse();
 }
 
-void LogService::saveNewLog()
+bool LogService::saveNewLog()
 {
 	RecordDB record(0);
 //	cur_record.record.fw_id   = FW_VERSION;
-	record.record.cf_id   = settings.cf_id;
+//	record.record.cf_id   = settings.cf_id;
 	record.record.level   = get_level();
 	record.record.press_1 = get_press();
 //	cur_record.record.press_2 = get_second_press();
 
-	record.record.time[0] = clock_get_year() % 100;
-	record.record.time[1] = clock_get_month();
-	record.record.time[2] = clock_get_date();
-	record.record.time[3] = clock_get_hour();
-	record.record.time[4] = clock_get_minute();
-	record.record.time[5] = clock_get_second();
+	record.record.time = clock_get_timestamp();
 
 	record.record.pump_wok_time = settings.pump_work_sec;
 	record.record.pump_downtime = settings.pump_downtime_sec;
@@ -304,7 +299,10 @@ void LogService::saveNewLog()
 		settings.pump_work_sec = 0;
 		settings.pump_downtime_sec = 0;
 		set_status(NEED_SAVE_SETTINGS);
+		return true;
 	}
+
+	return false;
 }
 
 bool LogService::findParam(char** dst, const char* src, const char* param)
@@ -370,7 +368,9 @@ bool LogService::updateTime(char* data)
 	data_ptr += strlen(T_DASH_FIELD);
 	date.Date = (uint8_t)atoi(data_ptr);
 
-	clock_save_date(&date);
+	if (!clock_save_date(&date)) {
+		return false;
+	}
 
 	data_ptr = strnstr(data_ptr, T_TIME_FIELD, strlen(data_ptr));
 	if (!data_ptr) {
@@ -393,9 +393,7 @@ bool LogService::updateTime(char* data)
 	data_ptr += strlen(T_COLON_FIELD);
 	time.Seconds = (uint8_t)atoi(data_ptr);
 
-	clock_save_time(&time);
-
-	return true;
+	return clock_save_time(&time);
 }
 
 void LogService::clearLog()

@@ -13,7 +13,7 @@ extern "C" {
 #include "soul.h"
 
 //#define NO_SYSTEM_RTC_TEST
-#define NO_SYSTEM_I2C_RESET
+//#define NO_SYSTEM_I2C_RESET
 
 
 #ifdef DEBUG

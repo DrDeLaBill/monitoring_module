@@ -9,6 +9,7 @@
 
 #include "glog.h"
 #include "soul.h"
+#include "clock.h"
 #include "gutils.h"
 #include "settings.h"
 #include "liquid_sensor.h"
@@ -206,7 +207,8 @@ RecordDB::RecordStatus RecordDB::save()
         return RECORD_ERROR;
     }
 
-    this->m_clust.record_magic = CLUST_MAGIC;
+    this->m_clust.rcrd_magic = CLUST_MAGIC;
+    this->m_clust.rcrd_ver = CLUST_VERSION;
     memcpy(
 		reinterpret_cast<void*>(&(this->m_clust.records[idx])),
 		reinterpret_cast<void*>(&(this->record)),
@@ -236,11 +238,15 @@ RecordDB::RecordStatus RecordDB::save()
 
     set_status(HAS_NEW_RECORD);
 
-    printTagLog(RecordDB::TAG, "record saved on address=%08X", (unsigned int)address);
-    gprint("ID:      %lu\n",                             record.id);
-	gprint("Time:    20%02u-%02u-%02uT%02u:%02u:%02u\n", record.time[0], record.time[1], record.time[2], record.time[3], record.time[4], record.time[5]);
-	gprint("Level:   %ld %s\n",                          record.level / 1000, (record.level == LEVEL_ERROR ? "" : "l"));
-	gprint("Press 1: %u.%02u MPa\n",                     record.press_1 / 100, record.press_1 % 100);
+    printTagLog(
+		RecordDB::TAG,
+		"record saved on address=%08X",
+		(unsigned int)address
+	);
+    gprint("ID:      %lu\n",         record.id);
+	gprint("Time:    %s\n",          get_clock_time_format_by_sec(record.time));
+	gprint("Level:   %ld %s\n",      record.level / 1000, (record.level == LEVEL_ERROR ? "" : "l"));
+	gprint("Press 1: %u.%02u MPa\n", record.press_1 / 100, record.press_1 % 100);
 //	gprint("Press 2: %d.%02d MPa\n",                     record.press_2 / 100, record.press_2 % 100);
 
     return RECORD_OK;
@@ -257,10 +263,19 @@ RecordDB::RecordStatus RecordDB::loadClust(uint32_t address)
         return RECORD_ERROR;
     }
 
-    if (tmpClust.record_magic != CLUST_MAGIC) {
+    if (tmpClust.rcrd_magic != CLUST_MAGIC) {
 #if RECORD_BEDUG
-        printTagLog(RecordDB::TAG, "error record magic clust");
+        printTagLog(RecordDB::TAG, "error record clust magic");
 #endif
+        storage.clearAddress(address);
+        return RECORD_ERROR;
+    }
+
+    if (tmpClust.rcrd_ver != CLUST_VERSION) {
+#if RECORD_BEDUG
+        printTagLog(RecordDB::TAG, "error record clust version");
+#endif
+        storage.clearAddress(address);
         return RECORD_ERROR;
     }
 

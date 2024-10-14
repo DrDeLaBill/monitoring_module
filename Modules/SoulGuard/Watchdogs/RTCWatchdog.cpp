@@ -7,8 +7,10 @@
 #include "soul.h"
 #include "clock.h"
 #include "bmacro.h"
+#include "system.h"
 #include "settings.h"
 
+#include "Timer.h"
 #include "CodeStopwatch.h"
 
 
@@ -18,12 +20,30 @@ void RTCWatchdog::check()
 	utl::CodeStopwatch stopwatch("RTC", GENERAL_TIMEOUT_MS);
 #endif
 
+	static utl::Timer timer(10 * SECOND_MS);
+	if (timer.wait()) {
+		return;
+	}
+	timer.start();
+
 	RTC_DateTypeDef date = {};
 	RTC_TimeTypeDef time = {};
 
-	clock_get_rtc_date(&date);
+	if (!clock_get_rtc_date(&date)) {
+		system_reset_i2c_errata();
+		set_error(RTC_ERROR);
+		return;
+	} else {
+		reset_error(RTC_ERROR);
+	}
 
-	clock_get_rtc_time(&time);
+	if (!clock_get_rtc_time(&time)) {
+		system_reset_i2c_errata();
+		set_error(RTC_ERROR);
+		return;
+	} else {
+		reset_error(RTC_ERROR);
+	}
 
 	bool updateFlag = false;
 	if (date.Date == 0 || date.Date > 31) {
@@ -40,7 +60,13 @@ void RTCWatchdog::check()
 	}
 
 	if (updateFlag) {
-		clock_save_date(&date);
+		if (!clock_save_date(&date)) {
+			system_reset_i2c_errata();
+			set_error(RTC_ERROR);
+			return;
+		} else {
+			reset_error(RTC_ERROR);
+		}
 	}
 
 	updateFlag = false;
@@ -67,6 +93,12 @@ void RTCWatchdog::check()
 	}
 
 	if (updateFlag) {
-		clock_save_time(&time);
+		if (!clock_save_time(&time)) {
+			system_reset_i2c_errata();
+			set_error(RTC_ERROR);
+			return;
+		} else {
+			reset_error(RTC_ERROR);
+		}
 	}
 }
