@@ -26,8 +26,8 @@ void RTCWatchdog::check()
 	}
 	timer.start();
 
-	RTC_DateTypeDef date = {};
-	RTC_TimeTypeDef time = {};
+	clock_date_t date = {};
+	clock_time_t time = {};
 
 	if (!clock_get_rtc_date(&date)) {
 		system_reset_i2c_errata();

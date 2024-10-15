@@ -29,12 +29,12 @@ typedef enum _Months {
 	DECEMBER
 } Months;
 
-uint8_t _get_days_in_month(uint8_t year, Months month);
+uint8_t _get_days_in_month(uint16_t year, Months month);
 
 
-uint8_t clock_get_year()
+uint16_t clock_get_year()
 {
-	uint8_t year = 0;
+	uint16_t year = 0;
 	if (DS1307_GetYear(&year) != DS1307_OK) {
 		year = 0;
 	}
@@ -86,7 +86,7 @@ uint8_t clock_get_second()
 	return second;
 }
 
-bool clock_save_time(const RTC_TimeTypeDef* time)
+bool clock_save_time(const clock_time_t* time)
 {
     if (time->Seconds >= SECONDS_PER_MINUTE ||
 		time->Minutes >= MINUTES_PER_HOUR ||
@@ -106,15 +106,12 @@ bool clock_save_time(const RTC_TimeTypeDef* time)
 	return true;
 }
 
-bool clock_save_date(const RTC_DateTypeDef* date)
+bool clock_save_date(const clock_date_t* date)
 {
 	if (date->Date > DAYS_PER_MONTH_MAX || date->Month > MONTHS_PER_YEAR) {
 		return false;
 	}
-	if (date->Year > 24) {
-		asm("nop");
-	}
-	if (DS1307_SetYear(date->Year) != DS1307_OK) {
+	if (DS1307_SetYear((uint16_t)date->Year) != DS1307_OK) {
 		return false;
 	}
 	if (DS1307_SetMonth(date->Month) != DS1307_OK) {
@@ -126,7 +123,7 @@ bool clock_save_date(const RTC_DateTypeDef* date)
 	return true;
 }
 
-bool clock_get_rtc_time(RTC_TimeTypeDef* time)
+bool clock_get_rtc_time(clock_time_t* time)
 {
 	if (DS1307_GetHour(&time->Hours) != DS1307_OK) {
 		return false;
@@ -140,13 +137,10 @@ bool clock_get_rtc_time(RTC_TimeTypeDef* time)
 	return true;
 }
 
-bool clock_get_rtc_date(RTC_DateTypeDef* date)
+bool clock_get_rtc_date(clock_date_t* date)
 {
 	if (DS1307_GetYear(&date->Year) != DS1307_OK) {
 		return false;
-	}
-	if (date->Year > 24) {
-		asm("nop");
 	}
 	if (DS1307_GetMonth(&date->Month) != DS1307_OK) {
 		return false;
@@ -158,14 +152,15 @@ bool clock_get_rtc_date(RTC_DateTypeDef* date)
 }
 
 
-uint32_t clock_datetime_to_seconds(const RTC_DateTypeDef* date, const RTC_TimeTypeDef* time)
+uint32_t clock_datetime_to_seconds(const clock_date_t* date, const clock_time_t* time)
 {
-	uint32_t days = date->Year * DAYS_PER_YEAR;
-	if (date->Year > 0) {
-		days += (uint32_t)((date->Year - 1) / LEAP_YEAR_PERIOD) + 1;
+	uint16_t year = date->Year % 100;
+	uint32_t days = year * DAYS_PER_YEAR;
+	if (year > 0) {
+		days += (uint32_t)((year - 1) / LEAP_YEAR_PERIOD) + 1;
 	}
 	for (unsigned i = 0; i < (unsigned)(date->Month > 0 ? date->Month - 1 : 0); i++) {
-		days += _get_days_in_month(date->Year, i);
+		days += _get_days_in_month(year, i);
 	}
 	days += date->Date;
 	days -= 1;
@@ -177,8 +172,8 @@ uint32_t clock_datetime_to_seconds(const RTC_DateTypeDef* date, const RTC_TimeTy
 
 uint32_t clock_get_timestamp()
 {
-	RTC_DateTypeDef date = {0};
-	RTC_TimeTypeDef time = {0};
+	clock_date_t date = {0};
+	clock_time_t time = {0};
 
 	if (!clock_get_rtc_date(&date)) {
 #if CLOCK_BEDUG
@@ -197,10 +192,10 @@ uint32_t clock_get_timestamp()
 	return clock_datetime_to_seconds(&date, &time);
 }
 
-void clock_seconds_to_datetime(const uint32_t seconds, RTC_DateTypeDef* date, RTC_TimeTypeDef* time)
+void clock_seconds_to_datetime(const uint32_t seconds, clock_date_t* date, clock_time_t* time)
 {
-	memset(date, 0, sizeof(RTC_DateTypeDef));
-	memset(time, 0, sizeof(RTC_TimeTypeDef));
+	memset(date, 0, sizeof(clock_date_t));
+	memset(time, 0, sizeof(clock_time_t));
 
 	time->Seconds = (uint8_t)(seconds % SECONDS_PER_MINUTE);
 	uint32_t minutes = seconds / SECONDS_PER_MINUTE;
@@ -242,8 +237,8 @@ char* get_clock_time_format()
 	memset(format_time, '-', sizeof(format_time) - 1);
 	format_time[sizeof(format_time) - 1] = 0;
 
-	RTC_DateTypeDef date = {0};
-	RTC_TimeTypeDef time = {0};
+	clock_date_t date = {0};
+	clock_time_t time = {0};
 
 	if (!clock_get_rtc_date(&date)) {
 #if CLOCK_BEDUG
@@ -264,7 +259,7 @@ char* get_clock_time_format()
 	snprintf(
 		format_time,
 		sizeof(format_time) - 1,
-		"20%02u-%02u-%02uT%02u:%02u:%02u",
+		"%u-%02u-%02uT%02u:%02u:%02u",
 		date.Year,
 		date.Month,
 		date.Date,
@@ -282,8 +277,8 @@ char* get_clock_time_format_by_sec(uint32_t seconds)
 	memset(format_time, '-', sizeof(format_time) - 1);
 	format_time[sizeof(format_time) - 1] = 0;
 
-	RTC_DateTypeDef date = {0};
-	RTC_TimeTypeDef time = {0};
+	clock_date_t date = {0};
+	clock_time_t time = {0};
 
 	clock_seconds_to_datetime(seconds, &date, &time);
 
@@ -302,7 +297,7 @@ char* get_clock_time_format_by_sec(uint32_t seconds)
 	return format_time;
 }
 
-uint8_t _get_days_in_month(uint8_t year, Months month)
+uint8_t _get_days_in_month(uint16_t year, Months month)
 {
 	switch (month) {
 	case JANUARY:

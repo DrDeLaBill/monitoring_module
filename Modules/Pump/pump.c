@@ -41,7 +41,6 @@ void _pump_fsm_state_stop();
 void _pump_fsm_state_work();
 void _pump_fsm_state_check_downtime();
 void _pump_fsm_state_off();
-void _pump_fsm_state_write_log();
 
 void _pump_clear_state();
 void _pump_log_work_time();

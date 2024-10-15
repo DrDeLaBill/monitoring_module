@@ -27,7 +27,6 @@
 bool _validate_command();
 void _execute_command();
 void _clear_command();
-void _show_error();
 
 
 extern settings_t settings;

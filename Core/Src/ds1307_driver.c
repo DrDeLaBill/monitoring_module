@@ -159,7 +159,7 @@ DS1307_STATUS DS1307_GetMonth(uint8_t* res) {
  * @brief Gets the current year.
  * @return Year, 2000 to 2099.
  */
-DS1307_STATUS DS1307_GetYear(uint8_t* res) {
+DS1307_STATUS DS1307_GetYear(uint16_t* res) {
 	*res = 0;
 	uint8_t val = 0;
 	if (DS1307_GetRegByte((uint8_t)DS1307_REG_CENT, &val) != DS1307_OK) {
@@ -170,7 +170,7 @@ DS1307_STATUS DS1307_GetYear(uint8_t* res) {
 	if (DS1307_GetRegByte((uint8_t)DS1307_REG_YEAR, &val) != DS1307_OK) {
 		return DS1307_ERROR;
 	}
-	*res = DS1307_DecodeBCD(val + cen);
+	*res = (uint16_t)DS1307_DecodeBCD(val) + cen;
 	return DS1307_OK;
 }
 
@@ -227,7 +227,7 @@ DS1307_STATUS DS1307_GetTimeZoneHour(int8_t* res) {
 	if (DS1307_GetRegByte((uint8_t)DS1307_REG_UTC_HR, &val) != DS1307_OK) {
 		return DS1307_ERROR;
 	}
-	*res = val;
+	*res = (int8_t)val;
 	return DS1307_OK;
 }
 
@@ -242,7 +242,7 @@ DS1307_STATUS DS1307_GetTimeZoneMin(int8_t* res) {
 	if (DS1307_GetRegByte((uint8_t)DS1307_REG_UTC_MIN, &val) != DS1307_OK) {
 		return DS1307_ERROR;
 	}
-	*res = val;
+	*res = (int8_t)val;
 	return DS1307_OK;
 }
 

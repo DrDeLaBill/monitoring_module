@@ -74,7 +74,9 @@
 
 /* USER CODE BEGIN PV */
 
+#if defined(_DEBUG) || defined(DEBUG) || defined(GBEDUG_FORCE)
 const char MAIN_TAG[] = "MAIN";
+#endif
 
 /* USER CODE END PV */
 

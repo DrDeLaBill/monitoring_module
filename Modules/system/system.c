@@ -116,8 +116,8 @@ void system_rtc_test(void)
 	printTagLog(TEST_TAG, "RTC testing in progress...");
 #   endif
 
-	RTC_DateTypeDef readDate  ={0};
-	RTC_TimeTypeDef readTime = {0};
+	clock_date_t readDate  ={0};
+	clock_time_t readTime = {0};
 
 #   if SYSTEM_BEDUG
 	printPretty("Get date test: ");
@@ -163,8 +163,8 @@ void system_rtc_test(void)
 #   endif
 
 
-	RTC_DateTypeDef checkDate  ={0};
-	RTC_TimeTypeDef checkTime = {0};
+	clock_date_t checkDate  ={0};
+	clock_time_t checkTime = {0};
 #   if SYSTEM_BEDUG
 	printPretty("Check date test: ");
 #   endif
@@ -204,7 +204,7 @@ void system_rtc_test(void)
 #   if SYSTEM_BEDUG
 	printPretty("Weekday test\n");
 #   endif
-	const RTC_DateTypeDef dates[] = {
+	const clock_date_t dates[] = {
 		{RTC_WEEKDAY_SATURDAY,  01, 01, 00},
 		{RTC_WEEKDAY_SUNDAY,    01, 02, 00},
 		{RTC_WEEKDAY_SATURDAY,  04, 27, 24},
@@ -216,7 +216,7 @@ void system_rtc_test(void)
 		{RTC_WEEKDAY_FRIDAY,    05, 03, 24},
 	};
 #   if defined(STM32F1)
-	const RTC_TimeTypeDef times[] = {
+	const clock_time_t times[] = {
 		{00, 00, 00},
 		{00, 00, 00},
 		{03, 24, 49},
@@ -257,8 +257,8 @@ void system_rtc_test(void)
 		printPretty("[%02u]: ", i);
 #   endif
 
-		RTC_DateTypeDef tmpDate = {0};
-		RTC_TimeTypeDef tmpTime = {0};
+		clock_date_t tmpDate = {0};
+		clock_time_t tmpTime = {0};
 		clock_seconds_to_datetime(seconds[i], &tmpDate, &tmpTime);
 		if (memcmp((void*)&tmpDate, (void*)&dates[i], sizeof(tmpDate))) {
 #   if SYSTEM_BEDUG
@@ -538,62 +538,33 @@ void system_reset_i2c_errata(void)
 
 	GPIO_InitStructure.Pin = I2C_SCL_Pin;
 	HAL_GPIO_Init(GPIOB, &GPIO_InitStructure);
-	HAL_GPIO_WritePin(I2C_PORT, (uint16_t)(GPIO_InitStructure.Pin), GPIO_PIN_SET);
-
 	GPIO_InitStructure.Pin = I2C_SDA_Pin;
 	HAL_GPIO_Init(GPIOB, &GPIO_InitStructure);
-	HAL_GPIO_WritePin(I2C_PORT, (uint16_t)(GPIO_InitStructure.Pin), GPIO_PIN_SET);
 
+	typedef struct _reseter_t {
+		uint16_t      pin;
+		GPIO_PinState stat;
+	} reseter_t;
+	const uint32_t TIMEOUT_MS = 2000;
 	util_old_timer_t timer = {0};
-	util_old_timer_start(&timer, 10000);
-	while(GPIO_PIN_SET != HAL_GPIO_ReadPin(I2C_PORT, I2C_SCL_Pin)) {
-		if (!util_old_timer_wait(&timer)) {
-			system_error_handler(I2C_ERROR, NULL);
-		}
-		asm("nop");
-	}
-	util_old_timer_start(&timer, 10000);
-	while(GPIO_PIN_SET != HAL_GPIO_ReadPin(I2C_PORT, I2C_SDA_Pin)) {
-		if (!util_old_timer_wait(&timer)) {
-			system_error_handler(I2C_ERROR, NULL);
-		}
-		asm("nop");
-	}
+	reseter_t reseter[] = {
+		{I2C_SCL_Pin, GPIO_PIN_SET},
+		{I2C_SDA_Pin, GPIO_PIN_SET},
+		{I2C_SCL_Pin, GPIO_PIN_RESET},
+		{I2C_SDA_Pin, GPIO_PIN_RESET},
+		{I2C_SCL_Pin, GPIO_PIN_SET},
+		{I2C_SDA_Pin, GPIO_PIN_SET},
+	};
 
-	HAL_GPIO_WritePin(I2C_PORT, I2C_SDA_Pin, GPIO_PIN_RESET);
-	util_old_timer_start(&timer, 10000);
-	while(GPIO_PIN_RESET != HAL_GPIO_ReadPin(I2C_PORT, I2C_SDA_Pin)) {
-		if (!util_old_timer_wait(&timer)) {
-			system_error_handler(I2C_ERROR, NULL);
+	for (unsigned i = 0; i < __arr_len(reseter); i++) {
+		HAL_GPIO_WritePin(I2C_PORT, reseter[i].pin, reseter[i].stat);
+		util_old_timer_start(&timer, TIMEOUT_MS);
+		while(reseter[i].stat != HAL_GPIO_ReadPin(I2C_PORT, reseter[i].pin)) {
+			if (!util_old_timer_wait(&timer)) {
+				system_error_handler(I2C_ERROR, NULL);
+			}
+			asm("nop");
 		}
-		asm("nop");
-	}
-
-	HAL_GPIO_WritePin(I2C_PORT, I2C_SCL_Pin, GPIO_PIN_RESET);
-	util_old_timer_start(&timer, 10000);
-	while(GPIO_PIN_RESET != HAL_GPIO_ReadPin(I2C_PORT, I2C_SCL_Pin)) {
-		if (!util_old_timer_wait(&timer)) {
-			system_error_handler(I2C_ERROR, NULL);
-		}
-		asm("nop");
-	}
-
-	HAL_GPIO_WritePin(I2C_PORT, I2C_SDA_Pin, GPIO_PIN_SET);
-	util_old_timer_start(&timer, 10000);
-	while(GPIO_PIN_SET != HAL_GPIO_ReadPin(I2C_PORT, I2C_SDA_Pin)) {
-		if (!util_old_timer_wait(&timer)) {
-			system_error_handler(I2C_ERROR, NULL);
-		}
-		asm("nop");
-	}
-
-	HAL_GPIO_WritePin(I2C_PORT, I2C_SCL_Pin, GPIO_PIN_SET);
-	util_old_timer_start(&timer, 10000);
-	while(GPIO_PIN_SET != HAL_GPIO_ReadPin(I2C_PORT, I2C_SCL_Pin)) {
-		if (!util_old_timer_wait(&timer)) {
-			system_error_handler(I2C_ERROR, NULL);
-		}
-		asm("nop");
 	}
 
 	GPIO_InitStructure.Mode = GPIO_MODE_AF_OD;

@@ -59,7 +59,7 @@ DS1307_STATUS DS1307_SetInterruptRate(DS1307_Rate rate);
 DS1307_STATUS DS1307_GetDayOfWeek(uint8_t* res);
 DS1307_STATUS DS1307_GetDate(uint8_t* res);
 DS1307_STATUS DS1307_GetMonth(uint8_t* res);
-DS1307_STATUS DS1307_GetYear(uint8_t* res);
+DS1307_STATUS DS1307_GetYear(uint16_t* res);
 
 DS1307_STATUS DS1307_GetHour(uint8_t* res);
 DS1307_STATUS DS1307_GetMinute(uint8_t* res);

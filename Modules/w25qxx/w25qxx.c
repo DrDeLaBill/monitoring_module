@@ -50,7 +50,7 @@ typedef struct _flash_info_t {
 #define FLASH_W25_SR1_UNBLOCK_VALUE   ((uint8_t)0x00)
 #define FLASH_W25_SR1_BLOCK_VALUE     ((uint8_t)0x0F)
 
-#define FLASH_SPI_TIMEOUT_MS          ((uint32_t)500)
+#define FLASH_SPI_TIMEOUT_MS          ((uint32_t)100)
 #define FLASH_SPI_COMMAND_SIZE_MAX    ((uint8_t)10)
 
 
@@ -69,8 +69,8 @@ flash_status_t _flash_erase_sector(uint32_t addr);
 
 flash_status_t _flash_data_cmp(const uint32_t addr, const uint8_t* data, const uint32_t len, bool* cmp_res);
 
-flash_status_t _flash_send_data(const uint8_t* data, const uint16_t len);
-flash_status_t _flash_recieve_data(uint8_t* data, uint16_t len);
+flash_status_t _flash_send_data(const uint8_t* data, const uint32_t len);
+flash_status_t _flash_recieve_data(uint8_t* data, uint32_t len);
 void           _flash_spi_cs_set();
 void           _flash_spi_cs_reset();
 
@@ -323,27 +323,54 @@ flash_status_t flash_w25qxx_write(const uint32_t addr, const uint8_t* data, cons
 #if FLASH_BEDUG
 		printTagLog(FLASH_TAG, "flash write addr=%08lX len=%lu: ABORT (already written)", addr, len);
 #endif
-        return FLASH_OK;
+        goto do_spi_stop;
 	}
     /* Compare old flashed data END */
 
 	/* Erase data BEGIN */
 	{
 		uint32_t erase_addrs[FLASH_W25_SECTOR_SIZE / FLASH_W25_PAGE_SIZE] = {0};
+		bool     erase_need       = false;
 		unsigned erase_cnt        = 0;
 		uint32_t erase_len        = 0;
 		uint32_t erase_addr       = addr;
-		erase_addrs[erase_cnt++] = erase_addr;
 		while (erase_len < len) {
-			uint32_t erase_next_addr        = erase_addr + FLASH_W25_PAGE_SIZE;
 			uint32_t min_erase_size         = FLASH_W25_SECTOR_SIZE;
 			uint32_t erase_sector_addr      = (erase_addr / min_erase_size) * min_erase_size;
-			uint32_t erase_next_sector_addr = (erase_next_addr / min_erase_size) * min_erase_size;
+			uint32_t erase_next_sector_addr = ((erase_addr + FLASH_W25_PAGE_SIZE) / min_erase_size) * min_erase_size;
+
+		    /* Compare old exist data BEGIN */
+			_flash_spi_cs_set();
+		    bool compare_status = false;
+		    if (!erase_need) {
+		    	status = _flash_data_cmp(erase_addr, data + erase_len, FLASH_W25_PAGE_SIZE, &compare_status);
+		    }
+			if (status != FLASH_OK) {
+#if FLASH_BEDUG
+				printTagLog(FLASH_TAG, "flash write addr=%08lX len=%lu error=%u (compare data)", addr, len, status);
+#endif
+	            goto do_spi_stop;
+			}
+			_flash_spi_cs_reset();
+
+			if (compare_status) {
+				erase_need = true;
+			}
+		    /* Compare old exist data END */
+
+			/* Erase addresses in current sector BEGIN */
+			if (erase_len < len) {
+				erase_addrs[erase_cnt++] = erase_addr;
+			}
 
 			if (erase_len + FLASH_W25_PAGE_SIZE >= len ||
 				erase_sector_addr != erase_next_sector_addr
 			) {
-				status = flash_w25qxx_erase_addresses(erase_addrs, erase_cnt);
+				if (erase_need) {
+					status = flash_w25qxx_erase_addresses(erase_addrs, erase_cnt);
+				} else {
+					status = FLASH_OK;
+				}
 				if (status != FLASH_OK) {
 #if FLASH_BEDUG
 					printTagLog(
@@ -354,6 +381,7 @@ flash_status_t flash_w25qxx_write(const uint32_t addr, const uint8_t* data, cons
 						status
 					);
 #endif
+		            goto do_spi_stop;
 				}
 
 				memset(
@@ -363,23 +391,22 @@ flash_status_t flash_w25qxx_write(const uint32_t addr, const uint8_t* data, cons
 				);
 
 				if (status == FLASH_BUSY) {
-			        return status;
+		            goto do_spi_stop;
 				}
 				if (status != FLASH_OK) {
 					break;
 				}
 
-				erase_cnt = 0;
+				erase_need = false;
+				erase_cnt  = 0;
 			}
+			/* Erase addresses in current sector END */
 
-			erase_addr = erase_next_addr;
-			erase_len += FLASH_W25_PAGE_SIZE;
-			if (erase_len < len) {
-				erase_addrs[erase_cnt++] = erase_next_addr;
-			}
+			erase_addr += FLASH_W25_PAGE_SIZE;
+			erase_len  += FLASH_W25_PAGE_SIZE;
 		}
 
-		if (erase_cnt) {
+		if (erase_need && erase_cnt) {
 			status = flash_w25qxx_erase_addresses(erase_addrs, erase_cnt);
 		}
 		if (status != FLASH_OK) {
@@ -392,6 +419,7 @@ flash_status_t flash_w25qxx_write(const uint32_t addr, const uint8_t* data, cons
 				status
 			);
 #endif
+			goto do_spi_stop;
 		}
 	}
 	/* Erase data END */
@@ -436,9 +464,9 @@ flash_status_t flash_w25qxx_write(const uint32_t addr, const uint8_t* data, cons
 				cmp_res
 			);
 			printTagLog(FLASH_TAG, "Needed page:");
-			util_debug_hex_dump(data + cur_len, addr + cur_len, write_len);
+			util_debug_hex_dump(data + cur_len, addr + cur_len, (uint16_t)write_len);
 			printTagLog(FLASH_TAG, "Readed page:");
-			util_debug_hex_dump(page_buf, addr + cur_len, write_len);
+			util_debug_hex_dump(page_buf, addr + cur_len, (uint16_t)write_len);
 #endif
 			set_error(EXPECTED_MEMORY_ERROR);
 			status = FLASH_ERROR;
@@ -542,7 +570,7 @@ flash_status_t flash_w25qxx_erase_addresses(const uint32_t* addrs, const uint32_
 			for (uint32_t j = i; j < next_sector_i; j++) {
 				printTagLog(
 					FLASH_TAG,
-					"flash address=%08X (sector addr=%08lX) already empty",
+					"flash address=%08lX (sector addr=%08lX) already empty",
 					addrs[j],
 					cur_sector_addr
 				);
@@ -757,7 +785,7 @@ flash_status_t _flash_write(const uint32_t addr, const uint8_t* data, const uint
 
     spi_cmd[counter++] = FLASH_W25_CMD_PAGE_PROGRAMM;
     if (flash_info.is_24bit_address) {
-        spi_cmd[counter++] = (addr >> 24) & 0xFF;
+        spi_cmd[counter++] = (uint8_t)(addr >> 24) & 0xFF;
     }
     spi_cmd[counter++] = (addr >> 16) & 0xFF;
     spi_cmd[counter++] = (addr >> 8) & 0xFF;
@@ -899,7 +927,7 @@ flash_status_t _flash_read(uint32_t addr, uint8_t* data, uint32_t len)
     uint8_t counter = 0;
     spi_cmd[counter++] = FLASH_W25_CMD_READ;
     if (flash_info.is_24bit_address) {
-        spi_cmd[counter++] = (addr >> 24) & 0xFF;
+        spi_cmd[counter++] = (uint8_t)(addr >> 24) & 0xFF;
     }
     spi_cmd[counter++] = (addr >> 16) & 0xFF;
     spi_cmd[counter++] = (addr >> 8) & 0xFF;
@@ -1074,7 +1102,7 @@ flash_status_t _flash_erase_sector(uint32_t addr)
     uint8_t counter = 0;
     spi_cmd[counter++] = FLASH_W25_CMD_ERASE_SECTOR;
     if (flash_info.is_24bit_address) {
-        spi_cmd[counter++] = (addr >> 24) & 0xFF;
+        spi_cmd[counter++] = (uint8_t)(addr >> 24) & 0xFF;
     }
     spi_cmd[counter++] = (addr >> 16) & 0xFF;
     spi_cmd[counter++] = (addr >> 8) & 0xFF;
@@ -1188,7 +1216,7 @@ do_spi_stop:
 }
 
 
-flash_status_t _flash_send_data(const uint8_t* data, const uint16_t len)
+flash_status_t _flash_send_data(const uint8_t* data, const uint32_t len)
 {
     HAL_StatusTypeDef status = HAL_SPI_Transmit(&FLASH_SPI, (uint8_t*)data, (uint16_t)len, FLASH_SPI_TIMEOUT_MS);
 
@@ -1202,9 +1230,9 @@ flash_status_t _flash_send_data(const uint8_t* data, const uint16_t len)
     return FLASH_OK;
 }
 
-flash_status_t _flash_recieve_data(uint8_t* data, uint16_t len)
+flash_status_t _flash_recieve_data(uint8_t* data, uint32_t len)
 {
-    HAL_StatusTypeDef status =  HAL_SPI_Receive(&FLASH_SPI, data, len, FLASH_SPI_TIMEOUT_MS);
+    HAL_StatusTypeDef status =  HAL_SPI_Receive(&FLASH_SPI, data, (uint16_t)len, FLASH_SPI_TIMEOUT_MS);
 
     if (status == HAL_BUSY) {
     	return FLASH_BUSY;

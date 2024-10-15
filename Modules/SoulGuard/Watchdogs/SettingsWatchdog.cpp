@@ -31,7 +31,6 @@ const char STNGw_TAG[] = "STGw";
 
 
 static unsigned old_hash = 0;
-static unsigned new_hash = 0;
 
 
 FSM_GC_CREATE(stng_fsm)
@@ -48,8 +47,8 @@ FSM_GC_CREATE_TABLE(
 	stng_fsm_table,
 	{&stng_init_s, &stng_updated_e, &stng_idle_s, _stng_update_hash_a},
 
-	{&stng_idle_s, &stng_saved_e,   &stng_load_s, _stng_update_hash_a},
-	{&stng_idle_s, &stng_updated_e, &stng_save_s, _stng_update_hash_a},
+	{&stng_idle_s, &stng_saved_e,   &stng_load_s, NULL},
+	{&stng_idle_s, &stng_updated_e, &stng_save_s, NULL},
 
 	{&stng_load_s, &stng_updated_e, &stng_idle_s, _stng_update_hash_a},
 	{&stng_save_s, &stng_saved_e,   &stng_idle_s, _stng_update_hash_a}
@@ -143,8 +142,11 @@ void _stng_idle_s(void)
 
 void _stng_save_s(void)
 {
+	SettingsStatus status = SETTINGS_OK;
 	SettingsDB settingsDB(reinterpret_cast<uint8_t*>(&settings), settings_size());
-	SettingsStatus status = settingsDB.save();
+	if (old_hash != util_hash((uint8_t*)&settings, sizeof(settings))) {
+		status = settingsDB.save();
+	}
 	if (status == SETTINGS_OK) {
 #if WATCHDOG_BEDUG
 		printTagLog(STNGw_TAG, "state_save: event_saved");
@@ -183,5 +185,4 @@ void _stng_load_s(void)
 void _stng_update_hash_a(void)
 {
 	old_hash = util_hash((uint8_t*)&settings, sizeof(settings));
-	new_hash = old_hash;
 }

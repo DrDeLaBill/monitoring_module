@@ -23,9 +23,6 @@
 #include "liquid_sensor.h"
 
 
-#define A7670_ENABLE     (1)
-#define SIM868E_ENABLE   (0)
-
 #define SIM_MAX_ERRORS   (5)
 #define SIM_DELAY_MS     (10000)
 #define SIM_HTTP_MS      (15000)
@@ -87,20 +84,6 @@ const sim_command_t start_cmds[] = {
 	{"ATE0",        "ok"},
 	{"AT+CGMR",     "ok"},
 	{"AT+CSQ",      "ok"},
-//#if A7670_ENABLE
-//	{"AT+CPIN?",    "+cpin: ready"},
-//	{"AT+CGREG?",   "+cgreg: 0,1"},
-//	{"AT+CPSI?",    "ok"},
-//	{"AT+CGDCONT?", "ok"}
-//#elif SIM868E_ENABLE
-//	{"AT+COPS?",     "ok"},
-//	{"AT+SAPBR=2,1", "ok"},
-//	{"AT+SAPBR=3,1,\"CONTYPE\",\"GPRS\"", "ok"},
-//	{"AT+SAPBR=3,1,\"APN\",\"internet\"", "ok"},
-//	{"AT+SAPBR=1,1", "ok"}
-//#else
-//#   error "Please select your modem"
-//#endif
 };
 
 const sim_command_t sim868_cmds[] = {
@@ -108,14 +91,14 @@ const sim_command_t sim868_cmds[] = {
 	{"AT+SAPBR=2,1", "ok"},
 	{"AT+SAPBR=3,1,\"CONTYPE\",\"GPRS\"", "ok"},
 	{"AT+SAPBR=3,1,\"APN\",\"internet\"", "ok"},
-	{"AT+SAPBR=1,1", "ok"}
+	{"AT+SAPBR=1,1", "ok"},
 };
 
 const sim_command_t a7670_cmds[] = {
 	{"AT+CPIN?",    "+cpin: ready"},
 	{"AT+CGREG?",   "+cgreg: 0,1"},
 	{"AT+CPSI?",    "ok"},
-	{"AT+CGDCONT?", "ok"}
+	{"AT+CGDCONT?", "ok"},
 };
 
 
