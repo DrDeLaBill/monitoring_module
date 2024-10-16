@@ -3,9 +3,11 @@
 #include "stm32f1xx_hal.h"
 
 #include "main.h"
+#include "gutils.h"
 
 
-const char* DS_TAG = "DS13";
+static const uint32_t BEDAC0DE = 0xBEDAC0DE;
+static const char* DS_TAG = "DS13";
 
 
 /**
@@ -162,7 +164,7 @@ DS1307_STATUS DS1307_GetMonth(uint8_t* res) {
 DS1307_STATUS DS1307_GetYear(uint16_t* res) {
 	*res = 0;
 	uint8_t val = 0;
-	if (DS1307_GetRegByte((uint8_t)DS1307_REG_CENT, &val) != DS1307_OK) {
+	if (DS1307_GetRegByte((uint8_t)DS1307_REG_RAM_CENT, &val) != DS1307_OK) {
 		return DS1307_ERROR;
 	}
 	uint16_t cen = (uint16_t)val * 100;
@@ -224,7 +226,7 @@ DS1307_STATUS DS1307_GetSecond(uint8_t* res) {
 DS1307_STATUS DS1307_GetTimeZoneHour(int8_t* res) {
 	*res = 0;
 	uint8_t val = 0;
-	if (DS1307_GetRegByte((uint8_t)DS1307_REG_UTC_HR, &val) != DS1307_OK) {
+	if (DS1307_GetRegByte((uint8_t)DS1307_REG_RAM_UTC_HR, &val) != DS1307_OK) {
 		return DS1307_ERROR;
 	}
 	*res = (int8_t)val;
@@ -239,7 +241,7 @@ DS1307_STATUS DS1307_GetTimeZoneHour(int8_t* res) {
 DS1307_STATUS DS1307_GetTimeZoneMin(int8_t* res) {
 	*res = 0;
 	uint8_t val = 0;
-	if (DS1307_GetRegByte((uint8_t)DS1307_REG_UTC_MIN, &val) != DS1307_OK) {
+	if (DS1307_GetRegByte((uint8_t)DS1307_REG_RAM_UTC_MIN, &val) != DS1307_OK) {
 		return DS1307_ERROR;
 	}
 	*res = (int8_t)val;
@@ -284,7 +286,7 @@ DS1307_STATUS DS1307_SetMonth(uint8_t month) {
  * @param year Year, 2000 to 2099.
  */
 DS1307_STATUS DS1307_SetYear(uint16_t year) {
-	if (DS1307_SetRegByte((uint8_t)DS1307_REG_CENT, (uint8_t)(year / 100)) != DS1307_OK) {
+	if (DS1307_SetRegByte((uint8_t)DS1307_REG_RAM_CENT, (uint8_t)(year / 100)) != DS1307_OK) {
 		return DS1307_ERROR;
 	}
 	if (DS1307_SetRegByte((uint8_t)DS1307_REG_YEAR, DS1307_EncodeBCD((uint8_t)(year % 100))) != DS1307_OK) {
@@ -337,10 +339,49 @@ DS1307_STATUS DS1307_SetSecond(uint8_t second) {
  * @param min UTC minute offset, 0 to 59.
  */
 DS1307_STATUS DS1307_SetTimeZone(int8_t hr, uint8_t min) {
-	if (DS1307_SetRegByte((uint8_t)DS1307_REG_UTC_HR, (uint8_t)hr) != DS1307_OK) {
+	if (DS1307_SetRegByte((uint8_t)DS1307_REG_RAM_UTC_HR, (uint8_t)hr) != DS1307_OK) {
 		return DS1307_ERROR;
 	}
-	if (DS1307_SetRegByte((uint8_t)DS1307_REG_UTC_MIN, (uint8_t)min) != DS1307_OK) {
+	if (DS1307_SetRegByte((uint8_t)DS1307_REG_RAM_UTC_MIN, (uint8_t)min) != DS1307_OK) {
+		return DS1307_ERROR;
+	}
+	return DS1307_OK;
+}
+
+DS1307_STATUS DS1307_SetInitialized(uint8_t value)
+{
+	for (uint8_t i = 0; i < sizeof(BEDAC0DE); i++) {
+		if (DS1307_SetRegByte(
+				(uint8_t)DS1307_REG_RAM_RDY_BE + i,
+				(uint8_t)((BEDAC0DE >> BITS_IN_BYTE * i) & 0xFF)
+			) != DS1307_OK
+		) {
+			return DS1307_ERROR;
+		}
+	}
+	if (DS1307_SetRegByte((uint8_t)DS1307_REG_RAM_RDY, value) != DS1307_OK) {
+		return DS1307_ERROR;
+	}
+	return DS1307_OK;
+}
+
+DS1307_STATUS DS1307_GetInitialized(uint8_t* res)
+{
+	for (uint8_t i = 0; i < sizeof(BEDAC0DE); i++) {
+		uint8_t value = 0;
+		if (DS1307_GetRegByte(
+				(uint8_t)DS1307_REG_RAM_RDY_BE + i,
+				&value
+			) != DS1307_OK
+		) {
+			return DS1307_ERROR;
+		}
+		if (value != ((BEDAC0DE >> BITS_IN_BYTE * i) & 0xFF)) {
+			*res = 0;
+			return DS1307_OK;
+		}
+	}
+	if (DS1307_GetRegByte((uint8_t)DS1307_REG_RAM_RDY, res) != DS1307_OK) {
 		return DS1307_ERROR;
 	}
 	return DS1307_OK;

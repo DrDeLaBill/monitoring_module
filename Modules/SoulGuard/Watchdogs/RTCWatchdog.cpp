@@ -20,6 +20,17 @@ void RTCWatchdog::check()
 	utl::CodeStopwatch stopwatch("RTC", GENERAL_TIMEOUT_MS);
 #endif
 
+	static bool initialized = false;
+	if (!initialized) {
+		if (is_clock_ready()) {
+			initialized = true;
+			set_status(DS1307_READY);
+		} else {
+			reset_status(DS1307_READY);
+		}
+		return;
+	}
+
 	static utl::Timer timer(10 * SECOND_MS);
 	if (timer.wait()) {
 		return;
@@ -31,6 +42,7 @@ void RTCWatchdog::check()
 
 	if (!clock_get_rtc_date(&date)) {
 		system_reset_i2c_errata();
+		reset_status(DS1307_READY);
 		set_error(RTC_ERROR);
 		return;
 	} else {
@@ -39,6 +51,7 @@ void RTCWatchdog::check()
 
 	if (!clock_get_rtc_time(&time)) {
 		system_reset_i2c_errata();
+		reset_status(DS1307_READY);
 		set_error(RTC_ERROR);
 		return;
 	} else {
@@ -62,6 +75,7 @@ void RTCWatchdog::check()
 	if (updateFlag) {
 		if (!clock_save_date(&date)) {
 			system_reset_i2c_errata();
+			reset_status(DS1307_READY);
 			set_error(RTC_ERROR);
 			return;
 		} else {
@@ -95,6 +109,7 @@ void RTCWatchdog::check()
 	if (updateFlag) {
 		if (!clock_save_time(&time)) {
 			system_reset_i2c_errata();
+			reset_status(DS1307_READY);
 			set_error(RTC_ERROR);
 			return;
 		} else {

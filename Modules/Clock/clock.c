@@ -297,6 +297,20 @@ char* get_clock_time_format_by_sec(uint32_t seconds)
 	return format_time;
 }
 
+bool set_clock_ready(bool value)
+{
+	return DS1307_SetInitialized(value) == DS1307_OK;
+}
+
+bool is_clock_ready()
+{
+	uint8_t value = 0;
+	if (DS1307_GetInitialized(&value) != DS1307_OK) {
+		return false;
+	}
+	return (bool)value;
+}
+
 uint8_t _get_days_in_month(uint16_t year, Months month)
 {
 	switch (month) {

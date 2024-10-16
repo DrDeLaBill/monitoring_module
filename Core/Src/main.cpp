@@ -243,7 +243,6 @@ int main(void)
 	);
 #endif
 
-    set_error(RTC_ERROR);
     errTimer.start();
 	while (has_errors() || is_status(LOADING)) {
 		hardGuard.defend();

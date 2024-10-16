@@ -60,6 +60,8 @@ uint32_t clock_get_timestamp();
 void     clock_seconds_to_datetime(const uint32_t seconds, clock_date_t* date, clock_time_t* time);
 char*    get_clock_time_format();
 char*    get_clock_time_format_by_sec(uint32_t seconds);
+bool     set_clock_ready(bool);
+bool     is_clock_ready();
 
 
 #ifdef __cplusplus

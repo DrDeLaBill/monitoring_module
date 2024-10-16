@@ -17,6 +17,7 @@
 #include "liquid_sensor.h"
 #include "pressure_sensor.h"
 
+#include "Timer.h"
 #include "RecordDB.h"
 
 
@@ -77,6 +78,10 @@ void LogService::update()
 		return;
 	}
 
+	if (!is_status(DS1307_READY)) {
+		return;
+	}
+
 	if (LogService::saveNewLog()) {
 		util_old_timer_start(&logTimer, settings.sleep_time);
 	}
@@ -90,6 +95,12 @@ void LogService::updateSleep(uint32_t time)
 
 void LogService::sendRequest()
 {
+	static utl::Timer delayTimer(100);
+	if (delayTimer.wait()) {
+		return;
+	}
+	delayTimer.start();
+
 	bool is_base_server = strncmp(get_sim_url(), settings.url, strlen(settings.url));
 
 	char data[SIM_LOG_SIZE] = {};
@@ -156,7 +167,9 @@ void LogService::sendRequest()
 		return;
 	}
 
-	if (recordStatus == RecordDB::RECORD_OK) {
+	if (recordStatus == RecordDB::RECORD_OK &&
+		is_status(DS1307_READY)
+	) {
 		newRecordLoaded = false;
 	}
 
@@ -393,7 +406,11 @@ bool LogService::updateTime(char* data)
 	data_ptr += strlen(T_COLON_FIELD);
 	time.Seconds = (uint8_t)atoi(data_ptr);
 
-	return clock_save_time(&time);
+	if(clock_save_time(&time)) {
+		set_clock_ready(true);
+		return true;
+	}
+	return false;
 }
 
 void LogService::clearLog()

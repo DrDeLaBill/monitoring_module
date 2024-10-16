@@ -294,7 +294,7 @@ RecordDB::RecordStatus RecordDB::getNewId(uint32_t *newId)
 
     StorageStatus status = storage.find(FIND_MODE_MAX, &address, RECORD_PREFIX);
     if (status == STORAGE_NOT_FOUND) {
-        *newId = 1;
+        *newId = settings.server_log_id + 1;
 #if RECORD_BEDUG
         printTagLog(RecordDB::TAG, "max ID not found, reset max ID");
 #endif
@@ -323,7 +323,11 @@ RecordDB::RecordStatus RecordDB::getNewId(uint32_t *newId)
     	}
     }
 
-    *newId = *newId + 1;
+    if (*newId + 1 <= settings.server_log_id) {
+    	*newId = settings.server_log_id + 1;
+    } else {
+        *newId = *newId + 1;
+    }
 
 #if RECORD_BEDUG
     printTagLog(RecordDB::TAG, "new ID received from address=%08X id=%lu", (unsigned int)address, *newId);
